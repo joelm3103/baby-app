@@ -75,8 +75,12 @@ ranges and exclude deleted rows.
 **Task 4.1** `EventRepository` — the only writer. `log(childIds, type, fields…)` takes a **list** of
 child ids: Both-mode writes two rows with the same timestamp. `update`, `softDelete`, `undoDelete`,
 `startTimer`, `stopTimer`.
-**Task 4.2** `SettingsRepository` over DataStore — unit (oz/mL), selected child context
-(`Child 1`/`Child 2`/`Both`), theme override (system default).
+**Task 4.2** `SettingsRepository` over DataStore — the **three unit families** (length in/cm, weight
+lb&oz / kg, volume fl oz / ml) with Metric/Imperial/Custom presets, selected child context
+(`Child 1`/`Child 2`/`Both`), `useAdjustedAge`, and a theme override defaulting to system.
+`domain/Units.kt` is **already written and tested** (13 tests) — exact factors, `lb&oz` compound
+formatting including the 16-ounce carry, unit-appropriate stepper increments, Celsius-only
+temperature. `UnitPreferences.system` is derived, never stored.
 **Task 4.3** `Age.kt` — pure, tested: `chronologicalAge(birth, now)`, `adjustedAge(birth, weeksPre,
 now)`, formatting as `9 months, 1 week, 5 days`. Adjusted age = chronological minus weeks premature,
 **and the premature offset is per child**. Tests must cover a preemie and a full-term child.
@@ -145,10 +149,17 @@ without an APK release. The shape the owner asked for:
 - **Test**: a fake manifest newer than the bundle updates the data and the displayed date; an older or
   corrupt manifest leaves both untouched.
 
-**Task 8.3** Preterm: WHO 0–5 charts assume term birth. Confirm how many weeks premature the twins
-were. Default behaviour is the incumbent's — plot **adjusted age** on WHO charts, with the per-child toggle. Add
-INTERGROWTH-21st/Fenton only if the preterm growth *trajectory* itself is wanted; it is a second dataset
-family and a second licence to check.
+**Task 8.3** Preterm — **settled: both born prematurely.** Not a hypothetical
+path.
+
+- Default to plotting **adjusted age** on the WHO charts, toggle visible. At premature this is a large
+  correction, not a rounding detail.
+- Store gestational age **in days** (210) to keep the adjusted-age subtraction exact.
+- Their **birth** measurements were taken at premature, which the WHO 0–5 standards do not describe:
+  that belongs to **INTERGROWTH-21st newborn size for very preterm infants** (covers <33 weeks). Add
+  that dataset family for interpreting birth entries while the ongoing charts stay WHO + adjusted age.
+- Both are boys, so only the boys' tables are exercised in practice — bundle the girls' tables anyway.
+  A few hundred KB, and the app should not be structurally sexist.
 **Task 8.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
 plotting a curve. Unit tests against known published values.
 **Task 8.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
@@ -185,6 +196,9 @@ for a week before writing another line of code**.
 - **Growth is the risk.** WHO percentile curves, an LMS dataset and adjusted-age handling are more work
   than the entire Stage 1. It is staged last for that reason, not because it matters least.
 - **Trends needs data to design.** Building it before the log is full would be guessing.
+- **Units are core, not a setting.** Three families plus a Custom mix, canonical metric storage,
+  temperature always Celsius. `domain/Units.kt` is done; sheets and charts must read the preference
+  rather than hardcode oz/cm/kg anywhere.
 - **Sleep's hue is still a guess** — no sleep screen appeared in the 15 screenshots. One screenshot
   from the incumbent's sleep card would settle it.
 - **The light theme is designed, not sampled.** the owner's phone runs dark; the mirror in `Tokens.kt` is

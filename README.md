@@ -3,6 +3,9 @@
 A private baby tracker for Android, for two parents and **twin boys, the twins** (born a date set in Settings).
 No store listing, no subscription, no account tiers.
 
+**Premature at birth.** Both born prematurely — so adjusted age is a
+first-class concept throughout, not a checkbox bolted on later.
+
 **Why this exists:** the free alternative and the incumbent tracker are both good at the core job and both hostile to it — they
 change under you, gate the useful parts, and put content feeds and upsells where the three actions we
 actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
@@ -28,7 +31,8 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 8 | **Health** | Temperature, medication, vaccine |
 | 9 | **History** | 1d / 7d / 14d totals per activity |
 | 10 | **Trends** | Charts over time |
-| 11 | **Premature / adjusted age** | Per child: weeks premature + a "use adjusted age" toggle. Age shown both ways |
+| 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |
+| 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature is **always °C** |
 | 12 | **Three tabs** | Activity · History · Trends. Settings is a header icon |
 | 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
 | 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |
