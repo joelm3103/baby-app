@@ -44,6 +44,17 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+ksp {
+    // Exported schemas are committed so migrations can be tested against real versions.
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 kotlin {
@@ -71,4 +82,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    // Robolectric runs Room DAO tests on the JVM, so the DAO contract is verified without a device
+    // or emulator. That matters because the emulator was deliberately skipped (Phase 0).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

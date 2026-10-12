@@ -29,7 +29,7 @@ everything after it is additive.**
 | 0 — Toolchain | **DONE** |
 | 1 — Scaffold, theme, tokens | **DONE** (theme reworked for dark+light from real screenshots) |
 | 2 — Domain: events, formatting, grouping | **DONE** — 12 unit tests green |
-| 3 — Room schema + DAO | next |
+| 3 — Room schema + DAO + mappers | **DONE** — `app/schemas/…/1.json` committed, 50 tests green |
 
 Verified today: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is 12/12; `aapt2 dump badging`
 on the output reads `app.babylog v0.1.0, compileSdk 37, targetSdk 36`; `./gradlew` works
@@ -39,7 +39,7 @@ end-to-end. Toolchain details and the AGP 9 / KSP traps are in `research/toolcha
 
 # STAGE 1 — the 3am app
 
-## Phase 3 — Room schema, DAO, tests
+## Phase 3 — Room schema, DAO, tests — DONE (schema v1 exported and committed; 50 tests green)
 
 ### Task 3.1 — Entities
 Create `app/src/main/java/app/babylog/data/local/`:
@@ -56,9 +56,14 @@ Enums stored as `String` with `TypeConverters`. **Soft delete only** — a hard 
 row from the other phone on the next sync.
 
 ### Task 3.2 — `EventDao`, `ChildDao`, `FoodDao`
-`observeForChildren(childIds): Flow<List<EventEntity>>`, `observeLatest(type, childIds)`,
-`observeRunning()`, `upsert`, `softDelete`, plus totals queries for History
-(`sumAmountBetween`, `countDiapersBetween`) so totals are computed in SQL, not in Kotlin.
+`observeForChildren(childIds)` (which also serves **Both mode as a single query with two ids**),
+`observeLatest(type, childIds)`, `observeRecentByType`, `observeRunning()`, `between(from, to)`,
+`upsert`, `softDelete`, `restore` (for undo).
+
+**Deviation, deliberate:** the plan originally put the History totals in SQL. They are not there.
+Daily boundaries and the day/night diaper split depend on the **local timezone**, which SQLite cannot
+resolve — aggregating in SQL would have silently used UTC and filed 8pm diapers under the wrong day.
+Totals moved to pure Kotlin (`domain/Totals.kt`), which is also directly testable.
 
 ### Task 3.3 — Database
 `AppDatabase`, `version = 1`, `exportSchema = true`, schemas committed under `app/schemas/`.
@@ -66,9 +71,15 @@ row from the other phone on the next sync.
 `fallbackToDestructive`, or the log is lost.
 
 ### Task 3.4 — DAO round-trip test (Robolectric)
-Insert → observe → soft-delete → hidden; a Both-mode write produces two rows; totals respect date
-ranges and exclude deleted rows.
-**Verify:** `./gradlew :app:testDebugUnitTest` **Commit:** `feat(data): room schema, DAO, tests`
+DONE via **Robolectric 4.17**: insert → observe → soft-delete → hidden → restore (undo); Both-mode
+reads; `observeLatest` per type *and* child; `between()` half-open range; `observeRunning`; food
+search / recent / touch; outbox enqueue → drain.
+
+**Robolectric is what lets the DAO contract be verified on the JVM**, which matters because the emulator
+was deliberately skipped in Phase 0. Without it, a schema mistake would only surface on a phone.
+
+The schema is **committed** at `app/schemas/app.babylog.data.local.AppDatabase/1.json` — that is
+what makes future migration tests possible, so it is source, not build output.
 
 ## Phase 4 — Repository, settings, both-mode writes
 
@@ -113,7 +124,8 @@ system back closes each sheet. **Commit:** per sheet.
 
 ## Phase 7 — History
 
-Range `1d · 7d · 14d`, then per-activity totals driven by the SQL aggregate queries from Task 3.2.
+Range `1d · 7d · 14d`, then per-activity totals computed in pure Kotlin (`domain/Totals.kt`) over an
+`EventDao.between(from, to)` read — not in SQL, for the timezone reason given in Task 3.2.
 Big value + muted label, no charts. **Verify:** totals match a hand-count of a seeded day.
 **Commit:** `feat(ui): history totals`
 
@@ -219,12 +231,20 @@ the owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
    Add it at Phase 12, not Phase 1.
 
+### Settled 2026-10-12: no photos, no widgets
+
+the owner never used `Add Photo` in the incumbent tracker and never used a widget. Both are now **out of scope permanently**,
+which removes the only expensive retrofit from the list above. All three consequences are simplifications:
+
+- No file storage, no upload path, no binary payload in the sync document, and the JSON backup stays
+  human-readable text.
+- `Add Photo` is removed from the sheet spec; forms run from the last input row straight to Save.
+- Photo and widget rows are on the do-not-build list so they cannot creep back in.
+
 ### Not cheap to reverse later
 
-- **Photo/attachment storage** — decide before v1, because retrofitting changes the schema, the sync
-  payload and the backup format at once.
-- Anything that changes **what a stored number means** (e.g. if `amountMl` ever needed to become a
-  range rather than a value).
+- Anything that changes **what a stored number means** (e.g. if `amountMl` ever became a range rather
+  than a value). That is the remaining one, and the additive-only migration rule is what protects it.
 
 ---
 

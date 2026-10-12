@@ -1,28 +1,38 @@
 package app.babylog.domain
 
 /**
- * The four things this app logs, and nothing else. Adding a value here is a product
- * decision, not a technical one — see .hermes/skills/babylog-ui/references/style-guide.md.
+ * The four activities the owner actually logs, plus the two he wants present.
+ *
+ * Nursing and pumping were in the schema's first draft and are deliberately absent: he logs bottle and
+ * solids only, and unused variants — with no accent colour, no card and no sheet — are how a schema
+ * acquires dead weight. Adding a type later is an enum value, an accent, a card and a sheet.
  */
 enum class EventType {
-    FEED_BOTTLE,
-    FEED_NURSING,
+    BOTTLE,
+    SOLIDS,
     SLEEP,
     DIAPER,
-    PUMP,
+    GROWTH,
+    HEALTH,
 }
 
-enum class NursingSide { LEFT, RIGHT, BOTH }
+/** DELIBERATELY three. Both source apps shipped a clinical taxonomy nobody asks for at 3am. */
+enum class DiaperKind { WET, DIRTY, MIXED }
 
-/** Deliberately three options. Both source apps shipped a clinical taxonomy
- *  (size, six colours, five consistencies, rash flag) that nobody asks for at 3 AM. */
-enum class DiaperKind { PEE, POO, BOTH }
+enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
+
+/** the reference app's exact wording for the solids reaction field. */
+enum class FoodReaction { LOVED_IT, ALLERGY_OR_SENSITIVITY }
 
 /**
- * A single logged event. `endedAt == null` means a timer is still running.
+ * A single logged event. `endedAt == null` on a SLEEP event means the timer is running.
  *
- * Timestamps are epoch millis in UTC; display conversion happens at the edge, in
- * [app.babylog.domain.Formatting] and the UI, never here.
+ * One table with per-type optional fields rather than six tables: the types share almost everything (a
+ * time, a child, a note, a creator) and differ in a few columns. Six tables would mean six DAOs and six
+ * sync paths for no benefit at this size.
+ *
+ * Timestamps are epoch millis UTC. Quantities are canonical metric — grams, millimetres, millilitres —
+ * converted for display only. Temperature is Celsius, always.
  */
 data class BabyEvent(
     val id: String,
@@ -30,17 +40,31 @@ data class BabyEvent(
     val type: EventType,
     val startedAt: Long,
     val endedAt: Long? = null,
+    // BOTTLE
     val amountMl: Int? = null,
-    val side: NursingSide? = null,
+    val formulaBrand: String? = null,
+    // SOLIDS
+    val mealSlot: MealSlot? = null,
+    val foodIds: List<String> = emptyList(),
+    val reaction: FoodReaction? = null,
+    // DIAPER
     val diaperKind: DiaperKind? = null,
+    val rash: Boolean? = null,
+    // GROWTH
+    val weightGrams: Int? = null,
+    val lengthMm: Int? = null,
+    val headMm: Int? = null,
+    // HEALTH
+    val temperatureC: Double? = null,
+    val medication: String? = null,
+    val vaccineName: String? = null,
+    // any
     val note: String? = null,
     val createdBy: String,
     val updatedAt: Long,
-    /** Soft-delete tombstone: sync needs to propagate deletions, never hard-delete. */
+    /** Soft-delete tombstone: sync must propagate deletions. Never hard-delete. */
     val deleted: Boolean = false,
 ) {
     val isRunning: Boolean get() = endedAt == null
-
-    /** Duration for events that have one. Running events have no total yet. */
     val durationMs: Long? get() = endedAt?.let { it - startedAt }
 }

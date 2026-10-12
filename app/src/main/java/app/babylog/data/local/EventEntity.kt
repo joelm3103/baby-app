@@ -1,0 +1,37 @@
+package app.babylog.data.local
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(
+    tableName = "events",
+    indices = [Index("childId"), Index("type"), Index("startedAt"), Index("deleted")],
+)
+data class EventEntity(
+    @PrimaryKey val id: String,
+    val childId: String,
+    /** [app.babylog.domain.EventType] name, stored as text so a newer build's value cannot break an older one. */
+    val type: String,
+    val startedAt: Long,
+    val endedAt: Long? = null,
+    val amountMl: Int? = null,
+    val formulaBrand: String? = null,
+    val mealSlot: String? = null,
+    /** Comma-separated food ids; see [app.babylog.domain.encodeFoodIds]. */
+    val foodIdsCsv: String? = null,
+    val reaction: String? = null,
+    val diaperKind: String? = null,
+    val rash: Boolean? = null,
+    val weightGrams: Int? = null,
+    val lengthMm: Int? = null,
+    val headMm: Int? = null,
+    val temperatureC: Double? = null,
+    val medication: String? = null,
+    val vaccineName: String? = null,
+    val note: String? = null,
+    val createdBy: String,
+    val updatedAt: Long,
+    /** Soft-delete tombstone. A hard delete resurrects from the other phone on the next sync. */
+    val deleted: Boolean = false,
+)
