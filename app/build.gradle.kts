@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     // No kotlin-android plugin — AGP 9.0+ compiles Kotlin itself (built-in Kotlin).
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -63,4 +64,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Room: the local database is the source of truth (see README.md).
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    testImplementation(libs.junit)
 }

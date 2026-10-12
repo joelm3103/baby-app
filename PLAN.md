@@ -142,7 +142,7 @@ Files produced: `settings.gradle.kts`, `build.gradle.kts`, `gradle/libs.versions
 **Verified:** `:app:assembleDebug` → `BUILD SUCCESSFUL`; `aapt2 dump badging` on the output read
 `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'`.
 
-### Task 1.2 — Add the dependencies (PARTIAL: Compose/activity/lifecycle in; Room, KSP, DataStore still to add)
+### Task 1.2 — Add the dependencies — DONE for Compose/Room/KSP/JUnit; DataStore still to add (Task 4.2)
 
 In `gradle/libs.versions.toml` + `app/build.gradle.kts`, add: `room-runtime`, `room-ktx`,
 `room-compiler`(ksp), `ksp` plugin, `datastore-preferences`, `lifecycle-viewmodel-compose`,
@@ -198,7 +198,7 @@ screen title 20/26 SemiBold, card title 16/22 SemiBold, body 15/20 Medium, meta 
 
 ## Phase 2 — Domain model and pure logic (TDD, no Android needed)
 
-### Task 2.1 — `EventType` and `BabyEvent`
+### Task 2.1 — `EventType` and `BabyEvent` — DONE
 
 Create: `app/src/main/java/app/babylog/domain/BabyEvent.kt`
 
@@ -223,7 +223,7 @@ data class BabyEvent(
 )
 ```
 
-### Task 2.2 — Duration + relative time (the app's most-read text)
+### Task 2.2 — Duration + relative time — DONE (12 tests green)
 
 Test first: `app/src/test/java/app/babylog/domain/FormattingTest.kt`
 
@@ -245,7 +245,7 @@ Run: `./gradlew :app:testDebugUnitTest --tests '*FormattingTest*'` → expect FA
 Then implement in `domain/Formatting.kt` and re-run → 5 passed.
 **Commit:** `feat(domain): relative-time and elapsed formatting (+tests)`.
 
-### Task 2.3 — Day grouping
+### Task 2.3 — Day grouping — DONE
 
 Test: given events across three local days, `groupByDay(events, zone)` yields groups labelled `Today`,
 `Yesterday`, then `EEE d MMM`, newest first, each group's events newest first. Use `java.time` with an
