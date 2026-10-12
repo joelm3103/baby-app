@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,8 +32,6 @@ import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.actionFor
-import app.babylog.ui.theme.cardFor
 import app.babylog.ui.theme.displayName
 import java.time.ZoneId
 
@@ -39,8 +39,9 @@ import java.time.ZoneId
  * The core component. Anatomy from the approved mockup: activity name in its accent hue with the last
  * event's relative time opposite, the last value, a full-width action in the accent, then recent rows.
  *
- * The card tint comes from `colors.cardFor(accent)` rather than a border or a band, which is what the
- * mockup does and what survives being read in the dark at 3am.
+ * The card surface is NOT tinted: a tint over a dark surface collapses the accent to a muddy chroma
+ * and drops the label below AA (measured - see `Tokens.kt`). Identity comes from a full-chroma accent
+ * bar at the leading edge plus the accent-filled action button. At 3am the bar is what you aim at.
  */
 @Composable
 fun ActivityCard(
@@ -61,7 +62,12 @@ fun ActivityCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(colors.cardFor(accent))
+            .background(colors.surface)
+            // The accent at full chroma, drawn behind the content so it costs no layout pass. Clipped
+            // by the card's rounded shape, so it reads as a rounded edge, not a stray rectangle.
+            .drawBehind {
+                drawRect(color = accent, size = Size(Spacing.accentBar.toPx(), size.height))
+            }
             .padding(Spacing.cardPadding),
     ) {
         // 1. header: accent label, relative time of the last event
@@ -95,7 +101,7 @@ fun ActivityCard(
                     style = MaterialTheme.typography.displayLarge,
                     color = colors.textPrimary,
                 )
-                PillButton(label = "Stop", fill = accent, onClick = onStop)
+                PillButton(label = "Stop", fill = accent, textColor = colors.onAccent, onClick = onStop)
             }
         } else {
             if (last != null) {
@@ -122,7 +128,7 @@ fun ActivityCard(
                     DiaperKind.entries.forEach { kind ->
                         PillButton(
                             label = kind.name.lowercase().replaceFirstChar { it.uppercase() },
-                            fill = colors.actionFor(accent),
+                            fill = colors.surfaceRaised,
                             textColor = accent,
                             onClick = { onQuickDiaper(kind) },
                         )
@@ -130,8 +136,8 @@ fun ActivityCard(
                 }
                 else -> ActionButton(
                     type = card.type,
-                    fill = colors.actionFor(accent),
-                    textColor = accent,
+                    fill = accent,
+                    textColor = colors.onAccent,
                     onClick = onAction,
                 )
             }

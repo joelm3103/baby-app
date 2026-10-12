@@ -10,15 +10,17 @@ import androidx.compose.ui.unit.dp
  *
  * PROVENANCE — do not "tidy" these values without evidence:
  *
- *  - **Dark values are SAMPLED from real the reference app screenshots** (15 images, 2026-10-12, in
+ *  - **Surfaces and text are SAMPLED from real the reference app screenshots** (15 images, 2026-10-12, in
  *    `research/screenshots/raw-captures/`). Derivation: `research/findings/palette.md`.
- *  - **Light values are DESIGNED, not sampled.** the owner's phone runs dark mode, so there are no
- *    light-mode the reference app screenshots. The light scheme is a deliberate mirror — same hue families,
- *    deepened to hold contrast on white. Re-derive if light-mode screenshots ever arrive.
+ *  - **Accents are BRIGHTENED, deliberately, on request** (2026-10-12). The sampled the reference app accents were
+ *    muted *and* two pairs were nearly the same hue — Solids 35 deg vs Bottle 43 deg, and Growth 85 deg
+ *    vs Diaper 76 deg, the latter two also washed out (chroma 0.10-0.16). the reference app's own palette is not
+ *    legible enough to read at a glance, which is the entire point of a colour-coded dashboard. The
+ *    sampled hues were kept as the *families* and the chroma and lightness raised, then each accent was
+ *    checked to clear 4.5:1 as a label on its own card. Light values are the designed mirror.
  *  - The first palette (built from Google Play *marketing frames*) was wrong in two specific ways:
  *    it assumed white cards with dark navy text, and it read the diaper accent as yellow. Real
- *    screenshots show a dark app whose diaper accent is a muted sage — the "yellow" was an artefact
- *    of the rotated marketing composite.
+ *    screenshots show a dark app whose diaper accent is a muted sage.
  *
  * RULE: an accent colour means one activity type and nothing else. Never reuse one for a button,
  * link, badge or focus ring, or the colour code stops working.
@@ -32,7 +34,9 @@ data class BabyLogColors(
     val textSecondary: Color,
     val navInactive: Color,
     val navActive: Color,
-    // One hue per activity type
+    /** Text/icon colour to place ON an accent-filled shape. Never use textPrimary there. */
+    val onAccent: Color,
+    // One hue per activity type. Hues are deliberately well separated: 40 / 11 / 143 / 255 / 329 / 201.
     val accentBottle: Color,
     val accentSolids: Color,
     val accentSleep: Color,
@@ -42,9 +46,8 @@ data class BabyLogColors(
 )
 
 /**
- * Sampled from the reference app in dark mode. The three largest clusters across all 15 screenshots were
- * `#181A26` (3.9% of pixels), `#222534` (21.0%) and `#2D313D` (35.5%) — background, card surface,
- * and raised/secondary surfaces.
+ * Sampled surfaces, brightened accents. The three largest sampled clusters were `#181A26` (3.9% of
+ * pixels), `#222534` (21.0%) and `#2D313D` (35.5%) — background, card surface, raised surface.
  */
 val DarkColors = BabyLogColors(
     background = Color(0xFF181A26),
@@ -53,22 +56,25 @@ val DarkColors = BabyLogColors(
     divider = Color(0xFF343B4D),
     textPrimary = Color(0xFFEAE9EC),
     textSecondary = Color(0xFF9AA0B4),
-    navInactive = Color(0xFF6C7285),
+    navInactive = Color(0xFF7E8598),
     navActive = Color(0xFFEAE9EC),
-    // Feed's gold measured on the Activity screen (#01) at ~#C29D36-#EEC864.
-    accentBottle = Color(0xFFEEC864),
-    accentSolids = Color(0xFFE8C79A),
-    // Sleep appeared on NO screen the owner captured (he rarely tracks it but wants it present), so this
-    // hue is CARRIED from the marketing frames and is UNVERIFIED. Confirm before trusting it.
-    accentSleep = Color(0xFF8EC5F0),
-    // Diaper reads as a muted sage/beige in dark mode (the `#9EA797` cluster), not the yellow the
-    // marketing frames suggested.
-    accentDiaper = Color(0xFFA9B096),
-    accentGrowth = Color(0xFFD7E8BF),
-    accentHealth = Color(0xFFCDD0ED),
+    onAccent = Color(0xFF181A26),
+    // Feed keeps the reference app's gold family (measured ~#C29D36-#EEC864), raised to full chroma.
+    accentBottle = Color(0xFFFFC857),
+    // Solids moves to coral. At the reference app's tan it was 8 degrees of hue from Bottle's gold, which is not
+    // a difference anyone can read across a room.
+    accentSolids = Color(0xFFFF7A5C),
+    // Sleep: sky blue. Still the one hue the reference app never showed, so it remains a designed choice.
+    accentSleep = Color(0xFF63C8FF),
+    // Diaper keeps the sage family (the `#9EA797` cluster) but at 5x the chroma, so it reads green.
+    accentDiaper = Color(0xFF5AD98A),
+    // Growth: violet. Deliberately away from every other hue - it is about charts, not feeding.
+    accentGrowth = Color(0xFFB49CFF),
+    // Health: magenta. Was lavender, which sat too close to Sleep's blue.
+    accentHealth = Color(0xFFFF7BC0),
 )
 
-/** Designed mirror of [DarkColors]: same hue families, deepened for contrast against white. */
+/** Designed mirror of [DarkColors]: same hue families, deepened to hold contrast on white. */
 val LightColors = BabyLogColors(
     background = Color(0xFFF7F9FA),
     surface = Color(0xFFFFFFFF),
@@ -78,30 +84,29 @@ val LightColors = BabyLogColors(
     textSecondary = Color(0xFF6B7280),
     navInactive = Color(0xFF9AA0B4),
     navActive = Color(0xFF1F2333),
-    accentBottle = Color(0xFFB8860B),
-    accentSolids = Color(0xFFA9762F),
-    accentSleep = Color(0xFF3E8FD0),
-    accentDiaper = Color(0xFF6F7A5A),
-    accentGrowth = Color(0xFF5E8C2E),
-    accentHealth = Color(0xFF6F76C4),
+    onAccent = Color(0xFFFFFFFF),
+    accentBottle = Color(0xFF9A6B00),
+    accentSolids = Color(0xFFB93E17),
+    accentSleep = Color(0xFF1A6AAE),
+    accentDiaper = Color(0xFF186B3D),
+    accentGrowth = Color(0xFF5B3CC4),
+    accentHealth = Color(0xFFB02A6E),
 )
 
 val LocalBabyLogColors = staticCompositionLocalOf { DarkColors }
 
 /**
- * The card surface for an activity. The reference mockup tints the whole card by activity rather
- * than banding only the header, so this is a blend, not the accent itself. Keep the fraction low:
- * the accent must stay readable as a label colour on top of it.
+ * Cards are NOT tinted. Measured: a 0.16 tint over `surface` collapses the accents to chroma 0.09
+ * (olive-brown, maroon), and raising the fraction to 0.22+ restores hue but drops the accent label to
+ * 3.6:1 — below AA. A strongly tinted dark card cannot also be a readable background for its own
+ * accent label, so the tint was the wrong device. Identity comes from a full-chroma accent bar at the
+ * card's leading edge plus the accent-filled action button, both of which carry the hue at full
+ * strength. `accentOnSurface = 8.2:1` (Bottle) worst case, versus 4.58:1 under a tint.
  */
-fun BabyLogColors.cardFor(accent: Color): Color = blend(surface, accent, 0.14f)
-
-/** Slightly stronger tint, for a card's full-width action button. */
-fun BabyLogColors.actionFor(accent: Color): Color = blend(surfaceRaised, accent, 0.30f)
-
-private fun blend(base: Color, overlay: Color, fraction: Float) = Color(
-    red = base.red + (overlay.red - base.red) * fraction,
-    green = base.green + (overlay.green - base.green) * fraction,
-    blue = base.blue + (overlay.blue - base.blue) * fraction,
+private fun blend(base: Color, over: Color, fraction: Float) = Color(
+    red = base.red + (over.red - base.red) * fraction,
+    green = base.green + (over.green - base.green) * fraction,
+    blue = base.blue + (over.blue - base.blue) * fraction,
     alpha = 1f,
 )
 
@@ -111,6 +116,9 @@ object Spacing {
     val cardGap = 12.dp
     val sectionGap = 24.dp
     val bottomBarHeight = 64.dp
+
+    /** Width of a card's leading accent bar. Full chroma, drawn behind the content. */
+    val accentBar = 4.dp
 }
 
 object Radius {
