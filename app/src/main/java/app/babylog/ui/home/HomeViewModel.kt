@@ -67,12 +67,6 @@ class HomeViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    /** Fixed order, by how often each is used. Sleep is last AND present, because the owner asked for it. */
-    private val cardOrder = listOf(
-        EventType.BOTTLE, EventType.DIAPER, EventType.SOLIDS,
-        EventType.GROWTH, EventType.HEALTH, EventType.SLEEP,
-    )
-
     private fun build(
         kids: List<Child>,
         selection: ChildSelection,
@@ -84,15 +78,7 @@ class HomeViewModel(
         selection = selection,
         childIds = ids,
         units = units,
-        cards = cardOrder.map { type ->
-            val forType = all.filter { it.type == type }
-            CardUi(
-                type = type,
-                last = forType.firstOrNull(),
-                recent = forType.take(3),
-                running = forType.firstOrNull { it.isRunning },
-            )
-        },
+        cards = buildCards(all),
     )
 
     fun select(selection: ChildSelection) = viewModelScope.launch { settings.setSelectedChild(selection) }

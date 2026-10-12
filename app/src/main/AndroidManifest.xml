@@ -3,6 +3,8 @@
 
     <application
         android:name=".BabyLogApp"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:label="BabyLog"
         android:supportsRtl="true"
