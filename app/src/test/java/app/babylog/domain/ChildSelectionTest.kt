@@ -1,6 +1,8 @@
 package app.babylog.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,6 +15,17 @@ class ChildSelectionTest {
         assertEquals(bothIds, ChildSelection.Both.resolve(bothIds))
         assertEquals(ChildSelection.Both, ChildSelection.default)
         assertEquals(ChildSelection.Both, decodeChildSelection(null))
+    }
+
+    @Test
+    fun `the default is not null`() {
+        // Pins the bug that crashed 0.1.0 on a real device: a STORED `val default = Both` captured
+        // null, because Android initialises this interface - and so its companion - while Both is
+        // still being constructed, reading the INSTANCE field before it is assigned. HotSpot does not
+        // do that, so this assertion passed even while the app died on launch. It documents intent;
+        // the actual fix is that `default` is now a getter.
+        assertNotNull(ChildSelection.default)
+        assertSame(ChildSelection.Both, ChildSelection.default)
     }
 
     @Test

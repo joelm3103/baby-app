@@ -22,7 +22,20 @@ sealed interface ChildSelection {
     }
 
     companion object {
-        val default: ChildSelection = Both
+        /**
+         * COMPUTED, not stored. Do not "simplify" this back to `val default: ChildSelection = Both`.
+         *
+         * Storing it crashes the app on launch. On Android, ART initialises this interface - and
+         * therefore this companion - *while* `Both` is still being constructed, so the initialiser
+         * reads `Both`'s static INSTANCE field before it has been assigned and captures **null**
+         * permanently. `decodeChildSelection` then returns null for every absent preference, and the
+         * dashboard's `resolve()` call dies with an NPE.
+         *
+         * HotSpot initialises superinterfaces more lazily and sees `Both` already assigned, so this
+         * bug is invisible to JVM and Robolectric tests. It cost a crash-on-launch that 97 green
+         * tests did not catch. A getter reads the field at call time, after initialisation.
+         */
+        val default: ChildSelection get() = Both
     }
 }
 

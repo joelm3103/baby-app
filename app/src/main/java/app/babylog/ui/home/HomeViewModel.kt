@@ -61,7 +61,16 @@ class HomeViewModel(
         settings.selectedChild,
         settings.units,
     ) { kids, selection, units -> Triple(kids, selection, units) }
-        .flatMapLatest { (kids, selection, units) ->
+        .flatMapLatest { combined ->
+            val kids = combined.first
+            val units = combined.third
+            // Defense in depth, and not paranoia: a null here takes the entire app down on launch,
+            // and it already happened once (see ChildSelection.default - Android stored null). Note
+            // the nullable local: writing `combined.second ?: X` instead is constant-folded away
+            // because the declared type is non-null, which is how the first attempt at this fallback
+            // silently did nothing at all.
+            val nullableSelection: ChildSelection? = combined.second
+            val selection: ChildSelection = nullableSelection ?: ChildSelection.Both
             val ids = selection.resolve(kids.map { it.id })
             events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units) }
         }

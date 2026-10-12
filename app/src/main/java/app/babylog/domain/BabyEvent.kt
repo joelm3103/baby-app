@@ -7,13 +7,23 @@ package app.babylog.domain
  * solids only, and unused variants — with no accent colour, no card and no sheet — are how a schema
  * acquires dead weight. Adding a type later is an enum value, an accent, a card and a sheet.
  */
-enum class EventType {
+enum class EventType(
+    /**
+     * Whether this activity is an INTERVAL rather than a point in time. Only sleep is.
+     *
+     * This exists because `endedAt == null` alone cannot distinguish "still in progress" from "a
+     * moment that has no end at all". Without it every logged bottle, diaper, weigh-in and
+     * temperature read as a running session, and the dashboard put a live count-up timer on all six
+     * cards.
+     */
+    val hasDuration: Boolean = false,
+) {
     BOTTLE,
     SOLIDS,
-    SLEEP,
     DIAPER,
     GROWTH,
     HEALTH,
+    SLEEP(hasDuration = true),
 }
 
 /** DELIBERATELY three. Both source apps shipped a clinical taxonomy nobody asks for at 3am. */
@@ -25,7 +35,8 @@ enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
 enum class FoodReaction { LOVED_IT, ALLERGY_OR_SENSITIVITY }
 
 /**
- * A single logged event. `endedAt == null` on a SLEEP event means the timer is running.
+ * A single logged event. `endedAt == null` on a SLEEP event means the timer is running; on a point
+ * event it simply means there is no end time, which is not the same thing.
  *
  * One table with per-type optional fields rather than six tables: the types share almost everything (a
  * time, a child, a note, a creator) and differ in a few columns. Six tables would mean six DAOs and six
@@ -65,6 +76,10 @@ data class BabyEvent(
     /** Soft-delete tombstone: sync must propagate deletions. Never hard-delete. */
     val deleted: Boolean = false,
 ) {
-    val isRunning: Boolean get() = endedAt == null
+    /**
+     * A live timer. Requires BOTH a duration-capable type and no end yet — `endedAt == null` on its
+     * own is also true of every point event, which is how a logged diaper got a live timer.
+     */
+    val isRunning: Boolean get() = type.hasDuration && endedAt == null
     val durationMs: Long? get() = endedAt?.let { it - startedAt }
 }

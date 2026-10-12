@@ -312,3 +312,66 @@ order of value:
    validate against AGP 9 first.
 
 Until one of these exists, treat Phase 5+ layout as unconfirmed.
+
+---
+
+## Phase 5 device verification — 2026-10-12
+
+The 0.1.0 APK crashed on launch. Fixed, and the fix verified on a real device (Samsung S23 Ultra,
+Android 16 / API 36) rather than by build status.
+
+### Bug 1 — crash on launch (NPE on every start)
+
+```
+NullPointerException: Attempt to invoke interface method
+'java.util.List app.babylog.domain.ChildSelection.resolve(java.util.List)' on a null object reference
+```
+
+`ChildSelection.default` was a **stored** companion val: `val default: ChildSelection = Both`. On
+Android, ART initialises the enclosing interface (and so its companion) *while* `Both` is still being
+constructed, so the initialiser read `Both`'s static `INSTANCE` field before it was assigned and stored
+**null permanently**. `decodeChildSelection` then returned null for every absent preference, and the
+dashboard's `resolve()` call died.
+
+Fixed by making it computed: `val default: ChildSelection get() = Both`.
+
+**HotSpot does not do this**, so 97 green JVM/Robolectric tests passed while the app died on a phone.
+No amount of JVM testing would have caught it. Only the device did.
+
+### Bug 2 — every card showed a running timer
+
+`BabyEvent.isRunning` was `endedAt == null`, which conflates *"still in progress"* with *"a point event
+that has no end"*. Every logged bottle, diaper, weigh-in and temperature read as a running session and
+got a live count-up timer.
+
+Fixed: `EventType.hasDuration` (true for SLEEP only) and `isRunning = type.hasDuration && endedAt == null`.
+
+### A trap found while fixing it
+
+`combined.second ?: ChildSelection.Both` was **compiled away** — the elvis is folded to nothing when the
+left operand's declared type is non-null, so the first attempt at a fallback silently did nothing. Widen
+to a nullable local first to make the check real bytecode.
+
+### Verified on the device
+
+| Check | Result |
+| --- | --- |
+| Launches without crashing | pass |
+| Bottle/diaper cards show a value + relative time, no timer | pass |
+| Last card (Sleep) fully visible above the nav bar at full scroll | pass |
+| Settings -> system back returns to Activity, process survives | pass |
+| Child 1 / Child 2 / Both switcher present | pass |
+| History placeholder renders | pass |
+
+### Removed
+
+`HomeViewModelTest` — a Robolectric test driving the ViewModel pipeline. It hung and failed:
+Robolectric's paused main looper never pumps Room's invalidation callbacks, so a DB-backed flow cannot be
+collected. Removed rather than left to rot, along with `kotlinx-coroutines-test`. **The ViewModel
+pipeline is verified on the device; a JVM test for it needs fake DAOs, not Room.**
+
+### Verification loop for all future phases
+
+The phone is the feedback loop: `adb install -r`, `logcat -d` for crashes, `uiautomator dump` for real
+tap coordinates, `exec-out screencap` for what it actually looks like. Do not call a phase done on a
+green build.
