@@ -31,6 +31,7 @@ everything after it is additive.**
 | 2 — Domain: events, formatting, grouping | **DONE** — 12 unit tests green |
 | 3 — Room schema + DAO + mappers | **DONE** — `app/schemas/…/1.json` committed, 50 tests green |
 | 4 — Repository, settings, adjusted age | **DONE** — 78 tests green |
+| 5 — Activity screen | **DONE, visually UNVERIFIED** — compiles, APK builds |
 
 Verified today: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is 12/12; `aapt2 dump badging`
 on the output reads `app.babylog v0.1.0, compileSdk 37, targetSdk 36`; `./gradlew` works
@@ -113,7 +114,18 @@ now)`, formatting as `9 months, 1 week, 5 days`. Adjusted age = chronological mi
 **and the premature offset is per child**. Tests must cover a preemie and a full-term child.
 **Verify:** tests green. **Commit:** `feat(data): repository, settings, age with adjusted age`
 
-## Phase 5 — Activity screen (the home)
+## Phase 5 — Activity screen (the home) — DONE (compiles, APK builds; layout NOT yet seen)
+
+Built: `AppScaffold` (insets + back), `ActivityScreen`, `ChildSwitcher` (Child 1 · Child 2 · Both),
+`ActivityCard`, `HomeViewModel`, `AppContainer` (manual DI), first-run seed of the two boys.
+
+**Honest status: it compiles and the APK builds, but no one has LOOKED at it.** Compose layout
+errors — a card that overflows, text that clips, a pill row that wraps badly — do not fail a
+build. Visual verification needs a device, an emulator, or Roborazzi screenshot tests; until
+then the layout is unverified. See the *Verifying the UI* note at the end of this file.
+
+The Phase-5 `quickLog` path logs events with only a timestamp so the layout can be judged;
+Phase 6 replaces it with the real per-activity sheets.
 
 **Task 5.1** `MainActivity` + `AppScaffold` — `Scaffold(contentWindowInsets = WindowInsets.navigationBars)`
 and a `LazyColumn` whose `contentPadding` clears `bottomBarHeight` **plus** the nav-bar inset. This is
@@ -281,3 +293,22 @@ which removes the only expensive retrofit from the list above. All three consequ
 No CI, no Play Store listing, no multi-module refactor, no localization, no analytics, no crash
 reporting, no export. Each is defensible for a shipped product and unjustifiable for an app with two
 users.
+
+
+---
+
+## Verifying the UI (Phase 5 onward)
+
+A green build proves the Compose code type-checks. It proves **nothing** about layout: overflowing
+cards, clipped text, and a pill row that wraps onto two lines all compile cleanly. Three options, in
+order of value:
+
+1. **A real phone over USB** (`adb install -r`), then `adb exec-out screencap -p` to capture the screen
+   for review. Best fidelity — it is the actual target hardware and the actual system theme.
+2. **An emulator.** ~4 GB and a Windows Hypervisor Platform step, but it makes screenshots scriptable
+   and repeatable without involving a human. Worth adding if UI work continues without a phone handy.
+3. **Roborazzi screenshot tests.** Renders composables to PNGs on the JVM alongside the existing
+   Robolectric tests, so a layout regression fails CI. The right long-term answer; extra dependency to
+   validate against AGP 9 first.
+
+Until one of these exists, treat Phase 5+ layout as unconfirmed.
