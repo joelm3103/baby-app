@@ -117,12 +117,41 @@ Big value + muted label, no charts. **Verify:** totals match a hand-count of a s
 
 ## Phase 8 — Growth (the heaviest single feature)
 
-**Task 8.1** WHO LMS reference tables (weight-for-age, length/height-for-age, head-circumference-for-age,
-boys and girls, 0–24 months) as a bundled CSV asset. **This is a real dataset** — do not invent
-percentile maths. Record the source and the retrieval date in `research/`.
-**Task 8.2** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
+**Task 8.1** Bundle the baseline dataset. WHO's `igrowup` LMS tables (weight-for-age,
+length/height-for-age, head-circumference-for-age, weight-for-length/height, BMI-for-age; boys and
+girls) as a compact JSON asset under `app/src/main/assets/growth/`. **Do not invent percentile maths** —
+LMS is published data and the z-score formula is standard. Verified source URLs, row counts, sex codes
+and file hashes are recorded in `research/growth-data-sources.md`; that file also documents that **WHO
+has not revised these standards since 2006**, which is why the asset ships bundled rather than being
+fetched on first run.
+
+**Task 8.2 — dataset versioning and updates.** Ship a bundled baseline, then make the data updatable
+without an APK release. The shape the owner asked for:
+
+- **Dataset identity**: `version` (e.g. `who-2006.2026.10`), `publishedAt`, `retrievedAt`, `source`
+  URLs, `sha256`. Stored alongside the data and surfaced in the UI.
+- **Update channel**: a manifest document in Firestore (`reference/growth_manifest`) pointing at the
+  dataset (`reference/growth_dataset`). Firestore is already in the stack, the existing security rules
+  already restrict access to the two of us, and an update becomes a **document write** — no hosting to
+  stand up, no public repo, no release cycle. Swap for a static HTTPS file if that ever changes.
+- **Cadence**: check at most **once every 90 days**, silently, on app start. Never blocking, never
+  nagging. If the manifest is unreachable, older, or fails its checksum, keep the current dataset and
+  move on — no error UI, no retry storm.
+- **Manual update**: a `Check for updates` row on the Growth screen's options and in Settings.
+- **Date display**: Settings shows `Growth reference: WHO 2006 · v2026.10 · updated 12 Oct 2026`, and
+  the Growth screen footer shows the same in small secondary text next to the existing `Source: WHO`
+  line. A percentile number a parent might act on should never be presented without saying which
+  dataset produced it.
+- **Test**: a fake manifest newer than the bundle updates the data and the displayed date; an older or
+  corrupt manifest leaves both untouched.
+
+**Task 8.3** Preterm: WHO 0–5 charts assume term birth. Confirm how many weeks premature the twins
+were. Default behaviour is the incumbent's — plot **adjusted age** on WHO charts, with the per-child toggle. Add
+INTERGROWTH-21st/Fenton only if the preterm growth *trajectory* itself is wanted; it is a second dataset
+family and a second licence to check.
+**Task 8.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
 plotting a curve. Unit tests against known published values.
-**Task 8.3** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
+**Task 8.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
 callout card with date, value, percentile and **age (adjusted when the toggle is on)**.
 **Verify:** a seeded measurement lands on the correct curve; a preemie's adjusted age changes its
 percentile. **Commit:** `feat(growth): who percentiles and charts`
