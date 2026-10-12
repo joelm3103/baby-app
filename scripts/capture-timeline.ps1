@@ -21,7 +21,8 @@ param(
   [Parameter(Mandatory = $true)][string]$Label,
   [int]$Scrolls = 5,
   [string]$Serial = "",
-  [switch]$SkipInstall
+  [switch]$SkipInstall,
+  [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,13 +34,29 @@ $pkg = "app.babylog"
 if (-not (Test-Path $adb)) { throw "adb not found at $adb - set the Android SDK path." }
 
 # Serial: default to the one attached device, and fail loudly if ambiguous.
-$devices = (& $adb devices) -split "`r?`n" | Where-Object { $_ -match "\sdevice$" } |
-           ForEach-Object { ($_ -split "\s+")[0] }
+#
+# NOTE the @(): without it a pipeline that yields ONE item assigns a scalar STRING, and $devices[0] on
+# a string returns its first CHARACTER - so a phone serialised as <handset> became "R", and
+# `adb -s R` then blocked forever waiting for a device that does not exist.
+$devices = @(
+  foreach ($line in (& $adb devices)) {
+    if ($line -match '^(\S+)\s+device\s*$') { $Matches[1] }
+  }
+)
 if (-not $Serial) {
-  if ($devices.Count -ne 1) { throw "Expected exactly one device, found $($devices.Count): $($devices -join ', '). Pass -Serial." }
+  if ($devices.Count -eq 0) { throw "No device in 'adb devices'. Connect the phone and enable USB debugging." }
+  if ($devices.Count -gt 1) { throw "Found $($devices.Count) devices ($($devices -join ', ')). Pass -Serial." }
   $Serial = $devices[0]
 }
+# Re-validate anything the caller passed, so a typo fails here instead of hanging in adb.
+if ($devices -notcontains $Serial) { throw "Serial '$Serial' is not attached. Attached: $($devices -join ', ')" }
 Write-Host "device  : $Serial"
+
+if ($DryRun) {
+  Write-Host "dry run : resolving device only, sending nothing to the phone"
+  Write-Host "apk     : $apk (exists: $(Test-Path $apk))"
+  exit 0
+}
 
 $outDir = Join-Path $repo ("docs\timeline\" + (Get-Date -Format "yyyy-MM-dd") + "-" + $Label)
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
@@ -64,11 +81,16 @@ if ($fg -notmatch $pkg) {
 }
 
 function Save-Shot([string]$name) {
+  # Write on the device, then `adb pull`. Do NOT capture `exec-out screencap -p` into a PowerShell
+  # variable: PowerShell decodes a native command's stdout as TEXT, which corrupts the PNG, and `>`
+  # redirection adds a BOM and CRLF translation. `pull` copies bytes.
+  $remote = "/sdcard/babylog-shot.png"
   $path = Join-Path $outDir "$name.png"
-  # exec-out, not shell: shell mangles binary output
-  $bytes = & $adb -s $Serial exec-out screencap -p
-  [System.IO.File]::WriteAllBytes($path, $bytes)
-  Write-Host ("shot    : {0} ({1:N0} bytes)" -f $name, (Get-Item $path).Length)
+  & $adb -s $Serial shell screencap -p $remote | Out-Null
+  & $adb -s $Serial pull $remote $path | Out-Null
+  $size = (Get-Item $path).Length
+  if ($size -lt 1000) { throw "Screenshot $name is only $size bytes - the capture is broken." }
+  Write-Host ("shot    : {0} ({1:N0} bytes)" -f $name, $size)
 }
 
 Save-Shot "01-top"
