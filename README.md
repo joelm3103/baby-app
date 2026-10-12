@@ -1,83 +1,89 @@
-# BabyLog
+# Babylog
 
-no subscription, no account tiers.
+A private baby tracker for Android, for two parents and **twin boys, the twins** (born a date set in Settings).
+No store listing, no subscription, no account tiers.
 
 **Why this exists:** the free alternative and the incumbent tracker are both good at the core job and both hostile to it — they
-change under you, gate the useful parts behind subscriptions, and bury the three actions we actually
-perform at 3 AM under tabs, content feeds and AI features. This app is the 20% we use, owned by us,
-that will still look and work the same in two years.
+change under you, gate the useful parts, and put content feeds and upsells where the three actions we
+actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
+years.
 
-**Status:** research and design complete. No application code yet. Toolchain not installed yet
-(see `PLAN.md` Phase 0).
+**Status:** toolchain, scaffold, theme and domain layer done and green. No screens yet. See `PLAN.md`.
 
 ---
 
 ## Scope
 
-### V1 — build this
-
-The test for every item: *does this help at 3 AM, or does it help the company retain a user?*
+Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner hit in it, not by guesswork.
 
 | # | Feature | Notes |
 |---|---|---|
-| 1 | **Four one-tap loggers** — Feed, Sleep, Diaper, Pump | Feed splits into bottle (amount) and nursing (L/R timer). Diaper is Pee/Poo/Both. |
-| 2 | **Home dashboard** — four banded category cards, fixed order | Each card answers "when was the last one, and how much?" in one glance, and logs in one tap |
-| 3 | **Live timer** for sleep and nursing | Start/stop from the card. Recomputes from stored `startedAt`, survives process death |
-| 4 | **Today's timeline** below the cards | Day-grouped, newest first, edit/delete |
-| 5 | **Two accounts, one shared log** | Me and the second parent see the same data; sign-in via Google account |
-| 6 | **Offline-first** | Works with no connectivity; writes queue and sync. The local DB is the source of truth |
-| 7 | **oz/mL preference**, timezone-correct display | Settings is nearly empty by design |
-| 8 | Single child, with the schema able to hold more | The header shows a name, not a switcher, until a second child exists |
+| 1 | **Two children, switcher in the header** | `Child 1 · Child 2 · Both`. Both-mode interleaves both children's data |
+| 2 | **Log for both in one action** | With Both selected, one tap writes a row per child |
+| 3 | **Bottle** | Amount + formula brand + time |
+| 4 | **Solids** | Meal slot (breakfast/lunch/dinner/snack), food catalogue with search, per-food reaction/allergy flags |
+| 5 | **Diaper** | `Wet / Dirty / Mixed` as one-tap pills, plus a rash toggle |
+| 6 | **Sleep** | Present with a running timer even though it's rarely used — explicitly requested |
+| 7 | **Growth** | Weight / height / head size, WHO percentile charts |
+| 8 | **Health** | Temperature, medication, vaccine |
+| 9 | **History** | 1d / 7d / 14d totals per activity |
+| 10 | **Trends** | Charts over time |
+| 11 | **Premature / adjusted age** | Per child: weeks premature + a "use adjusted age" toggle. Age shown both ways |
+| 12 | **Three tabs** | Activity · History · Trends. Settings is a header icon |
+| 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
+| 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |
 
-### V1.1 candidates (deliberately deferred)
+### Deliberately not built
 
-- One ongoing-timer notification (the single most defensible notification in this app).
-- A one-line "last 24h" summary: feeds, sleep total, diapers.
-- Solids logging — when solids actually start.
+Guides, an Account tab, subscription/trial/paywall, the shop, Stop Tracking, nursing/pumping (not
+logged), the clinical diaper taxonomy, pregnancy/postpartum modes, customizable home buttons, export,
+analytics. Full list with evidence in `.hermes/skills/babylog-ui/references/style-guide.md`.
 
-### Not building — with evidence
+### Staged on purpose
 
-Full list and the on-screen evidence for each in
-`.hermes/skills/babylog-ui/references/style-guide.md` → *the do-not-build list*.
-Headlines: AI nap prediction, LLM chat assistant, sleep-training programs, tips/insights content feed,
-reports & trends & percentile charts, subscriptions, the shop, the pregnancy/postpartum mode, clinical
-diaper taxonomy, caregiver roles, customizable home buttons.
+The full set is a real project, not a weekend. Staging so it becomes useful early:
+
+- **Stage 1 — the 3am app.** Two children + switcher, Bottle, Diaper, Solids, Sleep, History totals,
+  system theme, correct insets and back handling.
+- **Stage 2 — Growth and Health.** WHO percentile curves (a real reference dataset) and the medical
+  records. Growth is the single heaviest item; it lands after the app is already in daily use.
+- **Stage 3 — Trends**, then Firebase sync across the two phones.
 
 ---
 
-## Stack decision
+## The three bugs in the incumbent tracker we are designing against
+
+the owner reported these unprompted, so they are requirements, not polish:
+
+1. **Content clipped by the system navigation bar** (the incumbent's Child screen, screenshot #15) — "it cannot
+   scroll down any more". We consume `WindowInsets.navigationBars` and pad the scrollable content.
+2. **System back exits the app instead of closing a sheet** — every sheet gets a `BackHandler`.
+3. **Only one child visible at a time** — hence the switcher and the Both view.
+
+---
+
+## Stack
 
 **Kotlin + Jetpack Compose (Material 3) · Room · Firebase Auth + Firestore · sideloaded APK.**
 
 | Choice | Why |
 |---|---|
-| Kotlin + Compose, single `app/` module | Android-only app for two devices; multi-module and Kotlin Multiplatform are cost with no payoff here |
-| Room as the source of truth | The app must work in a basement, a car and a hospital corridor. Local-first is non-negotiable |
-| Firestore for sync, offline persistence on | Removes an entire class of bugs: no hand-written sync, no merge logic, no polling. Free tier covers two users by three orders of magnitude (a busy day is ~40 events; the free tier allows 20,000 writes/day) |
-| Google sign-in | Two people, two phones. No password to manage, no reset flow to build |
-| Sideload the release APK | Free. Both phones are ours; a Play listing costs $25 and adds review latency for zero benefit. Revisit only if someone else ever needs it |
-| No server to run | An app the second parent depends on at 3 AM should not page me because a container is down |
+| Kotlin + Compose, single `app/` module | Android-only; multi-module buys nothing here |
+| Room as the source of truth | Must work in a car park, a clinic waiting room, a corridor. Local-first is not optional |
+| Firestore for sync, offline persistence on | Deletes a whole class of sync bugs. Free tier covers two users by three orders of magnitude |
+| Google sign-in | Two people, two phones, no password reset flow to build |
+| Sideload the release APK | Free. A Play listing costs $25 and adds review latency for zero benefit |
+| No server to run | An app the second parent depends on should not page me because a container is down |
 
-### Alternatives considered and rejected
+**Rejected:** self-hosting on the work server (company machine, the family's health log, and the second parent's
+phone would need network reach into it) · Supabase (close call — free and self-hostable, but no
+built-in offline persistence; documented escape hatch) · forking an open-source tracker (inherits
+someone else's feature set, which is the problem being escaped).
 
-- **Self-hosted backend on the work server (`internal.apps`, 10.10.0.120).** Rejected on three counts:
-  it is a **company machine** and this is the family's health log; the second parent's phone would need network
-  reach into it; and it makes the app's uptime my problem. Self-hosting wins on ownership and loses on
-  every other axis for this particular app.
-- **Supabase (Postgres + auth + realtime).** Genuinely close — free, self-hostable later, data stays
-  in a real Postgres. Rejected for v1 because it has no equivalent of Firestore's built-in offline
-  persistence, so I would hand-write the write queue and conflict handling. **This is the escape hatch**
-  if the Google-hosting objection below ever outweighs the engineering cost.
-- **Google Sheets / a shared note as the "app".** Fails the one-tap test and has no timers.
-- **Forking an existing open-source tracker.** Would inherit someone else's feature set — the exact
-  problem this project exists to escape.
-
-### One flag, stated once
-
-Firestore stores our child's feeding/sleep/diaper log on Google infrastructure. That is the price of
-the recommendation above. It is private to our two accounts, it is not health-record data in any
-regulated sense, and Google already hosts our mail. If that trade stops feeling acceptable later,
-Supabase is the documented exit and the local Room DB means the data is never *only* there.
+**One flag, stated once:** Firestore holds our children's feeding/sleep/diaper log on Google
+infrastructure. It is private to our two accounts and Google already hosts our mail. If that ever
+stops being acceptable, Supabase is the documented exit — and because Room is the source of truth, the
+data is never *only* there.
 
 ---
 
@@ -85,25 +91,18 @@ Supabase is the documented exit and the local Room DB means the data is never *o
 
 ```
 baby-app/
-├── README.md                  # this file — scope and stack decisions
-├── PLAN.md                    # implementation plan, phased, task-by-task
-├── .hermes/skills/babylog-ui/ # the design system, loadable as a skill while building
-│   ├── SKILL.md
-│   └── references/{design-tokens,components,layout,style-guide}.md
+├── README.md                  # this file — scope, stack, decisions
+├── PLAN.md                    # implementation plan, phased
+├── .hermes/skills/babylog-ui/ # the design system, loadable as a project skill
+├── scripts/                   # android-env.ps1, sdkmanager.ps1 (toolchain, re-runnable)
 └── research/
-    ├── SOURCES.md             # where the screenshots came from + fidelity caveat
-    ├── screenshots/           # 24 Play Store frames (gitignored, regenerable)
-    └── findings/              # 4 teardown reports: reference-app-b-1/2, reference-app-a, design-language
+    ├── SOURCES.md             # marketing-frame provenance + fidelity caveat
+    ├── toolchain.md           # exact versions + AGP 9 / KSP traps
+    ├── screenshots/           # raw Play Store frames + raw/ (15 real ones, gitignored)
+    ├── design-refs/           # the approved mockup
+    └── findings/              # teardowns, shared design language, reference-app-a-palette.md
 ```
 
-## The one input that would improve the design work
-
-The findings are built from **Play Store marketing frames** — rotated phone mockups on pastel
-backgrounds. Structure, navigation, feature inventory and interaction patterns came out reliable;
-**every colour value in them is an eyeballed approximation**. The palette in
-`.hermes/skills/babylog-ui/references/design-tokens.md` is therefore *our own chosen* palette built to
-the verified hue grammar, not a copy of either app.
-
-To make the pixel layer trustworthy: 6–10 raw screenshots per app from a real device
-(`adb exec-out screencap -p > screen.png`), status bar cropped. Worth doing once the toolchain in
-Phase 0 exists, since that is also how the app gets screenshotted for review.
+**Note on which evidence wins:** the marketing frames produced two outright errors (light surfaces,
+yellow diaper) that 15 real screenshots corrected. When the two disagree, the screenshots win, and
+`sleep`'s hue is still an acknowledged guess because no sleep screen was ever captured.
