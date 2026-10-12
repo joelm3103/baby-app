@@ -1,5 +1,6 @@
 package app.babylog.ui.common
 
+import app.babylog.ui.theme.BabyLogTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,7 +39,9 @@ fun RelativeTimeText(then: Long, now: Long, modifier: Modifier = Modifier) {
     Text(
         text = relativeTime(now = now, then = then),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        // On a TINTED card, so textOnCard - the Material default is tuned for a neutral surface and
+        // measured under 4.5:1 on the stronger tints.
+        color = BabyLogTheme.colors.textOnCard,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,
@@ -51,7 +54,7 @@ fun LiveTimerText(since: Long, now: Long, modifier: Modifier = Modifier) {
     Text(
         text = elapsed(now - since),
         style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = BabyLogTheme.colors.textPrimary,
         modifier = modifier,
     )
 }

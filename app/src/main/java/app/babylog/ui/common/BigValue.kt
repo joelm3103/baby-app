@@ -1,5 +1,6 @@
 package app.babylog.ui.common
 
+import app.babylog.ui.theme.BabyLogTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,7 +19,7 @@ fun BigValue(
     value: String,
     unit: String,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.onSurface,
+    color: Color = BabyLogTheme.colors.textPrimary,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.Bottom) {
         Text(

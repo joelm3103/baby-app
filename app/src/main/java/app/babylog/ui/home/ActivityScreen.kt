@@ -39,6 +39,7 @@ fun ActivityScreen(
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
+    listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
     zone: ZoneId = ZoneId.systemDefault(),
     today: LocalDate = LocalDate.now(ZoneId.systemDefault()),
 ) {
@@ -46,6 +47,7 @@ fun ActivityScreen(
     val colors = BabyLogTheme.colors
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),

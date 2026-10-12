@@ -36,6 +36,14 @@ data class BabyLogColors(
     val navActive: Color,
     /** Text/icon colour to place ON an accent-filled shape. Never use textPrimary there. */
     val onAccent: Color,
+    /**
+     * Meta text (relative times, recent rows) rendered on a TINTED card. Distinct from
+     * `textSecondary`, which is tuned for the plain background: at a 0.26 tint the six card fills
+     * carry enough colour that `textSecondary` measures 3.06:1, below AA. This clears 4.5:1 on all six.
+     */
+    val textOnCard: Color,
+    /** Whether this is the dark scheme. Drives [labelFor]'s direction. */
+    val isDark: Boolean,
     // One hue per activity type. Hues are deliberately well separated: 40 / 11 / 143 / 255 / 329 / 201.
     val accentBottle: Color,
     val accentSolids: Color,
@@ -59,6 +67,8 @@ val DarkColors = BabyLogColors(
     navInactive = Color(0xFF7E8598),
     navActive = Color(0xFFEAE9EC),
     onAccent = Color(0xFF181A26),
+    textOnCard = Color(0xFFC2C6D6),
+    isDark = true,
     // Feed keeps the reference app's gold family (measured ~#C29D36-#EEC864), raised to full chroma.
     accentBottle = Color(0xFFFFC857),
     // Solids moves to coral. At the reference app's tan it was 8 degrees of hue from Bottle's gold, which is not
@@ -85,6 +95,8 @@ val LightColors = BabyLogColors(
     navInactive = Color(0xFF9AA0B4),
     navActive = Color(0xFF1F2333),
     onAccent = Color(0xFFFFFFFF),
+    textOnCard = Color(0xFF41506B),
+    isDark = false,
     accentBottle = Color(0xFF9A6B00),
     accentSolids = Color(0xFFB93E17),
     accentSleep = Color(0xFF1A6AAE),
@@ -96,13 +108,32 @@ val LightColors = BabyLogColors(
 val LocalBabyLogColors = staticCompositionLocalOf { DarkColors }
 
 /**
- * Cards are NOT tinted. Measured: a 0.16 tint over `surface` collapses the accents to chroma 0.09
- * (olive-brown, maroon), and raising the fraction to 0.22+ restores hue but drops the accent label to
- * 3.6:1 — below AA. A strongly tinted dark card cannot also be a readable background for its own
- * accent label, so the tint was the wrong device. Identity comes from a full-chroma accent bar at the
- * card's leading edge plus the accent-filled action button, both of which carry the hue at full
- * strength. `accentOnSurface = 8.2:1` (Bottle) worst case, versus 4.58:1 under a tint.
+ * The card surface for an activity: the accent blended into the card surface at 26%.
+ *
+ * The fraction is measured, not taste. Full-section tinting was requested because it identifies a
+ * section at a glance, and the numbers were tested rather than assumed:
+ *
+ *  - At 0.16 the fills are only dE 7.7 apart - barely separable - and `textSecondary` already fails
+ *    at 3.98:1.
+ *  - At 0.26 the fills are dE 12.5 apart, which is plainly distinguishable, and the lifted label
+ *    clears 4.5:1.
+ *  - Above 0.30 the tint starts washing out the label and the accent-filled button.
+ *
+ * The cost of a tint this strong: neither the raw accent (`#FF7A5C` measures 3.98:1 as a label on its
+ * own tint) nor `textSecondary` is legible on it. So the label uses [labelFor] - the accent lifted
+ * toward white - and meta text uses `textOnCard`. That is the trade: a tinted section means the label
+ * is a lighter cousin of the accent, not the accent itself.
  */
+fun BabyLogColors.cardFor(accent: Color): Color = blend(surface, accent, 0.26f)
+
+/**
+ * The activity label colour ON a tinted card. The raw accent is NOT legible there (3.4-4.3:1), so it
+ * is lifted toward white on dark and deepened toward black on light, which keeps the hue cue in the
+ * text while clearing AA.
+ */
+fun BabyLogColors.labelFor(accent: Color): Color =
+    if (isDark) blend(accent, Color.White, 0.55f) else blend(accent, Color.Black, 0.55f)
+
 private fun blend(base: Color, over: Color, fraction: Float) = Color(
     red = base.red + (over.red - base.red) * fraction,
     green = base.green + (over.green - base.green) * fraction,
@@ -117,8 +148,6 @@ object Spacing {
     val sectionGap = 24.dp
     val bottomBarHeight = 64.dp
 
-    /** Width of a card's leading accent bar. Full chroma, drawn behind the content. */
-    val accentBar = 4.dp
 }
 
 object Radius {

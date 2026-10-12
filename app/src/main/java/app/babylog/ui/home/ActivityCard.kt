@@ -17,8 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +30,8 @@ import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
+import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.labelFor
 import app.babylog.ui.theme.displayName
 import java.time.ZoneId
 
@@ -62,12 +62,7 @@ fun ActivityCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(colors.surface)
-            // The accent at full chroma, drawn behind the content so it costs no layout pass. Clipped
-            // by the card's rounded shape, so it reads as a rounded edge, not a stray rectangle.
-            .drawBehind {
-                drawRect(color = accent, size = Size(Spacing.accentBar.toPx(), size.height))
-            }
+            .background(colors.cardFor(accent))
             .padding(Spacing.cardPadding),
     ) {
         // 1. header: accent label, relative time of the last event
@@ -79,7 +74,7 @@ fun ActivityCard(
             Text(
                 text = card.type.displayName(),
                 style = MaterialTheme.typography.titleMedium,
-                color = accent,
+                color = colors.labelFor(accent),
             )
             if (last != null && card.running == null) {
                 RelativeTimeText(then = last.startedAt, now = now)
@@ -117,7 +112,7 @@ fun ActivityCard(
                 Text(
                     text = detailLine(last, units),
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
+                    color = colors.textOnCard,
                 )
                 Spacer(Modifier.height(10.dp))
             }
@@ -128,7 +123,7 @@ fun ActivityCard(
                     DiaperKind.entries.forEach { kind ->
                         PillButton(
                             label = kind.name.lowercase().replaceFirstChar { it.uppercase() },
-                            fill = colors.surfaceRaised,
+                            fill = colors.surface,
                             textColor = accent,
                             onClick = { onQuickDiaper(kind) },
                         )
@@ -162,7 +157,7 @@ fun ActivityCard(
                     Text(
                         text = clockTime(event.startedAt, zone),
                         style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
+                        color = colors.textOnCard,
                     )
                 }
             }
@@ -174,7 +169,7 @@ fun ActivityCard(
             Text(
                 text = "See all \u203a",
                 style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary,
+                color = colors.textOnCard,
                 modifier = Modifier.fillMaxWidth().clickable(onClick = onSeeAll).padding(top = 10.dp),
             )
         }

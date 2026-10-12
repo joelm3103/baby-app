@@ -1,14 +1,22 @@
 package app.babylog.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -20,12 +28,18 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
@@ -68,6 +82,17 @@ fun AppScaffold(container: AppContainer) {
     val state by home.state.collectAsState()
     val colors = BabyLogTheme.colors
 
+    // Owned here, not inside ActivityScreen, so this shell can react to scrolling. The insets are
+    // applied as LazyColumn contentPadding, which means items scroll THROUGH the status-bar region -
+    // without the scrim below, a scrolled row collides with the clock and battery icons.
+    val listState = rememberLazyListState()
+    val scrolled by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }
+    val scrimAlpha by animateFloatAsState(if (scrolled) 1f else 0f, label = "topScrim")
+
     BackHandler(enabled = destination != Destination.ACTIVITY) {
         destination = Destination.ACTIVITY
     }
@@ -99,19 +124,40 @@ fun AppScaffold(container: AppContainer) {
             top = inner.calculateTopPadding(),
             bottom = inner.calculateBottomPadding() + Spacing.cardGap,
         )
-        when (destination) {
-            Destination.ACTIVITY -> ActivityScreen(
-                state = state,
-                onSelectChild = home::select,
-                onAction = home::quickLog,
-                onQuickDiaper = home::logDiaper,
-                onStop = home::stopSleep,
-                onOpenSettings = { destination = Destination.SETTINGS },
-                contentPadding = padding,
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (destination) {
+                Destination.ACTIVITY -> ActivityScreen(
+                    state = state,
+                    onSelectChild = home::select,
+                    onAction = home::quickLog,
+                    onQuickDiaper = home::logDiaper,
+                    onStop = home::stopSleep,
+                    onOpenSettings = { destination = Destination.SETTINGS },
+                    contentPadding = padding,
+                    listState = listState,
+                )
+                Destination.HISTORY -> HistoryScreen(padding)
+                Destination.TRENDS -> TrendsScreen(padding)
+                Destination.SETTINGS -> SettingsScreen(padding)
+            }
+
+            // Opaque behind the status bar once the list has moved, so the clock and battery never
+            // sit on top of log text. Solid across the bar itself, then faded out below it, so there
+            // is no hard seam. Drawn last, so it covers content rather than being covered.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 20.dp)
+                    .alpha(scrimAlpha)
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to colors.background,
+                            0.65f to colors.background,
+                            1.0f to colors.background.copy(alpha = 0f),
+                        ),
+                    ),
             )
-            Destination.HISTORY -> HistoryScreen(padding)
-            Destination.TRENDS -> TrendsScreen(padding)
-            Destination.SETTINGS -> SettingsScreen(padding)
         }
     }
 }
