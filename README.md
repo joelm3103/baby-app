@@ -37,6 +37,14 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
 | 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |
 
+### Post-build changes
+
+Changes after v1 are expected, and the architecture is chosen to keep them cheap: canonical metric
+storage, a design-token file rather than hardcoded styling, pure tested logic, and an additive-only
+migration rule. The two things that are **not** cheap to retrofit are **photos/attachments** (schema +
+sync + backup all change at once) and renaming what a stored value means — so those need deciding
+before v1, not after. See the table in `PLAN.md`.
+
 ### Deliberately not built
 
 Guides, an Account tab, subscription/trial/paywall, the shop, Stop Tracking, nursing/pumping (not

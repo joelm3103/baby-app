@@ -191,6 +191,43 @@ for a week before writing another line of code**.
 
 ---
 
+## Changing this app after v1 ships
+
+the owner asked (2026-10-12) whether post-build changes are easy. Honest answer, by kind of change:
+
+| Kind of change | Cost | Why |
+|---|---|---|
+| Colours, type, spacing, card layout | **Cheap** | Design tokens live in one file, and the design skill is the contract |
+| Labels, copy, ordering, a new screen | **Cheap** | Screens read from the same DAO; no data change |
+| Units, presets, formatting | **Cheap** | Storage is canonical metric; conversion is display-only and already tested |
+| Adding a log field (e.g. a new note type) | **Easy** | Additive nullable column + a Room migration |
+| Adding a whole activity type | **Easy-ish** | Enum value + card + sheet; `EventEntity` already carries per-type optionals |
+| Renaming or restructuring existing columns | **Needs care** | A real migration, and *both phones* must move together |
+| Photos / attachments | **Expensive if retrofitted** | Needs file storage, upload, sync and backup design — decide before v1 if wanted |
+| Widgets, Wear, a third parent, per-child accounts | **Expensive** | New surfaces, not new data |
+
+### Three things to do now so post-build changes stay cheap
+
+1. **Additive-only migration rule.** New columns nullable or defaulted; never repurpose an existing
+   column's meaning; never `fallbackToDestructiveMigration`. Every migration gets a test. Enforce it
+   from schema v1 so the habit exists before there is data worth losing.
+2. **Export / backup in Settings.** Cheap now, and it means a bad migration can never lose the log. For
+   a project whose owner explicitly plans post-build changes, this is the single highest-value
+   insurance and it also unblocks restoring onto a replacement phone. the incumbent tracker has `Export Data` for the
+   same reason.
+3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
+   hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
+   Add it at Phase 12, not Phase 1.
+
+### Not cheap to reverse later
+
+- **Photo/attachment storage** — decide before v1, because retrofitting changes the schema, the sync
+  payload and the backup format at once.
+- Anything that changes **what a stored number means** (e.g. if `amountMl` ever needed to become a
+  range rather than a value).
+
+---
+
 ## Honest notes on this plan
 
 - **Growth is the risk.** WHO percentile curves, an LMS dataset and adjusted-age handling are more work
