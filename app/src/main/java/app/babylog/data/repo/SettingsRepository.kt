@@ -1,0 +1,75 @@
+package app.babylog.data.repo
+
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import app.babylog.domain.ChildSelection
+import app.babylog.domain.LengthUnit
+import app.babylog.domain.ThemeMode
+import app.babylog.domain.UnitPreferences
+import app.babylog.domain.UnitSystem
+import app.babylog.domain.VolumeUnit
+import app.babylog.domain.WeightUnit
+import app.babylog.domain.decodeChildSelection
+import app.babylog.domain.encodeChildSelection
+import app.babylog.domain.enumOrDefault
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+/**
+ * Preferences. Deliberately tiny: units, selected child, theme. Anything else that wants to live here
+ * should first justify why it is not a constant (see the do-not-build list).
+ *
+ * Defaults are chosen so a fresh install is already correct: **Metric**, **Both children**, **follow
+ * the system theme**.
+ */
+class SettingsRepository(private val dataStore: DataStore<Preferences>) {
+
+    val units: Flow<UnitPreferences> = dataStore.data.map { prefs ->
+        UnitPreferences(
+            length = enumOrDefault(prefs[KEY_LENGTH], LengthUnit.CENTIMETRES),
+            weight = enumOrDefault(prefs[KEY_WEIGHT], WeightUnit.KILOGRAMS),
+            volume = enumOrDefault(prefs[KEY_VOLUME], VolumeUnit.MILLILITRES),
+        )
+    }
+
+    val selectedChild: Flow<ChildSelection> =
+        dataStore.data.map { decodeChildSelection(it[KEY_SELECTED_CHILD]) }
+
+    val theme: Flow<ThemeMode> = dataStore.data.map { enumOrDefault(it[KEY_THEME], ThemeMode.SYSTEM) }
+
+    /** Sets all three families at once. CUSTOM intentionally changes nothing — it is derived, not a preset. */
+    suspend fun setUnitSystem(system: UnitSystem) {
+        val preset = when (system) {
+            UnitSystem.IMPERIAL -> UnitPreferences.Imperial
+            UnitSystem.METRIC -> UnitPreferences.Metric
+            UnitSystem.CUSTOM -> return
+        }
+        dataStore.edit { prefs ->
+            prefs[KEY_LENGTH] = preset.length.name
+            prefs[KEY_WEIGHT] = preset.weight.name
+            prefs[KEY_VOLUME] = preset.volume.name
+        }
+    }
+
+    /** Selecting one family individually is how the user lands in CUSTOM. */
+    suspend fun setLengthUnit(unit: LengthUnit) = dataStore.edit { it[KEY_LENGTH] = unit.name }
+
+    suspend fun setWeightUnit(unit: WeightUnit) = dataStore.edit { it[KEY_WEIGHT] = unit.name }
+
+    suspend fun setVolumeUnit(unit: VolumeUnit) = dataStore.edit { it[KEY_VOLUME] = unit.name }
+
+    suspend fun setSelectedChild(selection: ChildSelection) =
+        dataStore.edit { it[KEY_SELECTED_CHILD] = encodeChildSelection(selection) }
+
+    suspend fun setTheme(mode: ThemeMode) = dataStore.edit { it[KEY_THEME] = mode.name }
+
+    private companion object {
+        val KEY_LENGTH = stringPreferencesKey("units.length")
+        val KEY_WEIGHT = stringPreferencesKey("units.weight")
+        val KEY_VOLUME = stringPreferencesKey("units.volume")
+        val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
+        val KEY_THEME = stringPreferencesKey("ui.theme")
+    }
+}

@@ -30,6 +30,7 @@ everything after it is additive.**
 | 1 — Scaffold, theme, tokens | **DONE** (theme reworked for dark+light from real screenshots) |
 | 2 — Domain: events, formatting, grouping | **DONE** — 12 unit tests green |
 | 3 — Room schema + DAO + mappers | **DONE** — `app/schemas/…/1.json` committed, 50 tests green |
+| 4 — Repository, settings, adjusted age | **DONE** — 78 tests green |
 
 Verified today: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is 12/12; `aapt2 dump badging`
 on the output reads `app.babylog v0.1.0, compileSdk 37, targetSdk 36`; `./gradlew` works
@@ -81,7 +82,22 @@ was deliberately skipped in Phase 0. Without it, a schema mistake would only sur
 The schema is **committed** at `app/schemas/app.babylog.data.local.AppDatabase/1.json` — that is
 what makes future migration tests possible, so it is source, not build output.
 
-## Phase 4 — Repository, settings, both-mode writes
+## Phase 4 — Repository, settings, both-mode writes — DONE
+
+All three tasks landed, against a real Room database in Robolectric. **78 tests green.**
+
+Deviations worth keeping:
+
+- **`EventDraft` is a separate type from `BabyEvent`** — "what is being logged" before it is
+  attributed to a child. That is what makes Both-mode logging one draft → N events with
+  identical timestamps, instead of the tempting-but-wrong single row with a null childId.
+- **The outbox no longer carries a serialised payload.** A JSON copy of the entity drifts the
+  moment the row is edited again before the drain runs; the drain reads the current row by id
+  instead, so the queue records intent and the data has exactly one home.
+- **`startSleepTimer` refuses to stack timers** per child. Two running sleep sessions produce a
+  negative duration and a card that cannot show a single truth, so the second tap is a no-op.
+- `Clock` and the id generator are injected, so the repository tests drive time forward rather
+  than sleeping.
 
 **Task 4.1** `EventRepository` — the only writer. `log(childIds, type, fields…)` takes a **list** of
 child ids: Both-mode writes two rows with the same timestamp. `update`, `softDelete`, `undoDelete`,

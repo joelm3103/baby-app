@@ -176,6 +176,6 @@ class AppDatabaseTest {
     )
 
     private fun outbox(type: String, entityId: String, at: Long = t0) = OutboxEntity(
-        entityType = type, entityId = entityId, op = "UPSERT", payloadJson = "{}", queuedAt = at,
+        entityType = type, entityId = entityId, op = "UPSERT", queuedAt = at,
     )
 }

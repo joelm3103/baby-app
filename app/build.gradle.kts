@@ -81,6 +81,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // Preferences: units, selected child, theme.
+    implementation(libs.androidx.datastore.preferences)
+
     testImplementation(libs.junit)
     // Robolectric runs Room DAO tests on the JVM, so the DAO contract is verified without a device
     // or emulator. That matters because the emulator was deliberately skipped (Phase 0).
