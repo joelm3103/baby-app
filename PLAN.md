@@ -27,11 +27,25 @@ worker). Boilerplate that `Android Studio → New Project` generates is specifie
 
 ---
 
-## Phase 0 — Toolchain (currently MISSING on this machine)
+## Phase 0 — Toolchain (DONE 2026-10-12 — versions in `research/toolchain.md`)
 
-Verified state on 2026-10-12: `java` is **1.8.0_461** (a JRE), **no** Gradle, **no** `adb`, **no**
-`ANDROID_HOME`, **no** Android Studio, 121 GB free on `C:`. Everything in this phase is a prerequisite
-for any build.
+**Resolved.** Android Studio **2026.2.1.8** ("Rabbit 1") is installed and the SDK is in place
+(`platform-tools` 37.0.1, `platforms;android-36`, `build-tools;36.0.0`). Task 0.5 (the emulator) was
+dropped by choice — we test on the real phones.
+
+**What the machine actually looks like, because it differs from the original assumptions:**
+
+| Fact | Consequence for this plan |
+|---|---|
+| Studio bundles **OpenJDK 25.0.3** (JBR), not 21 | JDK 25 is the Gradle JVM. **Do not pin old AGP/Gradle/Kotlin versions** (see Task 1.1). No standalone JDK is installed and none is needed |
+| `java` on the command line still reports **1.8.0_461** | It resolves to `C:\Program Files (x86)\Common Files\Oracle\Java\java8path\java.exe`, an Oracle shim in the **machine** PATH. Machine entries precede user entries, so nothing at user scope can override it. Harmless: **Gradle and Studio both use `JAVA_HOME`**, which now points at the JBR. Do not "fix" this by editing PATH |
+| `sdkmanager` reports itself **deprecated** | Studio 2026 ships a newer `android` CLI (`android sdk …`) in the same `cmdline-tools/latest/bin`. `sdkmanager` still works (v22.0); prefer `android sdk` for new work |
+| Highest stable platform is **android-36** | `compileSdk`/`targetSdk` = 36. `build-tools;37.0.0` exists but there is no `platforms;android-37` yet |
+| **No emulator or system image installed** | Deliberate. Test on the physical phones over `adb` — the real target hardware, no hypervisor setup, and the same path Phase 9 uses |
+
+Reusable scripts live in `scripts/`: `android-env.ps1` (sets `JAVA_HOME`/`ANDROID_HOME` and fixes the
+user PATH, idempotent, no admin, deliberately not `setx`) and `sdkmanager.ps1` (runs `sdkmanager` with
+the right env so no quoting gymnastics are ever needed again).
 
 Version numbers below are current-at-time-of-writing; **confirm with `winget show <id>`** rather than
 trusting them, and treat the exact versions as swappable.
@@ -43,19 +57,14 @@ winget install --id Google.AndroidStudio -e --accept-package-agreements --accept
 ```
 Expected: ~4–8 GB install. Launch once so it completes first-run setup and downloads a platform.
 
-### Task 0.2 — Install a standalone JDK 21 for CLI Gradle builds
+### Task 0.2 — ~~Install a standalone JDK 21~~ — SKIPPED, deliberately
 
-```bash
-winget install --id EclipseAdoptium.Temurin.21.JDK -e --accept-package-agreements --accept-source-agreements
-```
-Then verify (new shell):
-```bash
-java -version   # expect 21.x, NOT 1.8
-```
-**Pitfall:** the existing `C:\Program Files\Java\jre1.8.0_461` may still win on `PATH`. If `java -version`
-still reports 1.8, either set `JAVA_HOME` to the Temurin 21 path and put `%JAVA_HOME%\bin` ahead of the
-JRE on the `PATH`, or point Gradle at Android Studio's bundled JBR
-(`C:\Program Files\Android\Android Studio\jbr`) via `org.gradle.java.home` in `gradle.properties`.
+Studio's bundled JBR is a complete JDK 25 and `JAVA_HOME` (user scope) now points at it:
+`C:\Program Files\Android\Android Studio\jbr`. Verified: `java -version` → 25.0.3, `javac` → 25.0.3.
+
+Install Temurin 21 only if the JBR ever needs to be decoupled from Studio's update cycle. If it is
+installed later, note that the Temurin MSI writes to the **machine** PATH and that is what makes the
+bare `java -version` report change.
 
 ### Task 0.3 — Set `ANDROID_HOME` and get platform tools on `PATH`
 
@@ -71,17 +80,22 @@ Add `%ANDROID_HOME%\platform-tools` and `%ANDROID_HOME%\cmdline-tools\latest\bin
 
 ```bash
 sdkmanager --licenses
-sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-35;google_apis;x86_64"
+scripts\sdkmanager.ps1 "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 ```
 Expected: each prints `done` / `100%`.
 
-### Task 0.5 — Create an emulator and confirm a device shows up
+### Task 0.5 — SKIPPED: use a real phone instead
+
+An emulator costs ~4 GB plus a Windows Hyper-V/WHPX configuration step, and it is not the target
+hardware. Instead: enable **Developer options → USB debugging** on your phone, plug it in, then
 
 ```bash
-avdmanager create avd -n babylog -k "system-images;android-35;google_apis;x86_64" -d pixel_7
-emulator -avd babylog &
-adb devices        # expect emulator-5554  device
+adb devices         # expect <serial>  device   (accept the RSA prompt on the phone)
 ```
+
+If the phone never appears, it is a driver/authorization problem, not an SDK problem. Install an
+emulator later only if a second device is genuinely needed:
+`scripts\sdkmanager.ps1 "emulator" "system-images;android-36;google_apis;x86_64"`.
 
 ### Task 0.6 — Commit a toolchain record
 
@@ -92,19 +106,43 @@ then commit. Don't guess them later — read them off `java -version`, `sdkmanag
 
 ## Phase 1 — Project skeleton + theme
 
-### Task 1.1 — Create the Gradle project
+### Task 1.1 — Create the Gradle project — DONE 2026-10-12 (hand-scaffolded)
 
 Android Studio → New Project → *Empty Activity* (Compose), name `BabyLog`,
 package `app.babylog`, save **into this existing repo directory** (do not let Studio create a
-nested folder or re-init git). minSdk **26**, targetSdk **35**.
+nested folder or re-init git). minSdk **26**, `compileSdk`/`targetSdk` **36**.
+
+**DONE — hand-scaffolded, no wizard.** The scaffold was written directly and builds green, so
+Task 1.1's GUI step is no longer needed for a rebuild; the files are in git. The version set that
+actually works, all read from the live repos rather than from memory:
+
+| Component | Version | Why |
+|---|---|---|
+| AGP | **9.4.1** | Latest stable. 9.5.x are alphas — do not use |
+| Gradle | **9.8.1** | AGP 9 requires >= 9.1.0 |
+| Compose BOM | **2026.09.00** | Ships Compose 1.12.1, which requires compiling against API 37+ |
+| `compileSdk` / `compileSdkMinor` | **37 / 2** | `platforms;android-37.2` is the installed platform. `targetSdk` stays 36 |
+| Kotlin | *not declared* | — see the AGP 9 facts below |
+| JDK | JBR **25.0.3** | AGP 9 needs >= 17; Studio's bundled JBR is what `JAVA_HOME` points at |
+
+**Three AGP 9 facts that cost build cycles to discover** (details in `research/toolchain.md`):
+
+1. **Do not apply `org.jetbrains.kotlin.android`.** AGP 9.0+ has built-in Kotlin and fails the build
+   with *"The 'org.jetbrains.kotlin.android' plugin is no longer required for Kotlin support since
+   AGP 9.0"*. AGP supplies KGP itself (>= 2.2.10).
+2. **`compileSdkMinor` exists** (confirmed with `javap` on `gradle-api-9.4.1.jar`), which is how you
+   target `android-37.2`. `compileSdk = 37` alone looks for a `platforms;android-37` that is not
+   published.
+3. **Do not use `jvmToolchain(17)`.** It makes Gradle hunt for a JDK 17 install that does not exist
+   here. Set `compilerOptions.jvmTarget` instead.
 
 Files produced: `settings.gradle.kts`, `build.gradle.kts`, `gradle/libs.versions.toml`,
 `app/build.gradle.kts`, `app/src/main/AndroidManifest.xml`, `MainActivity.kt`.
 
-**Verify:** `./gradlew :app:assembleDebug` → `BUILD SUCCESSFUL`.
-**Commit:** `chore: scaffold Compose app (minSdk 26, targetSdk 35)`.
+**Verified:** `:app:assembleDebug` → `BUILD SUCCESSFUL`; `aapt2 dump badging` on the output read
+`package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'`.
 
-### Task 1.2 — Add the dependencies
+### Task 1.2 — Add the dependencies (PARTIAL: Compose/activity/lifecycle in; Room, KSP, DataStore still to add)
 
 In `gradle/libs.versions.toml` + `app/build.gradle.kts`, add: `room-runtime`, `room-ktx`,
 `room-compiler`(ksp), `ksp` plugin, `datastore-preferences`, `lifecycle-viewmodel-compose`,
@@ -112,7 +150,7 @@ In `gradle/libs.versions.toml` + `app/build.gradle.kts`, add: `room-runtime`, `r
 
 **Verify:** `./gradlew :app:assembleDebug` still succeeds.
 
-### Task 1.3 — Encode the design tokens as Kotlin
+### Task 1.3 — Encode the design tokens as Kotlin — DONE (`ui/theme/Tokens.kt`)
 
 Create: `app/src/main/java/app/babylog/ui/theme/Tokens.kt`
 
@@ -147,7 +185,7 @@ object Radius { val card = 20.dp; val pill = 999.dp }
 
 **Verify:** compiles. **Commit:** `feat(theme): add babylog design tokens`.
 
-### Task 1.4 — Wire `Theme.kt` and `Type.kt` to the tokens
+### Task 1.4 — Wire `Theme.kt` and `Type.kt` to the tokens — DONE
 
 `Theme.kt` builds a Material 3 `lightColorScheme` from `Bg`/`Surface`/`TextPrimary`/`NavActive` and sets
 `background = Bg`. `Type.kt` defines the six roles from the design-tokens table (big value 34/40 Bold,

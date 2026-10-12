@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Parented on the platform theme so the app needs no AppCompat dependency.
+         The real theme is Compose (ui/theme/Theme.kt); this exists only to give the
+         Activity a window background and no action bar before Compose takes over. -->
+    <style name="Theme.BabyLog" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

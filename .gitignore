@@ -29,3 +29,18 @@ desktop.ini
 # Research: Play Store listing frames are regenerable from the URLs in
 # research/SOURCES.md (~21 MB of PNG). Keep them on disk, out of git history.
 research/screenshots/
+
+# Android / Gradle
+.gradle/
+.kotlin/
+local.properties
+captures/
+app/build/
+*.apk
+*.aab
+# Keystore: never commit. Phase 9 keeps it backed up outside the repo.
+*.keystore
+*.jks
+
+# Build/run logs — regenerable, and the full text of any run is in the terminal history anyway.
+logs/
