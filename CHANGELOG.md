@@ -22,6 +22,7 @@
 
 ### Added
 
+- `docs/timeline/`: the Phase 6, 7, 8 and 9 device captures — 32 screenshots under `docs/timeline/2026-10-14-phase6/` through `-phase9/` (9 + 8 + 6 + 9), with `index.html` sections 07-10 and the matching rows in `docs/timeline/README.md` (`a6407a0`, `11a6d4d`, `9011f7e`, `e8922dc`).
 - `PLAN.md` gains **Phase 7 — Settings** (appearance, units, children, export) and **Phase 13 — Update delivery** (release signing plus delivery without a cable). The latter precedes the ship step because a release-signed APK is what gets delivered.
 - `MaintenanceRepository` (`data/repo/MaintenanceRepository.kt`): read-all including tombstones, replace-everything import in one transaction, archive a child, permanently delete a child with their events and outbox rows.
 - `Backup.kt` (`data/backup/Backup.kt`): a versioned (`schema: 1`), indented JSON envelope of children, every event including tombstones, and the foods table including custom foods, with `UnsupportedBackupException` for a newer schema.
@@ -89,3 +90,80 @@
 - `SettingsScreen` applied its insets INSIDE `verticalScroll`, so they scrolled away with the content and rows ran under the transparent system navigation bar.
 - Settings and History had no top fade, because `scrimAlpha` read Activity's list state rather than the active destination's.
 - The child switcher's initial was not centred in its circle: a `Text`'s line box is taller than its glyph.
+
+## [2026-10-12]
+
+**In short:**
+
+- The project went from an empty repo to a device-verified Activity screen in one day: toolchain, scaffold, domain, Room v1, repository, and the first visible build.
+- Two bugs that no JVM or Robolectric test could catch were found by putting the app on a phone, and both were fixed that afternoon.
+- The design contract was corrected against real screenshots, and the card tint was dropped then restored at a measured 26%.
+- The record became durable: `docs/timeline/` with the rejected accent treatments kept alongside the accepted one, and `AGENTS.md` so an outside agent can pick the repo up.
+
+### Added
+
+- The repository: `chore: initialize repository`, a 27-line `.gitignore` for environment secrets, dependencies, build output and editor/OS cruft (`6da08ae`).
+- `research/`: the the free alternative and the incumbent tracker teardowns from 24 Play Store listing frames, source URLs with the failed de-skew attempt recorded, and the design system derived from them as a loadable project skill at `.hermes/skills/babylog-ui/` (`88f121f`).
+- `README.md`'s v1 scope decision, and `PLAN.md` — the phased plan with Phase 0's toolchain in it (`88f121f`).
+- Toolchain record: AGP 9.4.1, Gradle 9.8.1, Compose BOM 2026.09.00, JDK = Studio's bundled JBR 25.0.3, and the three AGP 9 facts that cost build cycles — the `kotlin.android` plugin must NOT be applied, `compileSdkMinor` is required for android-37.2, and `jvmToolchain(17)` fails on a JBR-only machine (`475bc42`, recorded in `research/toolchain.md`).
+- `scripts/android-env.ps1` and `sdkmanager.ps1`, so the toolchain environment is reproducible without quoting gymnastics (`475bc42`).
+- `domain/` — `EventType` and `BabyEvent`, relative-time and duration formatting, and day grouping. Formatting is pure (`now` and `zone` are passed in, never read from the clock), so it is testable headlessly and cannot fail at midnight. 12 tests green (`ed8a2a2`).
+- `domain/Units.kt` — the three independently selectable unit families (length in/cm, weight lb&oz / kg, volume fl oz / ml) with Metric/Imperial/Custom presets.
+  - Storage stays canonical metric and conversion happens only at the display and input edge, so changing the setting never rewrites stored values and percentiles always compute in one system; the preset is derived from the three choices rather than stored.
+  - Celsius only, deliberately: there is no Fahrenheit path, because a temperature in F is not a unit preference, it is a different number waiting to be misread during a fever.
+  - 25 tests green, including the compound-unit carry that 440 g → "1 lb 0 oz" depends on (`d3aa8e6`).
+- Room schema v1 — four entities (children, events, foods, outbox), four DAOs, pure entity↔domain mappers and a food-id codec, with the exported schema committed as source at `app/schemas/app.babylog.data.local.AppDatabase/1.json` (`aba1573`).
+  - 50 tests green, the DAO ones on the JVM via Robolectric 4.17 — which is what keeps the deliberately skipped emulator from leaving the schema unverified, since a schema mistake would otherwise only surface on a phone.
+- `EventRepository`, the only writer, plus `SettingsRepository` over DataStore and `Age.kt`; 78 tests green (`6b80b60`).
+  - `log()` takes a **list** of child ids, so Both mode is one draft → N rows sharing an identical timestamp, with a test that duplicate ids in the request do not double-write.
+  - `ageDaysForCharts()` is a named function rather than an inline subtraction, because for the twins at premature the adjusted offset is 70 days — the difference between ~9m1w and ~7m1d, and getting it wrong yields a confident wrong percentile with no error.
+- `AppScaffold`, `ActivityScreen`, `ChildSwitcher`, `ActivityCard`, `HomeViewModel`, a manual DI container, and a first-run seed of the two boys (`f0d7c18`).
+  - Recorded at the time as layout-**UNVERIFIED**: it compiles and the APK builds, but overflowing cards, clipped text and a wrapping pill row all compile cleanly, so a green build says nothing.
+- An adaptive launcher icon, and the four tests that cover what a build cannot: `AppStartupTest`, `MainActivityLaunchTest`, `CardBuilderTest`, `CardSummaryTest`; 97 tests green (`d161b82`).
+- `docs/timeline/` — a durable visual history with an `index.html` gallery and `scripts/capture-timeline.ps1`, keeping the two **rejected** accent treatments as well as the accepted one (`1a95606`, `50328a1`).
+  - The scratch directory those screenshots had been written to was pruned after 24h, so nothing was durable before this.
+- `AGENTS.md` — the repo now carries its own agent instructions: the stack, the measured design contract, the device-verification loop, and the traps that have already cost us, so an outside agent can pick this up without the session context (`1a95606`).
+- `research/growth-data-sources.md` — WHO's igrowup LMS tables verified by downloading and parsing, not by recall, with row counts, sex codes and sha256 recorded (`9e42886`).
+  - The age axis is **days** (0-1856), proven by spot-check: boys weight-for-age at "age 12" gives M=3.671 kg, which is a 12-day-old. Reading that axis as months would produce catastrophically wrong charts, so the unit is documented explicitly.
+
+### Changed
+
+- The design system was corrected against 15 real the incumbent tracker screenshots, which falsified two conclusions from the marketing-frame teardown (`d13eb53`):
+  - the incumbent tracker runs DARK, so the original light-only, white-card palette described an app that does not exist. Dark values are now sampled by pixel clustering; light is designed and labelled as designed rather than presented as measured.
+  - The diaper accent is a muted sage, not yellow.
+- Scope was rewritten for twins: two children (the twins, a date set in Settings, editable) with a header child switcher and a **Both** mode that logs to both in one action, per-child premature weeks and adjusted age, and bottle/solids/diaper/sleep/growth/health (`d13eb53`).
+  - Three the incumbent tracker defects became hard design REQUIREMENTS rather than polish: navigation-bar insets (the incumbent tracker clips its Child screen), a `BackHandler` on every sheet (the incumbent's back exits the app), and both children visible.
+- `PLAN.md` was rewritten in the same pass — completed Phases 0-2 collapsed to status rows and the plan renumbered, which is why the plan body now begins at Phase 3 (`d13eb53`).
+- The six activity accents were replaced with six well-separated hues, chroma up 2-5x (`bf4ce7c`).
+  - Measured on the sampled the incumbent tracker palette, Solids (hue 35) sat 8 degrees from Bottle's gold (43) and Growth (85) sat 9 degrees from Diaper (76): two of six activity colours were effectively the same colour as another.
+- The card tint went and came back, both times by measurement rather than taste (`bf4ce7c`, `1a95606`).
+  - Dropped because on a dark surface a tint collapses the accents to chroma 0.093 — the olive-brown and maroon that was reported.
+  - Restored at **26%**, which is measured: 0.16 is only dE 7.7 apart (barely separable), 0.26 is dE 12.5, and above 0.30 the accent-filled button starts washing out.
+  - The raw accent is NOT legible as a label on its own tint (3.4-4.3:1), so labels use the new `labelFor()` (6.4:1) and meta text the new `textOnCard` token (4.7-5.8:1, against `textSecondary`'s 3.06:1). A 4dp accent bar and a 6dp top band were both built and rejected first.
+- Stray `MaterialTheme.colorScheme` defaults were removed from `RelativeTimeText`, `LiveTimerText` and `BigValue`, because they are tuned for a neutral surface and measured under 4.5:1 on a tinted card — that was the dim "just now" on the olive and green cards (`1a95606`).
+- Content scrolled under the transparent status bar and collided with the clock, because the insets are applied as `LazyColumn` contentPadding and items therefore scroll THROUGH the inset region rather than stopping below it (`1a95606`).
+  - The list state is now hoisted into `AppScaffold` and a scrim fades in behind the status bar once the list has moved: solid across the bar, fading out below it, no hard seam. Blur was considered and deferred.
+- Post-build change cost became a constraint the plan has to satisfy, not a chat answer (`df9cfb0`): additive-only migrations from schema v1, export/backup in Settings as the highest-value insurance against a bad migration, and update delivery by tap rather than adb on two phones.
+- Photos and widgets were settled as permanently out of scope, which removes the last expensive retrofit and keeps the schema, the sync payload and the backup text-only (`aba1573`).
+
+### Removed
+
+- `HomeViewModelTest` and `kotlinx-coroutines-test` (`9d10090`).
+  - The test hung: Robolectric's paused main looper never pumps Room's invalidation callbacks, so a database-backed Flow cannot be collected in that harness. Better deleted than left as a 4-minute no-op that looks like coverage.
+- `EventType` nursing and pumping, removed rather than reserved: an unused variant with no accent, no card and no sheet is dead weight, and adding one later is an enum value plus UI (`aba1573`).
+
+### Fixed
+
+- **Crash on launch, on every start, on the device** (`9d10090`).
+  - `ChildSelection.default` was a stored companion `val`. On Android, ART initialises the enclosing interface — and therefore its companion — WHILE `Both` is still being constructed, so the initialiser read `Both`'s static `INSTANCE` field before it was assigned and stored null permanently; `resolve()` then died with an NPE on every start.
+  - Fixed by making it computed: `val default: ChildSelection get() = Both`. HotSpot initialises superinterfaces more lazily and sees the field already assigned, so this was invisible to all 97 JVM and Robolectric tests. Only the phone caught it, and it is now recorded in `AGENTS.md` as a trap.
+- **A live timer on every card** (`9d10090`). `isRunning` was `endedAt == null`, which conflates "still in progress" with "a point event that has no end", so every logged bottle, diaper, weigh-in and temperature rendered a count-up timer with a Stop button. Fixed with `EventType.hasDuration` (true for SLEEP alone) and `isRunning = type.hasDuration && endedAt == null`.
+- A guard that was silently compiled away: `combined.second ?: ChildSelection.Both` is constant-folded to nothing when the left operand's declared type is non-null, so the first attempt at the check did not exist in bytecode. Widening to a nullable local first makes it real; noted in the code so nobody repeats it (`9d10090`).
+- The app shipped with **no launcher icon**: `res/` held only `themes.xml`, the manifest had no `android:icon`, and `aapt` reported `icon=''` (`d161b82`). Added an adaptive icon — bottle silhouette in the feed gold on the real background `#181A26`.
+- `buildCards()` assumed its input arrived newest-first, as the DAO happens to return it, so a wrong "last event" was wrong on the card and invisible in review. It now sorts internally, with a test asserting both orderings agree (`d161b82`).
+- `elapsed()` rendered sub-minute durations as "0m 45s"; the assertion was right and the implementation changed (`ed8a2a2`).
+- `capture-timeline.ps1` resolved the phone's serial as `'R'`, from two stacked bugs (`a2098d1`): a PowerShell pipeline that yields ONE item assigns a scalar, not an array, so `$devices[0]` returned its first CHARACTER while `$devices.Count` still read 1 and the ambiguity guard passed; and nothing re-validated the serial, so `adb -s R` blocked until the caller timed out.
+  - Wrapped in `@()`, every serial is now checked against `adb devices` so a bad one fails immediately, and screenshots go to `/sdcard` to come back via `adb pull`, because PowerShell decodes a native command's stdout as text and corrupts the PNG.
+- Two of our own test expectations were wrong and the implementation right (`d3aa8e6`): 4500 g is 158.73 oz, rounding to 159 = **9 lb 15 oz**, not 9 lb 14 oz; and 440 g rounds to 16 oz and therefore MUST carry to "1 lb 0 oz", now covered on both sides of the boundary (430 g stays "0 lb 15 oz").
+
+Verified on a Samsung S23 Ultra (Android 16 / API 36): launches clean, taps log correctly, no timer on point events, the Sleep card clears the nav bar at full scroll, and system back returns to Activity instead of exiting. 103 tests green at the end of the day.

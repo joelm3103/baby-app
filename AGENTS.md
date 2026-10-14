@@ -126,6 +126,7 @@ Room's invalidation callbacks, so a test like that hangs. Test ViewModels agains
 | Path | What |
 |---|---|
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
+| `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
 | `docs/timeline/` | Screenshot history — open `docs/timeline/index.html` |
 | `research/` | the incumbent tracker/the free alternative teardown, WHO growth data, toolchain traps |
 | `.hermes/skills/babylog-ui/` | The design contract (tokens, components, layout, style guide) |
