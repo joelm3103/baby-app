@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.Color
 import app.babylog.data.repo.EventDraft
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
+import app.babylog.domain.dateOn
+import java.time.Instant
 import java.time.ZoneId
 
 /**
@@ -21,6 +23,7 @@ import java.time.ZoneId
 @Composable
 fun DiaperSheet(
     accent: Color,
+    childLabel: String,
     zone: ZoneId,
     now: Long,
     onDismiss: () -> Unit,
@@ -34,6 +37,7 @@ fun DiaperSheet(
     ActivitySheet(
         title = "Diaper",
         accent = accent,
+        subtitle = "for $childLabel",
         onDismiss = onDismiss,
         onSave = {
             onSave(
@@ -49,6 +53,10 @@ fun DiaperSheet(
             )
         },
     ) {
+        DateRow(
+            label = "Date",
+            epochDay = Instant.ofEpochMilli(startedAt).atZone(zone).toLocalDate().toEpochDay(),
+        ) { epochDay -> startedAt = dateOn(startedAt, epochDay, zone) }
         TimeRow(instantMs = startedAt, zone = zone, onChange = { startedAt = it })
         ChipRow(
             label = "Type",

@@ -2,6 +2,7 @@ package app.babylog.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,8 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.VolumeUnit
 import app.babylog.domain.clockTime
 import app.babylog.domain.timeOfDayOn
 import app.babylog.ui.theme.BabyLogTheme
@@ -113,7 +116,7 @@ fun InputValue(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Free-text entry. Used for the formula brand, a custom food name, and notes. */
+/** Free-text entry. Used for the formula brand, a custom food name, a bottle amount and notes. */
 @Composable
 fun TextFieldRow(
     label: String,
@@ -122,6 +125,8 @@ fun TextFieldRow(
     modifier: Modifier = Modifier,
     placeholder: String = "",
     singleLine: Boolean = true,
+    /** `Decimal` for a numeric field, so the keypad shows digits rather than a full keyboard. */
+    keyboardType: KeyboardType = KeyboardType.Text,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -132,6 +137,7 @@ fun TextFieldRow(
                 { Text(placeholder, color = BabyLogTheme.colors.textSecondary) }
             },
             singleLine = singleLine,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
         HorizontalDivider(color = BabyLogTheme.colors.divider, modifier = Modifier.padding(top = 12.dp))
@@ -251,6 +257,13 @@ fun <T> ChipRow(
     labelOf: (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * When set, a chip that CLEARS the selection is shown first and reads as selected while nothing is
+     * chosen. Without it a row of chips is a one-way door: the solids reaction could be set but never
+     * unset, so "no reaction" was unrepresentable once you had tapped once.
+     */
+    clearLabel: String? = null,
+    onClear: (() -> Unit)? = null,
 ) {
     val colors = BabyLogTheme.colors
     Column(modifier = modifier.fillMaxWidth()) {
@@ -265,6 +278,14 @@ fun <T> ChipRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (clearLabel != null && onClear != null) {
+                ChoiceChip(
+                    label = clearLabel,
+                    selected = selected == null,
+                    accent = accent,
+                    onClick = onClear,
+                )
+            }
             options.forEach { option ->
                 ChoiceChip(
                     label = labelOf(option),
@@ -334,6 +355,12 @@ fun SectionTitle(text: String) {
         color = BabyLogTheme.colors.textPrimary,
         modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
     )
+}
+
+/** "ml" / "fl oz" — the short unit label shown beside an amount, in one place. */
+fun volumeUnitLabel(unit: VolumeUnit): String = when (unit) {
+    VolumeUnit.MILLILITRES -> "ml"
+    VolumeUnit.FLUID_OUNCES -> "fl oz"
 }
 
 /** A date, edited through the platform picker. Stored as an epoch day — a birth date has no time. */

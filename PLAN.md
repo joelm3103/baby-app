@@ -9,7 +9,7 @@ children at once, and read the totals — with nothing else in it.
 
 **Architecture:** Single-module Kotlin/Compose app. `Room` is the **source of truth**; every write
 lands there first and the UI observes `Flow`s. An `outbox` table carries unsynced writes to Firestore
-(Phase 12), where a listener mirrors the other parent's writes back into Room. Pure logic (age and
+(Phase 13), where a listener mirrors the other parent's writes back into Room. Pure logic (age and
 adjusted age, durations, relative time, day grouping, totals, percentile lookup) lives in plain Kotlin
 so it is testable without an emulator.
 
@@ -35,15 +35,16 @@ everything after it is additive.**
 | 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
 | 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
 | 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
-| 9 — Growth | not started |
-| 10 — Health | not started |
-| 11 — Trends | not started |
-| 12 — Two accounts, one shared log | not started |
-| 13 — Update delivery | not started |
-| 14 — Ship | not started |
+| 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
+| 10 — Growth | NEXT |
+| 11 — Health | not started |
+| 12 — Trends | not started |
+| 13 — Two accounts, one shared log | not started |
+| 14 — Update delivery | not started |
+| 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **149/149** with 0 failures. The
-Phase-5 layout, the two launch bugs, and the Phase-6, 7 and 8 screens were all confirmed on a real
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **158/158** with 0 failures. The
+Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8 and 9 screens were all confirmed on a real
 device (see the device-verification sections at the end of this file) — a green build proves nothing
 about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
@@ -63,7 +64,7 @@ Create `app/src/main/java/app/babylog/data/local/`:
   foodItemsJson?, reaction?, diaperKind?, rash: Boolean?, weightG?, heightMm?, headMm?,
   temperatureC?, medication?, vaccineName?, note?, createdBy, updatedAt, deleted.
 - `FoodEntity` — the solids catalogue: id, name, category, lastUsedAt?. Seeded from a bundled list.
-- `OutboxEntity` — id, op, payloadJson, ts (unused until Phase 12, written from day one).
+- `OutboxEntity` — id, op, payloadJson, ts (unused until Phase 13, written from day one).
 
 Enums stored as `String` with `TypeConverters`. **Soft delete only** — a hard delete resurrects the
 row from the other phone on the next sync.
@@ -168,7 +169,7 @@ schema's existing `FoodReaction`); the per-food join-table escape hatch remains 
 `domain/FoodIds.kt`.
 
 Growth and Health action buttons are **disabled** with a phase note rather than writing a valueless
-stub event. Their sheets are Phases 9-10.
+stub event. Their sheets are Phases 10-11.
 
 **Task 6.1** `ActivitySheet` scaffold — tinted title bar, **X / title / Save**, and
 `BackHandler(enabled = true) { dismiss() }` so system back closes it (complaint #2).
@@ -196,7 +197,7 @@ tested**, so this phase is UI plus one export path — no new storage and no sch
   Photos are permanently out of scope, so the export stays plain text. This is the single highest-value
   insurance in the plan: it means a bad migration can never lose the log, and it unblocks restoring
   onto a replacement phone. It also retires the stale `no export` entry on the do-not-build list.
-- The **growth-reference line** (`WHO 2006 · v2026.10 · updated …`) joins this screen once Phase 9 lands.
+- The **growth-reference line** (`WHO 2006 · v2026.10 · updated …`) joins this screen once Phase 10 lands.
 
 **Verify:** switching a unit family changes the display and leaves the stored `events` row byte-identical
 (the stored amount must not be rewritten); editing a birth date changes the age on the Activity screen;
@@ -217,11 +218,34 @@ the dashboard and History cannot disagree about card order.
 
 **Commit:** `feat(ui): history totals`
 
+## Phase 9 — Daily-use polish — DONE, device-verified
+
+Fixes and small features reported after using the Phase 8 build. Cross-cutting by nature: it touches the
+logging sheets, the cards, History, Settings and the shell, so it is not a stage of its own — it is the
+pass that makes Stage 1's screens comfortable to actually live with.
+
+- Logging rows show a NEUTRAL child badge and the VOLUME. The brand is identical on every bottle and
+  distinguished nothing, so Both mode used to draw two identical rows.
+- A shared `ChildBadge` with the initial genuinely centred — it was not, because a `Text`'s line box is
+  taller than its glyph.
+- The bottle amount is free text plus EDITABLE presets stored canonically in ml (Settings → Bottle
+  presets). The stepper is gone: it cannot express 135 ml.
+- Sheets say who they log for, and Bottle/Diaper/Solids gained a Date row, so a 1am feed can be filed on
+  the previous day instead of silently landing on the new one.
+- The solids reaction can be cleared.
+- History filter chips take their activity's own accent.
+- Settings is one CARD per section, so the boundaries are unmissable.
+- The top fade follows the ACTIVE destination's scroll — Settings and History had none, because the scrim
+  read Activity's list — and Settings' bottom inset no longer scrolls, so content cannot pass under the
+  transparent system navigation bar.
+
+**Commit:** `feat(ui): daily-use polish`
+
 # STAGE 2 — Growth and Health
 
-## Phase 9 — Growth (the heaviest single feature)
+## Phase 10 — Growth (the heaviest single feature)
 
-**Task 9.1** Bundle the baseline dataset. WHO's `igrowup` LMS tables (weight-for-age,
+**Task 10.1** Bundle the baseline dataset. WHO's `igrowup` LMS tables (weight-for-age,
 length/height-for-age, head-circumference-for-age, weight-for-length/height, BMI-for-age; boys and
 girls) as a compact JSON asset under `app/src/main/assets/growth/`. **Do not invent percentile maths** —
 LMS is published data and the z-score formula is standard. Verified source URLs, row counts, sex codes
@@ -229,7 +253,7 @@ and file hashes are recorded in `research/growth-data-sources.md`; that file als
 has not revised these standards since 2006**, which is why the asset ships bundled rather than being
 fetched on first run.
 
-**Task 9.2 — dataset versioning and updates.** Ship a bundled baseline, then make the data updatable
+**Task 10.2 — dataset versioning and updates.** Ship a bundled baseline, then make the data updatable
 without an APK release. The shape the owner asked for:
 
 - **Dataset identity**: `version` (e.g. `who-2006.2026.10`), `publishedAt`, `retrievedAt`, `source`
@@ -249,7 +273,7 @@ without an APK release. The shape the owner asked for:
 - **Test**: a fake manifest newer than the bundle updates the data and the displayed date; an older or
   corrupt manifest leaves both untouched.
 
-**Task 9.3** Preterm — **settled: both born prematurely.** Not a hypothetical
+**Task 10.3** Preterm — **settled: both born prematurely.** Not a hypothetical
 path.
 
 - Default to plotting **adjusted age** on the WHO charts, toggle visible. At premature this is a large
@@ -260,25 +284,25 @@ path.
   that dataset family for interpreting birth entries while the ongoing charts stay WHO + adjusted age.
 - Both are boys, so only the boys' tables are exercised in practice — bundle the girls' tables anyway.
   A few hundred KB, and the app should not be structurally sexist.
-**Task 9.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
+**Task 10.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
 plotting a curve. Unit tests against known published values.
-**Task 9.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
+**Task 10.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
 callout card with date, value, percentile and **age (adjusted when the toggle is on)**.
 **Verify:** a seeded measurement lands on the correct curve; a preemie's adjusted age changes its
 percentile. **Commit:** `feat(growth): who percentiles and charts`
 
-## Phase 10 — Health
+## Phase 11 — Health
 
 Temperature, medication, vaccine — the same sheet pattern, reusing `InputRow`. Small once Phase 6
 exists. **Commit:** `feat(health): records`
 
 # STAGE 3 — Trends, sync, ship
 
-## Phase 11 — Trends
+## Phase 12 — Trends
 Charts over time for feed amount, diaper count, sleep duration, growth. Built last on purpose: it needs
 real data in the database before the design can be judged.
 
-## Phase 12 — Two accounts, one shared log
+## Phase 13 — Two accounts, one shared log
 Firebase project, Google sign-in, security rules restricted to two uids, outbox drain with
 `SetOptions.merge()` and client-generated ids (idempotent re-runs), inbound listener with
 `updatedAt`-wins, and **tombstones that round-trip** so a deleted event never resurrects.
@@ -291,21 +315,21 @@ route a permanent deletion through the outbox as an explicit delete document, or
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
-## Phase 13 — Update delivery
+## Phase 14 — Update delivery
 
 Getting a new build onto both phones without a cable. This has to precede the ship step, because a
 release-signed APK is the thing being delivered.
 
 - **Release signing**: generate the keystore, wire `signingConfigs`, and back the keystore up **outside
   the repo**. It never enters git.
-- **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 12,
+- **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 13,
   or a hosted APK link. Installing a new build becomes a tap on both phones instead of running
   `adb install -r` twice.
 
 **Verify:** a build reaches both phones over the air, without a cable.
 **Commit:** `chore(release): signed builds and over-the-air delivery`
 
-## Phase 14 — Ship
+## Phase 15 — Ship
 `adb install -r` the release APK on both phones — the last time a cable is needed — then **use it for a
 week before writing another line of code**.
 
@@ -337,7 +361,7 @@ the owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    same reason.
 3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
-   Add it at Phase 13, not Phase 1.
+   Add it at Phase 14, not Phase 1.
 
 ### Settled 2026-10-12: no photos, no widgets
 
@@ -545,3 +569,34 @@ against the screen. The totals are not trusted because they look plausible.
   Left as-is rather than adding an unplanned formatter — a candidate polish item.
 - The window is computed when the range is subscribed. Calendar days are stable for the day, so only an
   app left open across midnight would show a stale `1d`.
+
+---
+
+## Phase 9 device verification — 2026-10-14
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase9/`.
+
+| Check | Result |
+| --- | --- |
+| Recent rows show the child and the volume | pass — `L · 3 oz · 13:09` and `K · 3 oz · 10:31`; the diaper rows read `L · Wet` / `K · Dirty` |
+| The child badge letter is centred | pass — verified at 6x zoom (`02-badge-zoom.png`) |
+| The bottle sheet states who it logs for | pass — subtitle `for both` |
+| Free-text amount plus presets | pass — an `Amount (fl oz)` field and chips `2 / 3 / 4.1 / 5.1 oz`, which are the 60/90/120/150 ml defaults rendered in the selected unit |
+| The Date row back-dates | pass — set to 13 Oct, saved, and the DB shows two rows at `2026-10-13 14:11` local with the time-of-day preserved |
+| **An untouched prefill keeps its stored value** | pass — 90 ml displays as "3" oz; saving without editing now stores **90**, where before the fix it stored **89** |
+| The solids reaction can be cleared | pass — the Reaction row now offers `None` |
+| History filter chips are colour-coded | pass — Bottle gold, Diaper green, Solids coral, Growth violet, Health magenta, Sleep sky, matching their cards |
+| Top fade on History | pass — scrolled content dims out under the status bar instead of colliding with the clock |
+| Settings sections alternate shades | pass — sampled pixels: `surface` (34,37,52) → gap → `surfaceRaised` (45,49,61) → gap → `surface` |
+| No content under the system navigation bar on Settings | pass — content ends at y=2102 of 2316; below it is the background and then the nav bar's own scrim, never content |
+| The bottom bar reads solid | pass — a divider above it and an opaque `surface` fill |
+| No crash at any point | pass |
+
+### Found on device
+
+- **Opening a sheet and pressing Save silently rewrote the amount.** 90 ml renders as "3" fl oz, and
+  re-parsing "3" stored 89 ml — so merely visiting the sheet changed the log by a millilitre. Fixed by
+  keeping the stored value while the prefilled text is untouched.
+- The Settings gear lives in the SCROLLING header, so it scrolls out of reach; reaching Settings from a
+  scrolled Activity or History needs a scroll back to the top first. Not changed — recorded as a UX
+  wrinkle rather than fixed in this pass.

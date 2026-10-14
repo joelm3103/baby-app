@@ -1,6 +1,7 @@
 package app.babylog.domain
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -62,6 +63,19 @@ fun clockTime(instantMs: Long, zone: ZoneId): String =
 fun timeOfDayOn(instantMs: Long, hour: Int, minute: Int, zone: ZoneId): Long =
     Instant.ofEpochMilli(instantMs).atZone(zone).toLocalDate()
         .atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+
+/**
+ * The companion of [timeOfDayOn]: the instant with the TIME OF DAY of [instantMs] but on [epochDay], in
+ * [zone].
+ *
+ * The two must not interfere — editing a sheet's date keeps the clock time, editing the time keeps the
+ * date — which is why both go through `LocalDate`/`LocalTime` in the display zone rather than doing
+ * millisecond arithmetic. A slip here files a night feed on the wrong day and looks entirely plausible.
+ */
+fun dateOn(instantMs: Long, epochDay: Long, zone: ZoneId): Long =
+    LocalDate.ofEpochDay(epochDay)
+        .atTime(Instant.ofEpochMilli(instantMs).atZone(zone).toLocalTime())
+        .atZone(zone).toInstant().toEpochMilli()
 
 /** "Today" / "Yesterday" / "Wed 12 Mar" for a day divider. */
 fun dayLabel(instantMs: Long, zone: ZoneId, now: Long): String {

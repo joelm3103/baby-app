@@ -15,10 +15,10 @@
 
 **In short:**
 
-- Bottle, diaper and solids are logged with real values through full-screen sheets, instead of the timestamp-only stub.
-- Both-mode logging writes one row per child with identical timestamps, confirmed in the Room database, and the bundled 91-food catalogue accepts custom foods ordered by recent use.
-- Settings is a real screen (appearance, units, children you can add/edit/archive/permanently delete, and a JSON backup you can export and restore), and History now shows calendar-day totals with a configurable day/night split and filter chips.
-- System back closes a sheet instead of leaving the app, and the plan gained a Settings phase plus an Update delivery phase.
+- Bottle, diaper and solids log real values through full-screen sheets, and every log row now names the child and the amount instead of repeating a brand.
+- Both-mode logging writes one row per child with identical timestamps, and History shows calendar-day totals with a configurable day/night split and filter chips.
+- Settings is a real screen — units, children, backup/restore and bottle presets — laid out as distinct alternating cards.
+- The shell's fade follows the active tab and content no longer runs under the system navigation bar, while the sheets gained an editable date and now say who they log for.
 
 ### Added
 
@@ -35,6 +35,11 @@
 - `SettingsRepository.nightWindow` with `setNightStartHour`/`setNightEndHour` (defaults 18 and 6, clamped to 0-23), and a **Day & night** section in Settings using two hour steppers.
 - `EVENT_DISPLAY_ORDER` in the domain, now read by both `CardBuilder` and `Totals`, so the dashboard and History cannot disagree about card order.
 - 13 more tests: `TotalsTest` (10, including a hand-counted day, a non-UTC boundary, night wrap-around and `start == end`) and `SettingsNightWindowTest` (3); the suite is 149.
+- `ui/home/ChildBadge.kt` — a neutral circle with a genuinely centred initial, shared by the child switcher and the log rows.
+- `SettingsRepository.bottlePresets` (ordered canonical ml, defaults 60/90/120/150, add/remove, sorted on read) and a **Bottle presets** section in Settings.
+- `dateOn(instantMs, epochDay, zone)` in `domain/Formatting.kt`, the companion of `timeOfDayOn`, so a sheet's Date row and Time row compose without fighting each other.
+- An optional `None` option on `ChipRow`, used so the solids reaction can be cleared.
+- 9 more tests: `FormattingTest` (+2), `CardSummaryTest` (+3) and `SettingsRepositoryTest` (7, replacing `SettingsNightWindowTest`); the suite is 158.
 
 - `ActivitySheet`, a full-screen logging frame with an activity-tinted title bar (`X` / title / `Save`), hairline `InputRow`s, and a `BackHandler` so system back dismisses the sheet rather than leaving the app (`app/src/main/java/app/babylog/ui/home/ActivitySheet.kt`).
 - Bottle, Diaper and Solids logging sheets (`ui/home/BottleSheet.kt`, `ui/home/DiaperSheet.kt`, `ui/home/SolidsSheet.kt`) and their shared controls (`ui/home/SheetControls.kt`).
@@ -61,6 +66,13 @@
 - `.hermes/skills/babylog-ui/references/design-tokens.md`: documents `danger`, and the stale "cards are NOT tinted" section was corrected to the shipped 26% tint with its measured derivations.
 - History replaced its placeholder: a `1d · 7d · 14d` calendar-day range selector, multi-select filter chips (session-only, all shown by default), and six total cards that carry a per-child line in Both mode. Growth and Health report the latest measurement in range rather than a sum.
 - `ActivityScreen` no longer builds its own header; both Activity and History use `ScreenHeader`, per the contract's "keep it identical on Activity and History".
+- Log rows show the child badge and the VOLUME for a bottle. `recentRowLabel` is deliberately a separate function from `detailLine`, which still shows the brand under a card's big value — the two questions differ.
+- The bottle amount is free text in the display unit plus preset chips; the stepper is gone, because it cannot express 135 ml.
+- Bottle, Diaper and Solids sheets gained a Date row and a `for Child 1` / `for both` subtitle.
+- History filter chips use `accentFor(type)` when selected, matching the card each chip controls.
+- Settings is one card per section, alternating `surface` / `surfaceRaised`, plus the Bottle presets section.
+- The shell hoists a scroll state per destination so the scrim follows the ACTIVE tab; the bottom bar gained a divider; Settings' bottom inset moved outside its scroll.
+- Phases renumbered: this polish pass is 9, Growth 10, Health 11, Trends 12, Two accounts 13, Update delivery 14, Ship 15.
 
 ### Removed
 
@@ -73,3 +85,7 @@
 - `ChildSelection.resolve` returned **all** children for a stale single-child selection, which would have shown a combined view that the switcher no longer offers once there are three. It now falls back to the first child in sort order.
 - The skill's `design-tokens.md` still asserted "cards are NOT tinted" and described the rejected accent bar, contradicting the shipped 26% tint in `Tokens.kt` and `ActivityCard`.
 - `PLAN.md`'s verification line still read **121/121** and listed only the Phase 5 and 6 device passes; corrected to 149 and Phases 5-8.
+- **Opening the bottle sheet and pressing Save silently rewrote the amount.** 90 ml renders as "3" fl oz, and re-parsing "3" stored 89 ml. An untouched prefill now keeps its stored value.
+- `SettingsScreen` applied its insets INSIDE `verticalScroll`, so they scrolled away with the content and rows ran under the transparent system navigation bar.
+- Settings and History had no top fade, because `scrimAlpha` read Activity's list state rather than the active destination's.
+- The child switcher's initial was not centred in its circle: a `Text`'s line box is taller than its glyph.

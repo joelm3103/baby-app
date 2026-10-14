@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -130,6 +132,7 @@ fun AppScaffold(container: AppContainer) {
     val settingsUnits by settingsVm.units.collectAsState()
     val settingsTheme by settingsVm.theme.collectAsState()
     val settingsNight by settingsVm.nightWindow.collectAsState()
+    val settingsPresets by settingsVm.bottlePresets.collectAsState()
     val settingsMessage by settingsVm.message.collectAsState()
 
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
@@ -174,10 +177,24 @@ fun AppScaffold(container: AppContainer) {
     // Owned here, not inside ActivityScreen, so this shell can react to scrolling. The insets are
     // applied as LazyColumn contentPadding, which means items scroll THROUGH the status-bar region -
     // without the scrim below, a scrolled row collides with the clock and battery icons.
-    val listState = rememberLazyListState()
-    val scrolled by remember {
+    // Each destination owns its own scroll position, but the shell draws ONE scrim — so the fade must
+    // follow whichever list is actually on screen. Deriving it from Activity's list alone (as this did)
+    // meant Settings and History never faded at all, and their content collided with the clock and
+    // battery icons while scrolling.
+    val activityListState = rememberLazyListState()
+    val historyListState = rememberLazyListState()
+    val settingsListState = rememberLazyListState()
+    val activeListState = when (destination) {
+        Destination.ACTIVITY -> activityListState
+        Destination.HISTORY -> historyListState
+        Destination.SETTINGS -> settingsListState
+        Destination.TRENDS -> null
+    }
+    val scrolled by remember(activeListState) {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+            activeListState?.let {
+                it.firstVisibleItemIndex > 0 || it.firstVisibleItemScrollOffset > 0
+            } ?: false
         }
     }
     val scrimAlpha by animateFloatAsState(if (scrolled) 1f else 0f, label = "topScrim")
@@ -194,16 +211,20 @@ fun AppScaffold(container: AppContainer) {
         containerColor = colors.background,
         bottomBar = {
             if (destination != Destination.SETTINGS) {
-                NavigationBar(containerColor = colors.surface) {
-                    Destination.entries
-                        .filter { it != Destination.SETTINGS }
-                        .forEach { tab ->
-                            NavItem(
-                                tab = tab,
-                                selected = destination == tab,
-                                onSelect = { destination = it },
-                            )
-                        }
+                Column {
+                    // A divider so the bar reads as a solid surface rather than blending into the page.
+                    HorizontalDivider(color = colors.divider)
+                    NavigationBar(containerColor = colors.surface) {
+                        Destination.entries
+                            .filter { it != Destination.SETTINGS }
+                            .forEach { tab ->
+                                NavItem(
+                                    tab = tab,
+                                    selected = destination == tab,
+                                    onSelect = { destination = it },
+                                )
+                            }
+                    }
                 }
             }
         },
@@ -211,9 +232,10 @@ fun AppScaffold(container: AppContainer) {
             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
     ) { inner ->
         val layoutDirection = LocalLayoutDirection.current
-        // Settings has no bottom bar, so the Scaffold does not consume the bottom inset for it. Without
-        // this the last row sits under the system navigation bar - the exact the reference app clipping bug.
-        val settingsInset = if (destination == Destination.SETTINGS) {
+        // Settings has no bottom bar of its own, so the Scaffold does not consume the bottom inset for
+        // it. That inset is handed to SettingsScreen to apply OUTSIDE its scroll: inside, it scrolls
+        // away with the content and rows pass under the transparent system navigation bar.
+        val settingsBottomInset = if (destination == Destination.SETTINGS) {
             WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         } else {
             0.dp
@@ -222,7 +244,7 @@ fun AppScaffold(container: AppContainer) {
             start = inner.calculateStartPadding(layoutDirection) + Spacing.gutter,
             end = inner.calculateEndPadding(layoutDirection) + Spacing.gutter,
             top = inner.calculateTopPadding(),
-            bottom = inner.calculateBottomPadding() + Spacing.cardGap + settingsInset,
+            bottom = inner.calculateBottomPadding() + Spacing.cardGap,
         )
         Box(modifier = Modifier.fillMaxSize()) {
             when (destination) {
@@ -235,7 +257,7 @@ fun AppScaffold(container: AppContainer) {
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
                     contentPadding = padding,
-                    listState = listState,
+                    listState = activityListState,
                 )
                 Destination.HISTORY -> HistoryScreen(
                     state = historyState,
@@ -245,6 +267,7 @@ fun AppScaffold(container: AppContainer) {
                     onSelectChild = home::select,
                     onOpenSettings = { destination = Destination.SETTINGS },
                     contentPadding = padding,
+                    listState = historyListState,
                 )
                 Destination.TRENDS -> TrendsScreen(padding)
                 Destination.SETTINGS -> SettingsScreen(
@@ -252,6 +275,7 @@ fun AppScaffold(container: AppContainer) {
                     units = settingsUnits,
                     nightWindow = settingsNight,
                     theme = settingsTheme,
+                    presets = settingsPresets,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
                     onLengthUnit = settingsVm::setLengthUnit,
@@ -259,6 +283,8 @@ fun AppScaffold(container: AppContainer) {
                     onVolumeUnit = settingsVm::setVolumeUnit,
                     onNightStart = settingsVm::setNightStartHour,
                     onNightEnd = settingsVm::setNightEndHour,
+                    onAddPreset = settingsVm::addBottlePreset,
+                    onRemovePreset = settingsVm::removeBottlePreset,
                     onUpdateChild = settingsVm::updateChild,
                     onAddChild = settingsVm::addChild,
                     onArchiveChild = settingsVm::archiveChild,
@@ -267,6 +293,8 @@ fun AppScaffold(container: AppContainer) {
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
                     message = settingsMessage,
                     contentPadding = padding,
+                    listState = settingsListState,
+                    bottomInset = settingsBottomInset,
                 )
             }
 
@@ -298,7 +326,9 @@ fun AppScaffold(container: AppContainer) {
             when (sheetType) {
                 EventType.BOTTLE -> BottleSheet(
                     accent = accent,
+                    childLabel = state.childLabel,
                     units = state.units,
+                    presets = settingsPresets,
                     zone = zone,
                     now = sheetNow,
                     initialAmountMl = state.lastBottleAmountMl,
@@ -307,6 +337,7 @@ fun AppScaffold(container: AppContainer) {
                 )
                 EventType.DIAPER -> DiaperSheet(
                     accent = accent,
+                    childLabel = state.childLabel,
                     zone = zone,
                     now = sheetNow,
                     onDismiss = home::dismissSheet,
@@ -314,6 +345,7 @@ fun AppScaffold(container: AppContainer) {
                 )
                 EventType.SOLIDS -> SolidsSheet(
                     accent = accent,
+                    childLabel = state.childLabel,
                     zone = zone,
                     now = sheetNow,
                     foods = foods,
@@ -321,7 +353,7 @@ fun AppScaffold(container: AppContainer) {
                     onDismiss = home::dismissSheet,
                     onSave = home::save,
                 )
-                // Sleep runs from the card as a timer; Growth and Health are Phases 9-10.
+                // Sleep runs from the card as a timer; Growth and Health are Phases 10-11.
                 else -> Unit
             }
         }

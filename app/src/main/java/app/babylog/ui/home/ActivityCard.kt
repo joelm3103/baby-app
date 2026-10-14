@@ -49,6 +49,7 @@ fun ActivityCard(
     card: CardUi,
     units: UnitPreferences,
     childLabel: String,
+    childInitials: Map<String, String>,
     now: Long,
     zone: ZoneId,
     onOpenSheet: (EventType) -> Unit,
@@ -183,9 +184,9 @@ fun ActivityCard(
                     )
                     Text(
                         text = if (card.type == EventType.GROWTH) {
-                            "Growth charts arrive in Phase 9"
+                            "Growth charts arrive in Phase 10"
                         } else {
-                            "Health records arrive in Phase 10"
+                            "Health records arrive in Phase 11"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textOnCard,
@@ -206,11 +207,19 @@ fun ActivityCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = detailLine(event, units),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textPrimary,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        // Which child, then how much. In Both mode two rows could otherwise read
+                        // identically: the brand is the same on every bottle and says nothing.
+                        ChildBadge(initials = childInitials[event.childId] ?: "?", size = 18.dp)
+                        Text(
+                            text = recentRowLabel(event, units),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.textPrimary,
+                        )
+                    }
                     Text(
                         text = clockTime(event.startedAt, zone),
                         style = MaterialTheme.typography.bodySmall,

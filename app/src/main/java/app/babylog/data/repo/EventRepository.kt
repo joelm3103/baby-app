@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.map
 /**
  * The ONLY place that writes events. Everything else reads.
  *
- * Every write also queues an outbox row. Sync does not exist until Phase 12, but queueing from day one
+ * Every write also queues an outbox row. Sync does not exist until Phase 13, but queueing from day one
  * is what makes offline-first real rather than retrofitted: the pending queue is a record of intent,
  * and the drain reads the *current* row when it runs rather than a stale serialised copy.
  *

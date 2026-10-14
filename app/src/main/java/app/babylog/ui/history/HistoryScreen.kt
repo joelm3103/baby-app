@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -57,11 +58,13 @@ fun HistoryScreen(
     onSelectChild: (ChildSelection) -> Unit,
     onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
+    listState: LazyListState,
     today: LocalDate = LocalDate.now(ZoneId.systemDefault()),
 ) {
     val colors = BabyLogTheme.colors
 
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
@@ -134,7 +137,9 @@ private fun FilterChips(hidden: Set<EventType>, onToggle: (EventType) -> Unit) {
                 ChoiceChip(
                     label = type.name.lowercase().replaceFirstChar { it.uppercase() },
                     selected = type !in hidden,
-                    accent = colors.navActive,
+                    // The activity's OWN accent, matching the card this chip controls, so the filter row
+                    // reads as the same colour code as the screen below it.
+                    accent = colors.accentFor(type),
                     onClick = { onToggle(type) },
                 )
             }

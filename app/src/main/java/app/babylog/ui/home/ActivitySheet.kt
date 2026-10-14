@@ -49,6 +49,8 @@ fun ActivitySheet(
     onSave: () -> Unit,
     saveEnabled: Boolean = true,
     saveLabel: String = "Save",
+    /** Shown under the title bar, e.g. "for both" — a sheet must say who it is about to log for. */
+    subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = BabyLogTheme.colors
@@ -62,32 +64,46 @@ fun ActivitySheet(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.cardFor(accent))
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .background(colors.cardFor(accent)),
             ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        tint = colors.labelFor(accent),
-                    )
-                }
-                Text(
-                    text = title,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.labelFor(accent),
-                )
-                TextButton(onClick = onSave, enabled = saveEnabled) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close",
+                            tint = colors.labelFor(accent),
+                        )
+                    }
                     Text(
-                        text = saveLabel,
+                        text = title,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (saveEnabled) colors.labelFor(accent) else colors.textOnCard,
+                        color = colors.labelFor(accent),
+                    )
+                    TextButton(onClick = onSave, enabled = saveEnabled) {
+                        Text(
+                            text = saveLabel,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (saveEnabled) colors.labelFor(accent) else colors.textOnCard,
+                        )
+                    }
+                }
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.labelFor(accent),
                     )
                 }
             }

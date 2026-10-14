@@ -71,7 +71,7 @@ class MaintenanceRepository(
      * rows so the queue cannot reference something that no longer exists.
      *
      * **Leaves no tombstone.** A later sync therefore cannot learn about this deletion and could
-     * resurrect the child from the other phone — recorded in PLAN.md as something Phase 12 must revisit.
+     * resurrect the child from the other phone — recorded in PLAN.md as something Phase 13 must revisit.
      */
     suspend fun deleteChildPermanently(childId: String) {
         val eventIds = eventDao.idsForChild(childId)

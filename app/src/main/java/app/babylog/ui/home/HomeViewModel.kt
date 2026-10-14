@@ -174,10 +174,10 @@ class HomeViewModel(
     fun undo(event: BabyEvent) = viewModelScope.launch { events.undoDelete(event) }
 
     companion object {
-        /** Until sign-in exists (Phase 12) every write is attributed to the local device. */
+        /** Until sign-in exists (Phase 13) every write is attributed to the local device. */
         const val CREATED_BY = "local"
 
-        /** Only these three have a logging sheet; sleep runs from the card and Growth/Health are Phase 9-10. */
+        /** Only these three have a logging sheet; sleep runs from the card and Growth/Health are Phase 10-11. */
         private val SHEET_TYPES = setOf(EventType.BOTTLE, EventType.DIAPER, EventType.SOLIDS)
     }
 }

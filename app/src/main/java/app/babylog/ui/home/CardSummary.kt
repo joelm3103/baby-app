@@ -62,3 +62,16 @@ fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.t
     EventType.HEALTH -> listOfNotNull(event.medication, event.vaccineName).joinToString(" \u00b7 ")
         .ifBlank { "Health" }
 }
+
+/**
+ * The value shown in a card's RECENT ROW — a different question from [detailLine]'s.
+ *
+ * [detailLine] answers "what was this?" under the big value, where a formula brand is genuinely
+ * useful. A row has to answer "which one, and how much?", and for a bottle that means the VOLUME: the
+ * brand is identical on every row and distinguishes nothing, which is why Both mode used to render two
+ * identical "Bottle" rows. The child comes from the badge beside this text.
+ */
+fun recentRowLabel(event: BabyEvent, units: UnitPreferences): String = when (event.type) {
+    EventType.BOTTLE -> event.amountMl?.let { formatVolume(it.toDouble(), units.volume) } ?: "Bottle"
+    else -> detailLine(event, units)
+}

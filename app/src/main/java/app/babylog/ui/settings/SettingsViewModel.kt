@@ -45,6 +45,10 @@ class SettingsViewModel(
     val nightWindow: StateFlow<NightWindow> = settings.nightWindow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NightWindow())
 
+    /** The bottle amounts worth one tap, canonical millilitres, ascending. */
+    val bottlePresets: StateFlow<List<Int>> = settings.bottlePresets
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -62,6 +66,10 @@ class SettingsViewModel(
     fun setNightStartHour(hour: Int) = viewModelScope.launch { settings.setNightStartHour(hour) }
 
     fun setNightEndHour(hour: Int) = viewModelScope.launch { settings.setNightEndHour(hour) }
+
+    fun addBottlePreset(millilitres: Int) = viewModelScope.launch { settings.addBottlePreset(millilitres) }
+
+    fun removeBottlePreset(millilitres: Int) = viewModelScope.launch { settings.removeBottlePreset(millilitres) }
 
     fun updateChild(child: Child) = viewModelScope.launch { children.upsert(child) }
 

@@ -77,6 +77,37 @@ class FormattingTest {
     }
 
     @Test
+    fun `dateOn keeps the time of day and moves only the date`() {
+        val zone = ZoneId.of("Asia/Tokyo")
+        // 23:30Z on 14 Nov is 08:30 on 15 Nov in Tokyo, so the time to preserve is 08:30 local.
+        val original = java.time.Instant.parse("2023-11-14T23:30:00Z").toEpochMilli()
+        val target = java.time.LocalDate.of(2023, 11, 20)
+
+        val moved = dateOn(original, target.toEpochDay(), zone)
+
+        val zdt = java.time.Instant.ofEpochMilli(moved).atZone(zone)
+        assertEquals(java.time.LocalDate.of(2023, 11, 20), zdt.toLocalDate())
+        assertEquals(8, zdt.hour)
+        assertEquals(30, zdt.minute)
+        assertEquals("2023-11-19T23:30:00Z", java.time.Instant.ofEpochMilli(moved).toString())
+    }
+
+    @Test
+    fun `a date change and a time change compose without fighting`() {
+        val zone = ZoneId.of("Asia/Tokyo")
+        val original = java.time.Instant.parse("2023-11-14T23:30:00Z").toEpochMilli()
+
+        // Date first, then time: the end state must be 03:15 on the 20th, local.
+        val dated = dateOn(original, java.time.LocalDate.of(2023, 11, 20).toEpochDay(), zone)
+        val timed = timeOfDayOn(dated, hour = 3, minute = 15, zone = zone)
+
+        val zdt = java.time.Instant.ofEpochMilli(timed).atZone(zone)
+        assertEquals(java.time.LocalDate.of(2023, 11, 20), zdt.toLocalDate())
+        assertEquals(3, zdt.hour)
+        assertEquals(15, zdt.minute)
+    }
+
+    @Test
     fun `day label names today and yesterday`() {
         val zone = ZoneId.of("UTC")
         // 2023-11-14T12:00:00Z was a Tuesday; two days earlier was Sunday 12 Nov.

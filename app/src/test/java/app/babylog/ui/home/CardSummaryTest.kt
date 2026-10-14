@@ -98,6 +98,29 @@ class CardSummaryTest {
         assertEquals("Solids", detailLine(bare, metric))
     }
 
+    @Test
+    fun `a recent row shows the volume for a bottle, not the brand`() {
+        val withAmount = event(EventType.BOTTLE).copy(amountMl = 120, formulaBrand = "Aptamil")
+
+        assertEquals("120 ml", recentRowLabel(withAmount, metric))
+        assertEquals("4.1 oz", recentRowLabel(withAmount, imperial))
+        // detailLine still shows the brand under the big value: the two questions differ on purpose.
+        assertEquals("Aptamil", detailLine(withAmount, metric))
+    }
+
+    @Test
+    fun `a bottle row without an amount falls back rather than showing nothing`() {
+        assertEquals("Bottle", recentRowLabel(event(EventType.BOTTLE), metric))
+    }
+
+    @Test
+    fun `a non-bottle row reuses the detail line`() {
+        val diaper = event(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED, rash = true)
+
+        assertEquals("Mixed \u00b7 rash", recentRowLabel(diaper, metric))
+        assertEquals(detailLine(diaper, metric), recentRowLabel(diaper, metric))
+    }
+
     private fun event(type: EventType) = BabyEvent(
         id = "e", childId = "first-twin", type = type, startedAt = t0,
         createdBy = "u1", updatedAt = t0,

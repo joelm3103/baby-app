@@ -64,6 +64,32 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[KEY_NIGHT_END] = hour.coerceIn(0, 23) }
 
     /**
+     * The bottle amounts worth one tap, stored canonically in MILLILITRES and kept in ASCENDING order,
+     * which is how a list of sizes reads. Shown in whatever volume unit is selected, so switching units
+     * never rewrites a preset.
+     */
+    val bottlePresets: Flow<List<Int>> =
+        dataStore.data.map { decodePresets(it[KEY_BOTTLE_PRESETS]) }
+
+    /** Adds a preset unless it is already there or is not a positive amount. */
+    suspend fun addBottlePreset(millilitres: Int) {
+        if (millilitres <= 0) return
+        dataStore.edit { prefs ->
+            val current = decodePresets(prefs[KEY_BOTTLE_PRESETS])
+            if (millilitres !in current) {
+                prefs[KEY_BOTTLE_PRESETS] = encodePresets(current + millilitres)
+            }
+        }
+    }
+
+    suspend fun removeBottlePreset(millilitres: Int) {
+        dataStore.edit { prefs ->
+            val current = decodePresets(prefs[KEY_BOTTLE_PRESETS])
+            prefs[KEY_BOTTLE_PRESETS] = encodePresets(current - millilitres)
+        }
+    }
+
+    /**
      * Runs [seed] at most once in the app's lifetime, and reports whether it ran.
      *
      * The old guard was "is the children table empty", which a parent makes true again simply by
@@ -115,8 +141,29 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
         val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
         val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
+        val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
 
         const val DEFAULT_NIGHT_START_HOUR = 18
         const val DEFAULT_NIGHT_END_HOUR = 6
     }
 }
+
+/**
+ * Presets are a small ordered list of sizes, so they are stored as a comma-separated string rather than
+ * a `stringSetPreferencesKey`: DataStore has no ordered collection. They are SORTED ascending on read,
+ * so the stored order never matters and a hand-edited preference still reads sensibly. An absent key
+ * yields the defaults; an emptied list stays empty, so removing every preset does not silently bring the
+ * defaults back.
+ */
+private fun decodePresets(raw: String?): List<Int> =
+    raw?.split(',')
+        ?.mapNotNull { it.trim().toIntOrNull() }
+        ?.filter { it > 0 }
+        ?.distinct()
+        ?.sorted()
+        ?: DEFAULT_BOTTLE_PRESETS
+
+private fun encodePresets(values: List<Int>): String = values.joinToString(",")
+
+/** Common bottle sizes, so the chips are useful before anything has been configured. */
+private val DEFAULT_BOTTLE_PRESETS = listOf(60, 90, 120, 150)

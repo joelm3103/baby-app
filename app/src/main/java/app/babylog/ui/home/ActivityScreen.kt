@@ -67,6 +67,7 @@ fun ActivityScreen(
                 card = card,
                 units = state.units,
                 childLabel = state.childLabel,
+                childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
                 now = now,
                 zone = zone,
                 onOpenSheet = onOpenSheet,

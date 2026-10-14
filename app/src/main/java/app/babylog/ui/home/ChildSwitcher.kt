@@ -4,11 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.babylog.domain.Child
 import app.babylog.domain.ChildSelection
 import app.babylog.ui.theme.BabyLogTheme
@@ -80,20 +76,8 @@ private fun SwitcherPill(
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .background(if (selected) colors.textPrimary else colors.divider),
-        ) {
-            Text(
-                text = initials,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (selected) colors.surface else colors.textSecondary,
-            )
-        }
+        // Shared with the recent log rows, so the two cannot drift. The centring lives in ChildBadge.
+        ChildBadge(initials = initials, selected = selected)
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,

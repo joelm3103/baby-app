@@ -44,7 +44,7 @@ interface ChildDao {
     @Query("DELETE FROM children")
     suspend fun deleteAll()
 
-    /** Permanent removal. Unlike [softDelete] this leaves no tombstone — see PLAN.md Phase 12. */
+    /** Permanent removal. Unlike [softDelete] this leaves no tombstone — see PLAN.md Phase 13. */
     @Query("DELETE FROM children WHERE id = :id")
     suspend fun hardDelete(id: String)
 }

@@ -18,6 +18,8 @@ import app.babylog.data.repo.EventDraft
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
+import app.babylog.domain.dateOn
+import java.time.Instant
 import java.time.ZoneId
 
 /**
@@ -32,6 +34,7 @@ import java.time.ZoneId
 @Composable
 fun SolidsSheet(
     accent: Color,
+    childLabel: String,
     zone: ZoneId,
     now: Long,
     foods: List<FoodEntity>,
@@ -49,6 +52,7 @@ fun SolidsSheet(
     ActivitySheet(
         title = "Solids",
         accent = accent,
+        subtitle = "for $childLabel",
         onDismiss = onDismiss,
         onSave = {
             onSave(
@@ -63,6 +67,10 @@ fun SolidsSheet(
             )
         },
     ) {
+        DateRow(
+            label = "Date",
+            epochDay = Instant.ofEpochMilli(startedAt).atZone(zone).toLocalDate().toEpochDay(),
+        ) { epochDay -> startedAt = dateOn(startedAt, epochDay, zone) }
         TimeRow(instantMs = startedAt, zone = zone, onChange = { startedAt = it })
 
         ChipRow(
@@ -104,6 +112,8 @@ fun SolidsSheet(
             accent = accent,
             labelOf = { if (it == FoodReaction.LOVED_IT) "Loved it" else "Allergy or sensitivity" },
             onSelect = { reaction = it },
+            clearLabel = "None",
+            onClear = { reaction = null },
         )
 
         TextFieldRow(
