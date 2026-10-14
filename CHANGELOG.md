@@ -19,7 +19,7 @@
 - Both-mode logging writes one row per child with identical timestamps, and History shows calendar-day totals with a configurable day/night split and filter chips.
 - Settings is a real screen — units, children, backup/restore and bottle presets — laid out as distinct alternating cards.
 - The shell's fade follows the active tab and content no longer runs under the system navigation bar, while the sheets gained an editable date and now say who they log for.
-- **Later the same day:** the activity cards were corrected after use — a card now lists today's entries (up to five, and the feed behind the big number is one of them), `See all ›` opens every entry of that activity grouped by day, and any row can be edited in place or long-pressed to delete with an Undo. The device pass for this part is recorded under `docs/timeline/`.
+- **Later the same day:** the activity cards were corrected after use — a card now lists today's entries (up to five, and the feed behind the big number is one of them), `See all ›` opens every entry of that activity grouped by day, and any row can be edited in place or long-pressed to delete with an Undo. Verified on the S23 in the same pass; the capture is `docs/timeline/2026-10-14-phase9.1/`, including the three `before/` shots that reported the defects.
 
 ### Added
 
@@ -105,6 +105,7 @@ These four were found on the device and are the reason this day has a second ent
 - **The Both card's numbers read as wrong, and the data was fine.** the second twin's 14:14 feed was the headline on the second twin's card and a row on the Both card, and the two lists could not be compared because the headline had swallowed one entry. The headline now carries the child's badge and the absolute time whenever more than one child is in scope, and the rows include it, so the second twin's 13:09 feed is visible in Both mode.
 - **Rows wasted their space** — 8dp of vertical padding around a 20dp line of text in a 35dp row, plus an 18dp `K` badge on every row of a single-child card. Now 5dp, a 16dp badge in Both mode only, and an 8dp gap above the block.
 - **Two rows written by one Both-mode tap could swap places.** They share a `startedAt`, and `ORDER BY startedAt DESC` alone left their order to SQLite; one comparator now resolves ties by the configured child order.
+- **The delete Undo was unreachable.** `SnackbarDuration.Short` is four seconds, and it expired between a UI dump and a tap, which landed on the Diaper card underneath — nothing was written, but a finger has the same four seconds. It is now `Long` (ten), per Material's own guidance for a snackbar carrying an action, and the Undo was re-verified inside the longer window. Found during the device pass, not by the build.
 
 ## [2026-10-12]
 

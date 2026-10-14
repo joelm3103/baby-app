@@ -36,7 +36,7 @@ everything after it is additive.**
 | 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
 | 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
-| 9.1 — Card entries, See all, in-place edits | **CODE LANDED — 178 tests green; device pass pending** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering |
+| 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
 | 10 — Growth | NEXT |
 | 11 — Health | not started |
 | 12 — Trends | not started |
@@ -45,10 +45,9 @@ everything after it is additive.**
 | 15 — Ship | not started |
 
 Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **178/178** with 0 failures. The
-Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8 and 9 screens were all confirmed on a real
-device (see the device-verification sections at the end of this file) — a green build proves nothing
-about layout or about system back. **Phase 9.1 is code-complete but NOT yet device-verified**; its
-device pass is the outstanding item. Toolchain details and the AGP 9 / KSP traps are in
+Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9 and 9.1 screens were all confirmed on a
+real device (see the device-verification sections at the end of this file) — a green build proves
+nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
 
 ---
@@ -243,7 +242,7 @@ pass that makes Stage 1's screens comfortable to actually live with.
 
 **Commit:** `feat(ui): daily-use polish`
 
-## Phase 9.1 — Card entries, See all, in-place edits — CODE LANDED; DEVICE PASS PENDING
+## Phase 9.1 — Card entries, See all, in-place edits — DONE, device-verified
 
 Four defects reported after using the Phase 9 build, all of them on the Activity cards. Treated like
 Phase 9: a pass in place, not a new stage. No schema change, no DAO change, no new query —
@@ -276,10 +275,11 @@ views of the same list.
   `ORDER BY startedAt DESC` alone leaves their order to SQLite. `domain/EventOrder.kt` is now the single
   comparator — newest first, then the configured child order — used by the cards and by the day grouping.
 
-**Verified so far:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **178/178** with 0
-failures (20 new tests: today-only rows and the five cap, the tie-break rules, the edit path's identity
-guarantees, and an in-place edit against a real Room database). **Not yet verified on a device** — per
-the rule above, that is what decides whether this phase is done.
+**Verified:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **178/178** with 0 failures
+(20 new tests: today-only rows and the five cap, the tie-break rules, the edit path's identity
+guarantees, and an in-place edit against a real Room database), and the whole set was confirmed on the
+S23 — see `## Phase 9.1 device verification` at the end of this file, including the one defect this pass
+found in its own new code (the 4-second Undo window).
 **Commit:** `fix(cards): today's entries, a working See all, and in-place edits`
 
 # STAGE 2 — Growth and Health
@@ -641,3 +641,48 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 - The Settings gear lives in the SCROLLING header, so it scrolls out of reach; reaching Settings from a
   scrolled Activity or History needs a scroll back to the top first. Not changed — recorded as a UX
   wrinkle rather than fixed in this pass.
+
+---
+
+## Phase 9.1 device verification — 2026-10-14
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots:
+`docs/timeline/2026-10-14-phase9.1/`. The three `before/` shots in that folder are the defect report as
+it was seen — they were sent from the phone before any code changed.
+
+Every value and time below was read back with `uiautomator dump`, not by eye, and the coordinates for
+every tap came from a dump rather than from the screenshots.
+
+| Check | Result |
+| --- | --- |
+| A card lists today's entries, up to five, newest first | pass — the second twin's bottle card: `3 oz 14:14`, `3 oz 13:09`, `4.1 oz 09:59`; Both: exactly five rows and no sixth |
+| The entry behind the big number is one of the rows | pass — the headline read `3 oz` with `4h 54m ago` (= 14:14) and the first row was `3 oz 14:14`. Before this pass the rows started at 13:09, which is why it looked like a feed was missing |
+| Both mode puts the child's badge and the absolute time on the big number | pass — `5.5 oz` with a `K` badge and `15:21`, where the old card showed an unattributed `5.5 oz` |
+| Both mode now lists the second twin's 13:09 feed | pass — `K 5.5 oz 15:21`, `K 3 oz 14:14`, `L 3 oz 14:14`, `K 3 oz 13:09`, `L 3 oz 13:09` |
+| Identically timestamped Both-mode rows keep Child 1 above Child 2 | pass — `K 3 oz 14:14` precedes `L 3 oz 14:14`, and again at 13:09; the comparator, not SQLite, decided |
+| The child badge is hidden outside Both mode | pass — the second twin's and the first twin's cards show bare rows; Both shows `K`/`L` on every row |
+| See all opens the full list, grouped by day | pass — header `Bottle feed` / `for both · tap to edit, long-press to delete`, groups `Today`, `Yesterday`, `Mon 12 Oct`, and it covers the bottom navigation bar |
+| System back closes the overlay and returns to Activity | pass |
+| Tap a row → the sheet opens pre-filled for THAT row's child | pass — `Edit feed`, `for Child 1` while the switcher was on Both, Date `14 Oct 2026`, Time `19:12`, Amount `4` |
+| **An edit saves in place and leaves the Both-mode twin alone** | pass — logged 4 oz for both, edited the first twin's row to 5 oz: `K 5 oz 19:12` beside `L 4 oz 19:12`, still two rows rather than four, same timestamp |
+| Long-press → confirm → delete | pass — `Delete this bottle feed?`; confirming removed the row and the headline fell back to the newest remaining row |
+| Undo restores the row | pass — the 19:20 row came back and the headline returned to it |
+| A card with everything already shown has no See all footer | **not exercised** — every card in this log has entries older than today, so all six showed the link. Covered by `CardBuilderTest` instead (three today and nothing older → no footer) |
+| No crash at any point | pass — `logcat -b crash` empty, `grep -c "FATAL EXCEPTION"` = 0, process still alive at the end |
+
+### Found on device (this pass)
+
+- **The Undo snackbar was too short to use.** `SnackbarDuration.Short` is four seconds, and it expired
+  between a UI dump and the tap, so the tap landed on the Diaper card underneath — nothing was written
+  (that card's rows were unchanged and no diaper event appeared), but a real finger has the same four
+  seconds. It is now `Long` (ten seconds), which is Material's own guidance for a snackbar carrying an
+  action, and the Undo was re-verified inside the longer window.
+- Pre-Phase-6 rows read `Bottle` with no amount, because the Phase-5 `quickLog` stub wrote events with no
+  values. Visible in the overlay's `Mon 12 Oct` group. The label falling back is correct; the rows
+  themselves are junk from a retired code path, and deleting a parent's historical rows is not a call to
+  make inside a polish pass, so they were left alone.
+- **Test data is left as tombstones.** Four rows created for this pass (4 oz for both at 19:12, the first twin's row
+  edited to 5 oz, and 4 oz for both at 19:20) were soft-deleted afterwards, so the visible log is exactly
+  the rows it had before the pass. They remain in the database as tombstones — which is what a soft delete
+  means, and why History, the cards and the lists show nothing of them. They will round-trip to sync in
+  Phase 13 like any other delete.
