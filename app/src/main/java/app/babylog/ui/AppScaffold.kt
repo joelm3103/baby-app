@@ -475,7 +475,12 @@ fun AppScaffold(container: AppContainer) {
                             val result = snackbarHostState.showSnackbar(
                                 message = "${event.type.displayName()} deleted",
                                 actionLabel = "Undo",
-                                duration = SnackbarDuration.Short,
+                                // Long (10s), not Short (4s). An action snackbar is a deadline, and 4 seconds
+                                // is not enough to notice the delete, decide, and reach the button - found on
+                                // device, where a Short snackbar expired between a UI dump and the tap and the
+                                // tap landed on the Diaper card underneath. Material's own guidance is Long
+                                // whenever a snackbar carries an action.
+                                duration = SnackbarDuration.Long,
                             )
                             if (result == SnackbarResult.ActionPerformed) home.undo(tombstone)
                         }
