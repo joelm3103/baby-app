@@ -10,7 +10,7 @@ interface OutboxDao {
     @Query("SELECT * FROM outbox ORDER BY queuedAt ASC")
     suspend fun pending(): List<OutboxEntity>
 
-    /** Drives a "pending sync" indicator, and lets Phase 11 assert an empty queue after a drain. */
+    /** Drives a "pending sync" indicator, and lets Phase 12 assert an empty queue after a drain. */
     @Query("SELECT COUNT(*) FROM outbox")
     fun observeCount(): Flow<Int>
 

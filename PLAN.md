@@ -9,7 +9,7 @@ children at once, and read the totals — with nothing else in it.
 
 **Architecture:** Single-module Kotlin/Compose app. `Room` is the **source of truth**; every write
 lands there first and the UI observes `Flow`s. An `outbox` table carries unsynced writes to Firestore
-(Phase 11), where a listener mirrors the other parent's writes back into Room. Pure logic (age and
+(Phase 12), where a listener mirrors the other parent's writes back into Room. Pure logic (age and
 adjusted age, durations, relative time, day grouping, totals, percentile lookup) lives in plain Kotlin
 so it is testable without an emulator.
 
@@ -33,6 +33,14 @@ everything after it is additive.**
 | 4 — Repository, settings, adjusted age | **DONE** — 78 tests green |
 | 5 — Activity screen | **DONE, device-verified** — tinted sections, top scroll scrim, no timer on point events |
 | 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
+| 7 — Settings | **NEXT** — units, theme, children, export |
+| 8 — History | not started |
+| 9 — Growth | not started |
+| 10 — Health | not started |
+| 11 — Trends | not started |
+| 12 — Two accounts, one shared log | not started |
+| 13 — Update delivery | not started |
+| 14 — Ship | not started |
 
 Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **121/121** with 0 failures. The
 Phase-5 layout, the two launch bugs, and now the Phase-6 sheets were confirmed on a real device (see the
@@ -54,7 +62,7 @@ Create `app/src/main/java/app/babylog/data/local/`:
   foodItemsJson?, reaction?, diaperKind?, rash: Boolean?, weightG?, heightMm?, headMm?,
   temperatureC?, medication?, vaccineName?, note?, createdBy, updatedAt, deleted.
 - `FoodEntity` — the solids catalogue: id, name, category, lastUsedAt?. Seeded from a bundled list.
-- `OutboxEntity` — id, op, payloadJson, ts (unused until Phase 11, written from day one).
+- `OutboxEntity` — id, op, payloadJson, ts (unused until Phase 12, written from day one).
 
 Enums stored as `String` with `TypeConverters`. **Soft delete only** — a hard delete resurrects the
 row from the other phone on the next sync.
@@ -159,7 +167,7 @@ schema's existing `FoodReaction`); the per-food join-table escape hatch remains 
 `domain/FoodIds.kt`.
 
 Growth and Health action buttons are **disabled** with a phase note rather than writing a valueless
-stub event. Their sheets are Phases 8-9.
+stub event. Their sheets are Phases 9-10.
 
 **Task 6.1** `ActivitySheet` scaffold — tinted title bar, **X / title / Save**, and
 `BackHandler(enabled = true) { dismiss() }` so system back closes it (complaint #2).
@@ -170,7 +178,31 @@ JSON so a new food is a data change, not a code change.
 **Verify:** log one of each in Both mode and confirm two rows land per child with identical timestamps;
 system back closes each sheet. **Commit:** per sheet.
 
-## Phase 7 — History
+## Phase 7 — Settings
+
+The screen behind the header's settings icon. `SettingsRepository` (units, theme, selected child) and
+`ChildRepository` (name, birth date, gestational age, adjusted-age flag) **already exist and are
+tested**, so this phase is UI plus one export path — no new storage and no schema change.
+
+- **Appearance**: System / Light / Dark, wired to the stored `ThemeMode`.
+- **Units**: length (in / cm), weight (lb&oz / kg) and volume (fl oz / ml) as three independently
+  selectable families, with Metric / Imperial / Custom presets. **Custom is derived, never stored**, so
+  re-selecting a preset stays predictable. Temperature remains Celsius with no option.
+- **Children**: name, birth date, sex, gestational age (stored in days, shown as weeks) and the
+  per-child `Use adjusted age` toggle. Birth details are **data, never constants** — the twins
+  default to a date set in Settings and 210 days, and every field is editable.
+- **Export / backup**: a human-readable JSON export of the whole log to the phone (share sheet / SAF).
+  Photos are permanently out of scope, so the export stays plain text. This is the single highest-value
+  insurance in the plan: it means a bad migration can never lose the log, and it unblocks restoring
+  onto a replacement phone. It also retires the stale `no export` entry on the do-not-build list.
+- The **growth-reference line** (`WHO 2006 · v2026.10 · updated …`) joins this screen once Phase 9 lands.
+
+**Verify:** switching a unit family changes the display and leaves the stored `events` row byte-identical
+(the stored amount must not be rewritten); editing a birth date changes the age on the Activity screen;
+an export opens as readable JSON and round-trips the row count.
+**Commit:** `feat(settings): units, theme, children and export`
+
+## Phase 8 — History
 
 Range `1d · 7d · 14d`, then per-activity totals computed in pure Kotlin (`domain/Totals.kt`) over an
 `EventDao.between(from, to)` read — not in SQL, for the timezone reason given in Task 3.2.
@@ -179,9 +211,9 @@ Big value + muted label, no charts. **Verify:** totals match a hand-count of a s
 
 # STAGE 2 — Growth and Health
 
-## Phase 8 — Growth (the heaviest single feature)
+## Phase 9 — Growth (the heaviest single feature)
 
-**Task 8.1** Bundle the baseline dataset. WHO's `igrowup` LMS tables (weight-for-age,
+**Task 9.1** Bundle the baseline dataset. WHO's `igrowup` LMS tables (weight-for-age,
 length/height-for-age, head-circumference-for-age, weight-for-length/height, BMI-for-age; boys and
 girls) as a compact JSON asset under `app/src/main/assets/growth/`. **Do not invent percentile maths** —
 LMS is published data and the z-score formula is standard. Verified source URLs, row counts, sex codes
@@ -189,7 +221,7 @@ and file hashes are recorded in `research/growth-data-sources.md`; that file als
 has not revised these standards since 2006**, which is why the asset ships bundled rather than being
 fetched on first run.
 
-**Task 8.2 — dataset versioning and updates.** Ship a bundled baseline, then make the data updatable
+**Task 9.2 — dataset versioning and updates.** Ship a bundled baseline, then make the data updatable
 without an APK release. The shape the owner asked for:
 
 - **Dataset identity**: `version` (e.g. `who-2006.2026.10`), `publishedAt`, `retrievedAt`, `source`
@@ -209,7 +241,7 @@ without an APK release. The shape the owner asked for:
 - **Test**: a fake manifest newer than the bundle updates the data and the displayed date; an older or
   corrupt manifest leaves both untouched.
 
-**Task 8.3** Preterm — **settled: both born prematurely.** Not a hypothetical
+**Task 9.3** Preterm — **settled: both born prematurely.** Not a hypothetical
 path.
 
 - Default to plotting **adjusted age** on the WHO charts, toggle visible. At premature this is a large
@@ -220,34 +252,48 @@ path.
   that dataset family for interpreting birth entries while the ongoing charts stay WHO + adjusted age.
 - Both are boys, so only the boys' tables are exercised in practice — bundle the girls' tables anyway.
   A few hundred KB, and the app should not be structurally sexist.
-**Task 8.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
+**Task 9.4** `Percentiles.kt` — pure and heavily tested: LMS → z-score → percentile, and the inverse for
 plotting a curve. Unit tests against known published values.
-**Task 8.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
+**Task 9.5** `GrowthChart` — segmented Weight/Height/Head Size, percentile curve bundle, child marker,
 callout card with date, value, percentile and **age (adjusted when the toggle is on)**.
 **Verify:** a seeded measurement lands on the correct curve; a preemie's adjusted age changes its
 percentile. **Commit:** `feat(growth): who percentiles and charts`
 
-## Phase 9 — Health
+## Phase 10 — Health
 
 Temperature, medication, vaccine — the same sheet pattern, reusing `InputRow`. Small once Phase 6
 exists. **Commit:** `feat(health): records`
 
 # STAGE 3 — Trends, sync, ship
 
-## Phase 10 — Trends
+## Phase 11 — Trends
 Charts over time for feed amount, diaper count, sleep duration, growth. Built last on purpose: it needs
 real data in the database before the design can be judged.
 
-## Phase 11 — Two accounts, one shared log
+## Phase 12 — Two accounts, one shared log
 Firebase project, Google sign-in, security rules restricted to two uids, outbox drain with
 `SetOptions.merge()` and client-generated ids (idempotent re-runs), inbound listener with
 `updatedAt`-wins, and **tombstones that round-trip** so a deleted event never resurrects.
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
-## Phase 12 — Ship
-Release build, keystore **backed up outside the repo**, `adb install -r` on both phones, then **use it
-for a week before writing another line of code**.
+## Phase 13 — Update delivery
+
+Getting a new build onto both phones without a cable. This has to precede the ship step, because a
+release-signed APK is the thing being delivered.
+
+- **Release signing**: generate the keystore, wire `signingConfigs`, and back the keystore up **outside
+  the repo**. It never enters git.
+- **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 12,
+  or a hosted APK link. Installing a new build becomes a tap on both phones instead of running
+  `adb install -r` twice.
+
+**Verify:** a build reaches both phones over the air, without a cable.
+**Commit:** `chore(release): signed builds and over-the-air delivery`
+
+## Phase 14 — Ship
+`adb install -r` the release APK on both phones — the last time a cable is needed — then **use it for a
+week before writing another line of code**.
 
 ---
 
@@ -271,13 +317,13 @@ the owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
 1. **Additive-only migration rule.** New columns nullable or defaulted; never repurpose an existing
    column's meaning; never `fallbackToDestructiveMigration`. Every migration gets a test. Enforce it
    from schema v1 so the habit exists before there is data worth losing.
-2. **Export / backup in Settings.** Cheap now, and it means a bad migration can never lose the log. For
+2. **Export / backup in Settings (Phase 7).** Cheap now, and it means a bad migration can never lose the log. For
    a project whose owner explicitly plans post-build changes, this is the single highest-value
    insurance and it also unblocks restoring onto a replacement phone. the incumbent tracker has `Export Data` for the
    same reason.
 3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
-   Add it at Phase 12, not Phase 1.
+   Add it at Phase 13, not Phase 1.
 
 ### Settled 2026-10-12: no photos, no widgets
 
@@ -304,14 +350,14 @@ which removes the only expensive retrofit from the list above. All three consequ
 - **Units are core, not a setting.** Three families plus a Custom mix, canonical metric storage,
   temperature always Celsius. `domain/Units.kt` is done; sheets and charts must read the preference
   rather than hardcode oz/cm/kg anywhere.
-- **Sleep's hue is still a guess** — no sleep screen appeared in the 15 screenshots. One screenshot
-  from the incumbent's sleep card would settle it.
+- **Sleep's hue is settled as shipped** (`#63C8FF` in `Tokens.kt`). No the incumbent tracker sleep screen was ever
+  captured, so it started as a designed guess; the owner confirmed on 2026-10-14 that it stays as-is.
 - **The light theme is designed, not sampled.** the owner's phone runs dark; the mirror in `Tokens.kt` is
   reasonable but unverified.
 
 ## Deliberate non-tasks
 No CI, no Play Store listing, no multi-module refactor, no localization, no analytics, no crash
-reporting, no export. Each is defensible for a shipped product and unjustifiable for an app with two
+reporting. Each is defensible for a shipped product and unjustifiable for an app with two
 users.
 
 

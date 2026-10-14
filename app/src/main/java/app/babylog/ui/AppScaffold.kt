@@ -207,7 +207,7 @@ fun AppScaffold(container: AppContainer) {
                     onDismiss = home::dismissSheet,
                     onSave = home::save,
                 )
-                // Sleep runs from the card as a timer; Growth and Health are Phases 8-9.
+                // Sleep runs from the card as a timer; Growth and Health are Phases 9-10.
                 else -> Unit
             }
         }

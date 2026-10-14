@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Unsynced writes, queued from day one even though sync does not arrive until Phase 11. Writing to the
+ * Unsynced writes, queued from day one even though sync does not arrive until Phase 12. Writing to the
  * outbox from the first commit is what makes offline-first real rather than retrofitted.
  *
  * **Deliberately no serialised payload.** An earlier version carried a JSON copy of the entity, which

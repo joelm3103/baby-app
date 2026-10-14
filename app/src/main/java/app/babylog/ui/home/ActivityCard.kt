@@ -183,9 +183,9 @@ fun ActivityCard(
                     )
                     Text(
                         text = if (card.type == EventType.GROWTH) {
-                            "Growth charts arrive in Phase 8"
+                            "Growth charts arrive in Phase 9"
                         } else {
-                            "Health records arrive in Phase 9"
+                            "Health records arrive in Phase 10"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textOnCard,

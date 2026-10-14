@@ -13,7 +13,8 @@ years.
 
 **Status:** through Phase 6. Toolchain, theme, domain, Room, repository/settings and the Activity screen
 are built (the screen device-verified); Bottle, Diaper and Solids log through full-screen sheets with a
-seeded food catalogue. Growth and Health are next (Phases 8-9). See `PLAN.md`.
+seeded food catalogue. Settings is next (Phase 7), then History (Phase 8); Growth and Health are
+Phases 9-10. See `PLAN.md`.
 
 ---
 
