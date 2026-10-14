@@ -33,7 +33,7 @@ everything after it is additive.**
 | 4 — Repository, settings, adjusted age | **DONE** — 78 tests green |
 | 5 — Activity screen | **DONE, device-verified** — tinted sections, top scroll scrim, no timer on point events |
 | 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
-| 7 — Settings | **NEXT** — units, theme, children, export |
+| 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
 | 8 — History | not started |
 | 9 — Growth | not started |
 | 10 — Health | not started |
@@ -178,7 +178,7 @@ JSON so a new food is a data change, not a code change.
 **Verify:** log one of each in Both mode and confirm two rows land per child with identical timestamps;
 system back closes each sheet. **Commit:** per sheet.
 
-## Phase 7 — Settings
+## Phase 7 — Settings — DONE, device-verified
 
 The screen behind the header's settings icon. `SettingsRepository` (units, theme, selected child) and
 `ChildRepository` (name, birth date, gestational age, adjusted-age flag) **already exist and are
@@ -274,6 +274,12 @@ real data in the database before the design can be judged.
 Firebase project, Google sign-in, security rules restricted to two uids, outbox drain with
 `SetOptions.merge()` and client-generated ids (idempotent re-runs), inbound listener with
 `updatedAt`-wins, and **tombstones that round-trip** so a deleted event never resurrects.
+
+**Caveat carried over from Phase 7 — must be revisited here.** "Delete permanently" on a child
+HARD-deletes the child row and their events (`MaintenanceRepository.deleteChildPermanently`), so there is
+no tombstone for sync to propagate and the other phone could resurrect them on the next merge. Either
+route a permanent deletion through the outbox as an explicit delete document, or make it a
+
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
@@ -469,3 +475,34 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 - Cosmetic, not fixed: the Solids card's detail line renders the food **id** rather than its catalogue
   name (`mango lassi`, lowercase). `CardSummary.detailLine` works from `foodIds` and has no access to
   the catalogue; showing the display name is a small follow-up, not a Phase 6 blocker.
+
+---
+
+## Phase 7 device verification — 2026-10-14
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase7/`.
+
+| Check | Result |
+| --- | --- |
+| Settings opens from the header icon; system back returns to Activity | pass |
+| Appearance, Units, Children and Data all render; the last row clears the nav bar | pass |
+| **Changing a unit is display-only** | pass — the bottle row's `amountMl` (90) and `updatedAt` were byte-identical before and after switching ml → fl oz, and the card then read oz |
+| Add child → 3 children → the **Both** pill disappears | pass — three pills, no Both; selection fell back to the first child |
+| Archive a child | pass — the row survives as a tombstone (`deleted = 1`), the child leaves the switcher, and Both returns at two |
+| Export | pass — `babylog-backup-2026-10-14.json`, 19,364 bytes: schema 1, 3 children (including the tombstone), 31 events, 92 foods, custom `mango-lassi` included |
+| Delete permanently | pass — the confirmation names the child and is highlighted in `danger`; afterwards the second twin's row and his 15 events were gone (31 → 16) |
+| Import | pass — the replace-everything confirmation offers **Export first**; after Replace, children (3), events (31) and foods (92) all matched the file |
+| No crash at any point | pass |
+
+### Found while writing it
+
+- **The first-run seed could resurrect removed children.** `seedIfEmpty` guarded on `childDao.count()`,
+  which filters `deleted = 0`, so removing every child made the app look fresh. Seeding now runs behind
+  a one-way `SettingsRepository` flag (`seedChildrenOnce`), and an import marks it done. `ChildSeedOnceTest`
+  pins it.
+- **`ChildSelection.resolve` fell back to *all* children** for a missing child, which would have shown a
+  combined view for three children that the switcher no longer offers. It now falls back to the first
+  child in sort order, and `Both` is honoured only at exactly two.
+- **The skill's `design-tokens.md` was stale**: it still asserted "cards are NOT tinted" and described
+  the rejected accent bar, contradicting the shipped 26% tint. Corrected in the same pass, with the
+  measured derivations.

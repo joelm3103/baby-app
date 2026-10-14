@@ -58,4 +58,26 @@ interface EventDao {
     /** Undo, for the delete snackbar. A soft delete makes undo a flag flip rather than a re-insert. */
     @Query("UPDATE events SET deleted = 0, updatedAt = :now WHERE id = :id")
     suspend fun restore(id: String, now: Long)
+
+    // ---- backup and maintenance (Phase 7) ---------------------------------
+
+    /** Every row including tombstones — the backup read. Display reads all filter `deleted = 0`. */
+    @Query("SELECT * FROM events")
+    suspend fun allIncludingDeleted(): List<EventEntity>
+
+    /** Replace-everything import wipes first, so a failed file can never leave a half-applied log. */
+    @Query("DELETE FROM events")
+    suspend fun deleteAll()
+
+    /** Permanently removing a child takes their log with them. */
+    @Query("DELETE FROM events WHERE childId = :childId")
+    suspend fun deleteByChild(childId: String)
+
+    /** Collected BEFORE a permanent delete, so the matching outbox intent can be dropped too. */
+    @Query("SELECT id FROM events WHERE childId = :childId")
+    suspend fun idsForChild(childId: String): List<String>
+
+    /** Archiving a child hides their history without destroying the rows. */
+    @Query("UPDATE events SET deleted = 1, updatedAt = :now WHERE childId = :childId")
+    suspend fun softDeleteByChild(childId: String, now: Long)
 }

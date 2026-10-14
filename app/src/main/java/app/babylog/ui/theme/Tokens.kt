@@ -42,6 +42,13 @@ data class BabyLogColors(
      * carry enough colour that `textSecondary` measures 3.06:1, below AA. This clears 4.5:1 on all six.
      */
     val textOnCard: Color,
+    /**
+     * DESTRUCTIVE actions only — permanently deleting a child. A semantic role, deliberately NOT one of
+     * the six activity accents: reusing an activity hue for "danger" would break the colour code, and a
+     * seventh activity hue would be indistinguishable from the six that exist. Use it off tinted cards
+     * (it is measured against `background` and `surface`), and [onAccent] for text on a danger fill.
+     */
+    val danger: Color,
     /** Whether this is the dark scheme. Drives [labelFor]'s direction. */
     val isDark: Boolean,
     // One hue per activity type. Hues are deliberately well separated: 40 / 11 / 143 / 255 / 329 / 201.
@@ -68,6 +75,8 @@ val DarkColors = BabyLogColors(
     navActive = Color(0xFFEAE9EC),
     onAccent = Color(0xFF181A26),
     textOnCard = Color(0xFFC2C6D6),
+    // 6.85:1 on background, 6.02:1 on surface; #181A26 text on this fill is 6.85:1.
+    danger = Color(0xFFFF7A7A),
     isDark = true,
     // Feed keeps the reference app's gold family (measured ~#C29D36-#EEC864), raised to full chroma.
     accentBottle = Color(0xFFFFC857),
@@ -96,6 +105,8 @@ val LightColors = BabyLogColors(
     navActive = Color(0xFF1F2333),
     onAccent = Color(0xFFFFFFFF),
     textOnCard = Color(0xFF41506B),
+    // 6.19:1 on background, 6.54:1 on surface; white text on this fill is 6.54:1.
+    danger = Color(0xFFB3261E),
     isDark = false,
     accentBottle = Color(0xFF9A6B00),
     accentSolids = Color(0xFFB93E17),

@@ -12,13 +12,24 @@ sealed interface ChildSelection {
     data class One(val childId: String) : ChildSelection
 
     /**
-     * The child ids a query should use. If the selected child no longer exists — deleted, or an id
-     * from a stale preference — fall back to Both rather than showing an empty screen with no
-     * explanation.
+     * The child ids a query should use. A stale selection must never leave an empty screen, so `Both`
+     * is honoured only when it means what it says (exactly two children), and a `One` whose child no
+     * longer exists falls back to the first child in sort order.
      */
     fun resolve(available: List<String>): List<String> = when (this) {
-        is Both -> available
-        is One -> if (childId in available) listOf(childId) else available
+        is Both -> if (available.size == 2) available else available.take(1)
+        is One -> if (childId in available) listOf(childId) else available.take(1)
+    }
+
+    /**
+     * Whether this selection still makes sense for [children].
+     *
+     * `Both` is valid ONLY for exactly two children: it is a twins view, so for one child it is a
+     * redundant pill and for three it silently means "all of them", which nobody asked for.
+     */
+    fun isValidFor(children: List<Child>): Boolean = when (this) {
+        is Both -> children.size == 2
+        is One -> children.any { it.id == childId }
     }
 
     companion object {
@@ -36,6 +47,16 @@ sealed interface ChildSelection {
          * tests did not catch. A getter reads the field at call time, after initialisation.
          */
         val default: ChildSelection get() = Both
+
+        /**
+         * The selection to use when the current one is invalid: `Both` at exactly two children,
+         * otherwise the first child in sort order.
+         *
+         * Falls back rather than remembering, so a hidden `Both` is never silently restored when a
+         * third child is added and later removed.
+         */
+        fun fallbackFor(children: List<Child>): ChildSelection =
+            if (children.size == 2) Both else children.firstOrNull()?.let { One(it.id) } ?: Both
     }
 }
 

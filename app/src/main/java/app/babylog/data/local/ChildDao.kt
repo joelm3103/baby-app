@@ -27,4 +27,24 @@ interface ChildDao {
 
     @Query("UPDATE children SET deleted = 1, updatedAt = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: Long)
+
+    // ---- backup and maintenance (Phase 7) ---------------------------------
+
+    /** Every row including tombstones — the backup read. */
+    @Query("SELECT * FROM children ORDER BY sortOrder, name")
+    suspend fun allIncludingDeleted(): List<ChildEntity>
+
+    /** Counts tombstones too, so "every child was removed" is distinguishable from "never seeded". */
+    @Query("SELECT COUNT(*) FROM children")
+    suspend fun totalCount(): Int
+
+    @Query("SELECT MAX(sortOrder) FROM children")
+    suspend fun maxSortOrder(): Int?
+
+    @Query("DELETE FROM children")
+    suspend fun deleteAll()
+
+    /** Permanent removal. Unlike [softDelete] this leaves no tombstone — see PLAN.md Phase 12. */
+    @Query("DELETE FROM children WHERE id = :id")
+    suspend fun hardDelete(id: String)
 }

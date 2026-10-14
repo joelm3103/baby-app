@@ -10,6 +10,7 @@ import app.babylog.data.local.FoodCatalogueParser
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventRepository
 import app.babylog.data.repo.FoodRepository
+import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,9 @@ class AppContainer(private val context: Context) {
     val children: ChildRepository by lazy { ChildRepository(database.childDao()) }
 
     val settings: SettingsRepository by lazy { SettingsRepository(dataStore) }
+
+    /** Whole-database operations: backup, restore, archive and permanent delete. */
+    val maintenance: MaintenanceRepository by lazy { MaintenanceRepository(database) }
 
     /**
      * The solids catalogue. The asset is read on `seedIfNeeded`, never at construction: the list is

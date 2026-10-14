@@ -2,6 +2,7 @@ package app.babylog.data.repo
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.ChildSelection
@@ -15,6 +16,7 @@ import app.babylog.domain.decodeChildSelection
 import app.babylog.domain.encodeChildSelection
 import app.babylog.domain.enumOrDefault
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -38,6 +40,26 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.data.map { decodeChildSelection(it[KEY_SELECTED_CHILD]) }
 
     val theme: Flow<ThemeMode> = dataStore.data.map { enumOrDefault(it[KEY_THEME], ThemeMode.SYSTEM) }
+
+    /** True once the first-run children seed has run. Never reset — see [seedChildrenOnce]. */
+    val childSeedDone: Flow<Boolean> = dataStore.data.map { it[KEY_CHILD_SEEDED] == true }
+
+    /**
+     * Runs [seed] at most once in the app's lifetime, and reports whether it ran.
+     *
+     * The old guard was "is the children table empty", which a parent makes true again simply by
+     * removing their children — and the app would then resurrect the children on the next launch. A
+     * one-way flag is the only thing that tells "never seeded" apart from "seeded, then emptied".
+     */
+    suspend fun seedChildrenOnce(seed: suspend () -> Unit): Boolean {
+        if (dataStore.data.first()[KEY_CHILD_SEEDED] == true) return false
+        seed()
+        dataStore.edit { it[KEY_CHILD_SEEDED] = true }
+        return true
+    }
+
+    /** An import replaces the children wholesale, so the first-run seed must never fire afterwards. */
+    suspend fun markChildSeedDone() = dataStore.edit { it[KEY_CHILD_SEEDED] = true }
 
     /** Sets all three families at once. CUSTOM intentionally changes nothing — it is derived, not a preset. */
     suspend fun setUnitSystem(system: UnitSystem) {
@@ -71,5 +93,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_VOLUME = stringPreferencesKey("units.volume")
         val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
         val KEY_THEME = stringPreferencesKey("ui.theme")
+        val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
     }
 }

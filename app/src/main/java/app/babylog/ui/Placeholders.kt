@@ -36,7 +36,3 @@ fun HistoryScreen(contentPadding: PaddingValues) =
 @Composable
 fun TrendsScreen(contentPadding: PaddingValues) =
     Placeholder("Trends", "Charts over time arrive in Phase 11, once there is real data to plot.", contentPadding)
-
-@Composable
-fun SettingsScreen(contentPadding: PaddingValues) =
-    Placeholder("Settings", "Children, units, appearance and export arrive in Phase 7.", contentPadding)

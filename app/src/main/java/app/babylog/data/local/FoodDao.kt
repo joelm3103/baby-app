@@ -54,4 +54,8 @@ interface FoodDao {
 
     @Query("UPDATE foods SET lastUsedAt = :at WHERE id = :id")
     suspend fun touch(id: String, at: Long)
+
+    /** Replace-everything import. Foods carry no `deleted` flag, so wiping them is a wipe. */
+    @Query("DELETE FROM foods")
+    suspend fun deleteAll()
 }

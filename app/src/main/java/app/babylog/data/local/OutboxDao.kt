@@ -22,4 +22,12 @@ interface OutboxDao {
 
     @Query("DELETE FROM outbox WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** Permanent deletion removes the row a queued write pointed at, so the intent is dropped too. */
+    @Query("DELETE FROM outbox WHERE entityId IN (:entityIds)")
+    suspend fun deleteByEntityIds(entityIds: List<String>)
+
+    /** Replace-everything import: the file's rows are the new truth, so queued intent is discarded. */
+    @Query("DELETE FROM outbox")
+    suspend fun deleteEverything()
 }

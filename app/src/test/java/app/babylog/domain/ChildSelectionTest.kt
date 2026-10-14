@@ -34,9 +34,41 @@ class ChildSelectionTest {
     }
 
     @Test
-    fun `a selection for a child that no longer exists falls back to both`() {
-        // Otherwise deleting a child leaves an empty screen with no explanation.
-        assertEquals(bothIds, ChildSelection.One("deleted-child").resolve(bothIds))
+    fun `a selection for a child that no longer exists falls back to the first child`() {
+        // Otherwise removing a child leaves an empty screen with no explanation.
+        assertEquals(listOf("first-twin"), ChildSelection.One("deleted-child").resolve(bothIds))
+    }
+
+    @Test
+    fun `both resolves to every child only when there are exactly two`() {
+        assertEquals(bothIds, ChildSelection.Both.resolve(bothIds))
+        // One child: Both is a redundant pill. Three: it would silently mean "all of them".
+        assertEquals(listOf("first-twin"), ChildSelection.Both.resolve(listOf("first-twin")))
+        assertEquals(listOf("first-twin"), ChildSelection.Both.resolve(listOf("first-twin", "second-twin", "noah")))
+    }
+
+    @Test
+    fun `fallbackFor is Both only at exactly two children`() {
+        val first-twin = child("first-twin", order = 0)
+        val second-twin = child("second-twin", order = 1)
+        val noah = child("noah", order = 2)
+
+        assertEquals(ChildSelection.Both, ChildSelection.fallbackFor(listOf(first-twin, second-twin)))
+        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(first-twin)))
+        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(first-twin, second-twin, noah)))
+    }
+
+    @Test
+    fun `isValidFor rejects Both unless there are exactly two children`() {
+        val first-twin = child("first-twin", order = 0)
+        val second-twin = child("second-twin", order = 1)
+        val noah = child("noah", order = 2)
+
+        assertTrue(ChildSelection.Both.isValidFor(listOf(first-twin, second-twin)))
+        assertTrue(!ChildSelection.Both.isValidFor(listOf(first-twin)))
+        assertTrue(!ChildSelection.Both.isValidFor(listOf(first-twin, second-twin, noah)))
+        assertTrue(ChildSelection.One("second-twin").isValidFor(listOf(first-twin, second-twin)))
+        assertTrue(!ChildSelection.One("gone").isValidFor(listOf(first-twin, second-twin)))
     }
 
     @Test
@@ -76,4 +108,12 @@ class ChildSelectionTest {
             UnitPreferences(LengthUnit.INCHES, WeightUnit.KILOGRAMS, VolumeUnit.MILLILITRES).system,
         )
     }
+
+    private fun child(id: String, order: Int) = Child(
+        id = id,
+        name = id.replaceFirstChar { it.uppercase() },
+        birthDate = java.time.LocalDate.of(2025, 12, 31),
+        sex = Sex.BOY,
+        sortOrder = order,
+    )
 }

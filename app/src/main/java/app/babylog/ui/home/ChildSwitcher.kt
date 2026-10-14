@@ -46,7 +46,7 @@ fun ChildSwitcher(
                 onClick = { onSelect(ChildSelection.One(child.id)) },
             )
         }
-        if (children.size > 1) {
+        if (children.size == 2) {
             SwitcherPill(
                 label = "Both",
                 initials = children.take(2).joinToString("") { it.name.take(1).uppercase() },

@@ -18,11 +18,11 @@ fun AppRoot(container: AppContainer) {
         ThemeMode.LIGHT -> false
     }
 
-    // First-run only in effect: the children table is empty, so seed the two boys, and the foods
-    // table is empty, so seed the curated catalogue. Both seeds are idempotent — the food seed is
-    // insert-if-absent, so it also applies a newer bundled asset without touching custom entries.
+    // First-run only in effect: seed the two boys ONCE, behind a flag rather than an empty-table check
+    // (a parent who removes their children must not find them resurrected on the next launch), and seed
+    // the curated food catalogue, which is insert-if-absent and safe to run every time.
     LaunchedEffect(Unit) {
-        container.children.seedIfEmpty()
+        container.settings.seedChildrenOnce { container.children.seedIfEmpty() }
         container.foods.seedIfNeeded()
     }
 

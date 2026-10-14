@@ -43,7 +43,7 @@ data class HomeUiState(
     /** "both" or the child's name — used to make the action button say who it will log for. */
     val childLabel: String
         get() = when (val s = selection) {
-            is ChildSelection.Both -> if (children.size > 1) "both" else children.firstOrNull()?.name.orEmpty()
+            is ChildSelection.Both -> if (children.size == 2) "both" else children.firstOrNull()?.name.orEmpty()
             is ChildSelection.One -> children.firstOrNull { it.id == s.childId }?.name.orEmpty()
         }
 
@@ -98,6 +98,21 @@ class HomeViewModel(
             events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    init {
+        // Keep the stored selection valid as children are added or removed. Only a selection that has
+        // become IMPOSSIBLE is corrected — a deliberate single-child choice at two children is left
+        // alone. The guard against writing an identical value keeps this from re-triggering itself.
+        viewModelScope.launch {
+            combine(children.observeAll(), settings.selectedChild) { kids, selection -> kids to selection }
+                .collect { (kids, selection) ->
+                    if (!selection.isValidFor(kids)) {
+                        val fixed = ChildSelection.fallbackFor(kids)
+                        if (fixed != selection) settings.setSelectedChild(fixed)
+                    }
+                }
+        }
+    }
 
     private fun build(
         kids: List<Child>,

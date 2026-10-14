@@ -8,6 +8,7 @@ import app.babylog.domain.Sex
 import app.babylog.domain.TERM_GESTATION_DAYS
 import java.time.Clock
 import java.time.LocalDate
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.map
 class ChildRepository(
     private val childDao: ChildDao,
     private val clock: Clock = Clock.systemUTC(),
+    private val newId: () -> String = { UUID.randomUUID().toString() },
 ) {
     fun observeAll(): Flow<List<Child>> = childDao.observeAll().map { rows -> rows.map { it.toDomain() } }
 
@@ -34,6 +36,33 @@ class ChildRepository(
                 updatedAt = clock.millis(),
             ),
         )
+    }
+
+    /**
+     * A new child, appended after the ones already here.
+     *
+     * The id is generated, not slugged from the name: two children can share a name, and the id is what
+     * every event row references. `sortOrder` is therefore the only ordering that matters.
+     */
+    suspend fun add(
+        name: String,
+        birthDate: LocalDate,
+        sex: Sex,
+        gestationalAgeDays: Int = TERM_GESTATION_DAYS,
+        useAdjustedAge: Boolean = true,
+    ): Child {
+        val order = (childDao.maxSortOrder() ?: -1) + 1
+        val child = Child(
+            id = newId(),
+            name = name.trim(),
+            birthDate = birthDate,
+            sex = sex,
+            gestationalAgeDays = gestationalAgeDays,
+            useAdjustedAge = useAdjustedAge,
+            sortOrder = order,
+        )
+        upsert(child)
+        return child
     }
 
     /**

@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,6 +27,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.clockTime
@@ -42,7 +46,11 @@ import app.babylog.domain.timeOfDayOn
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * The input primitives every sheet is built from. They are deliberately plain: a label on the left and
@@ -313,4 +321,87 @@ private fun StepButton(symbol: String, onClick: () -> Unit) {
             color = colors.textPrimary,
         )
     }
+}
+
+// ---- settings controls ----------------------------------------------------
+
+/** A section heading on the Settings screen. */
+@Composable
+fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = BabyLogTheme.colors.textPrimary,
+        modifier = Modifier.padding(top = 24.dp, bottom = 4.dp),
+    )
+}
+
+/** A date, edited through the platform picker. Stored as an epoch day — a birth date has no time. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DateRow(label: String, epochDay: Long, onChange: (Long) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
+    val date = LocalDate.ofEpochDay(epochDay)
+    InputRow(label = label, onClick = { picking = true }) {
+        InputValue(date.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)))
+    }
+    if (picking) {
+        // The picker speaks UTC-midnight millis; convert BOTH ways through UTC so the day cannot slip.
+        val state = rememberDatePickerState(
+            initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { picking = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let {
+                        onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay())
+                    }
+                    picking = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = state)
+        }
+    }
+}
+
+/** A neutral action: visible, without competing with an accent-filled primary. */
+@Composable
+fun SecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = BabyLogTheme.colors
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = colors.textPrimary,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(Radius.pill))
+            .background(colors.surfaceRaised)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    )
+}
+
+/**
+ * Destructive actions only — the one use of the `danger` token. Filled with `danger` and labelled in
+ * `onAccent`, measured at 6.85:1 dark and 6.54:1 light.
+ */
+@Composable
+fun DangerButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = BabyLogTheme.colors
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = colors.onAccent,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(Radius.pill))
+            .background(colors.danger)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    )
 }
