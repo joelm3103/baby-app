@@ -2,9 +2,11 @@ package app.babylog.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.babylog.data.local.FoodEntity
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventDraft
 import app.babylog.data.repo.EventRepository
+import app.babylog.data.repo.FoodRepository
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
@@ -12,8 +14,10 @@ import app.babylog.domain.ChildSelection
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -42,6 +46,13 @@ data class HomeUiState(
             is ChildSelection.Both -> if (children.size > 1) "both" else children.firstOrNull()?.name.orEmpty()
             is ChildSelection.One -> children.firstOrNull { it.id == s.childId }?.name.orEmpty()
         }
+
+    /**
+     * Pre-fills the bottle sheet. A parent logs the same 120 ml far more often than a new number, so
+     * opening the sheet on the last amount is the difference between one tap and twelve.
+     */
+    val lastBottleAmountMl: Int?
+        get() = cards.firstOrNull { it.type == EventType.BOTTLE }?.last?.amountMl
 }
 
 /**
@@ -54,7 +65,19 @@ class HomeViewModel(
     private val events: EventRepository,
     private val children: ChildRepository,
     private val settings: SettingsRepository,
+    private val foods: FoodRepository,
 ) : ViewModel() {
+
+    /**
+     * The solids catalogue, recently used first. Observed, so logging a food moves it to the top of the
+     * picker next time it opens without any manual refresh.
+     */
+    val foodList: StateFlow<List<FoodEntity>> = foods.observeCatalogue()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Which logging sheet is open, if any. A separate flow from [state] so an event emission cannot reset it. */
+    private val _openSheet = MutableStateFlow<EventType?>(null)
+    val openSheet: StateFlow<EventType?> = _openSheet.asStateFlow()
 
     val state: StateFlow<HomeUiState> = combine(
         children.observeAll(),
@@ -109,22 +132,37 @@ class HomeViewModel(
     }
 
     /**
-     * Phase 5 stub for the remaining activities: logs the event with only a timestamp, so the card
-     * immediately shows "just now" and the layout can be judged. Phase 6 replaces this with the real
-     * per-activity sheets described in `references/components.md`.
+     * Commits a sheet's draft. The children list is resolved here, once, and handed to a SINGLE
+     * `log` call — so Both mode writes one row per child with an identical timestamp instead of the
+     * sheet knowing (or caring) how many children are in scope.
      */
-    fun quickLog(type: EventType) = viewModelScope.launch {
-        events.log(
-            state.value.childIds,
-            EventDraft(type = type, startedAt = System.currentTimeMillis()),
-            createdBy = CREATED_BY,
-        )
+    fun save(draft: EventDraft) {
+        val ids = state.value.childIds
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            events.log(ids, draft, createdBy = CREATED_BY)
+            _openSheet.value = null
+        }
     }
+
+    fun openSheet(type: EventType) {
+        if (type in SHEET_TYPES) _openSheet.value = type
+    }
+
+    fun dismissSheet() {
+        _openSheet.value = null
+    }
+
+    /** Called from the picker's coroutine scope; the new food appears (and sorts) on its own via the flow. */
+    suspend fun addCustomFood(name: String): FoodEntity = foods.addCustom(name)
 
     fun undo(event: BabyEvent) = viewModelScope.launch { events.undoDelete(event) }
 
     companion object {
         /** Until sign-in exists (Phase 11) every write is attributed to the local device. */
         const val CREATED_BY = "local"
+
+        /** Only these three have a logging sheet; sleep runs from the card and Growth/Health are Phase 8-9. */
+        private val SHEET_TYPES = setOf(EventType.BOTTLE, EventType.DIAPER, EventType.SOLIDS)
     }
 }

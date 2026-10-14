@@ -115,6 +115,18 @@ fun toMillilitres(value: Double, unit: VolumeUnit): Double = when (unit) {
     VolumeUnit.FLUID_OUNCES -> value * ML_PER_US_FL_OUNCE
 }
 
+/**
+ * The inverse of [toMillilitres], for pre-filling an input from a stored value.
+ *
+ * The amount stepper needs this: it steps in the *display* unit (0.5 oz / 10 ml) and converts once on
+ * save, so stepping never accumulates the rounding error that converting a canonical ml value on every
+ * press would introduce.
+ */
+fun fromMillilitres(millilitres: Double, unit: VolumeUnit): Double = when (unit) {
+    VolumeUnit.MILLILITRES -> millilitres
+    VolumeUnit.FLUID_OUNCES -> millilitres / ML_PER_US_FL_OUNCE
+}
+
 /** Steppers need a unit-appropriate increment: 0.5 oz is a spoonful, 0.5 ml is nothing. */
 fun volumeStep(unit: VolumeUnit): Double = when (unit) {
     VolumeUnit.FLUID_OUNCES -> 0.5

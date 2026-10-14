@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import app.babylog.data.local.AppDatabase
+import app.babylog.data.local.FoodCatalogueParser
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventRepository
+import app.babylog.data.repo.FoodRepository
 import app.babylog.data.repo.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,4 +42,20 @@ class AppContainer(private val context: Context) {
     val children: ChildRepository by lazy { ChildRepository(database.childDao()) }
 
     val settings: SettingsRepository by lazy { SettingsRepository(dataStore) }
+
+    /**
+     * The solids catalogue. The asset is read on `seedIfNeeded`, never at construction: the list is
+     * only needed once the picker or the first-run seed asks for it.
+     */
+    val foods: FoodRepository by lazy {
+        FoodRepository(
+            foodDao = database.foodDao(),
+            loadCatalogue = {
+                context.assets.open(FoodCatalogueParser.ASSET_PATH)
+                    .bufferedReader()
+                    .use { it.readText() }
+                    .let(FoodCatalogueParser::parse)
+            },
+        )
+    }
 }

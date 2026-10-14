@@ -52,6 +52,17 @@ fun clockTime(instantMs: Long, zone: ZoneId): String =
     Instant.ofEpochMilli(instantMs).atZone(zone).toLocalTime()
         .format(DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH))
 
+/**
+ * The instant for [hour]:[minute] **on the calendar day of [instantMs]**, in [zone].
+ *
+ * Used when the time row in a sheet is edited: the day must not shift, and doing this in UTC instead of
+ * the display zone would move an 11:30pm feed to the wrong date. Explicit `zone` for the same reason
+ * every other formatter here takes one — a function that reads the device default cannot be tested.
+ */
+fun timeOfDayOn(instantMs: Long, hour: Int, minute: Int, zone: ZoneId): Long =
+    Instant.ofEpochMilli(instantMs).atZone(zone).toLocalDate()
+        .atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+
 /** "Today" / "Yesterday" / "Wed 12 Mar" for a day divider. */
 fun dayLabel(instantMs: Long, zone: ZoneId, now: Long): String {
     val date = Instant.ofEpochMilli(instantMs).atZone(zone).toLocalDate()

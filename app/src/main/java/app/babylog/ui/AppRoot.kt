@@ -18,8 +18,13 @@ fun AppRoot(container: AppContainer) {
         ThemeMode.LIGHT -> false
     }
 
-    // First-run only: the table is empty, so seed the two boys. Everything seeded is editable.
-    LaunchedEffect(Unit) { container.children.seedIfEmpty() }
+    // First-run only in effect: the children table is empty, so seed the two boys, and the foods
+    // table is empty, so seed the curated catalogue. Both seeds are idempotent — the food seed is
+    // insert-if-absent, so it also applies a newer bundled asset without touching custom entries.
+    LaunchedEffect(Unit) {
+        container.children.seedIfEmpty()
+        container.foods.seedIfNeeded()
+    }
 
     BabyLogTheme(darkTheme = dark) {
         AppScaffold(container)

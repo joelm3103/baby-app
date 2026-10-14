@@ -67,5 +67,12 @@ class AppStartupTest {
         )
         assertEquals(2, logged.size)
         assertEquals(2, container.events.observeForChildren(listOf("first-twin", "second-twin")).first().size)
+
+        // The bundled food catalogue seeds through the REAL asset path in the container, not a fixture.
+        // A bad asset path or unparseable JSON would otherwise only surface on a phone.
+        container.foods.seedIfNeeded()
+        val catalogue = container.foods.observeCatalogue().first()
+        assertTrue("expected the seeded catalogue, got ${catalogue.size}", catalogue.size >= 60)
+        assertTrue(catalogue.any { it.id == "banana" })
     }
 }

@@ -62,6 +62,21 @@ class FormattingTest {
     // --- day labels and grouping -------------------------------------------
 
     @Test
+    fun `timeOfDayOn keeps the local day and sets the wall clock time`() {
+        val zone = ZoneId.of("Asia/Tokyo")
+        // 23:30Z on 14 Nov is 08:30 on 15 Nov in Tokyo, so the day under test is the 15th.
+        val original = java.time.Instant.parse("2023-11-14T23:30:00Z").toEpochMilli()
+
+        val replaced = timeOfDayOn(original, hour = 3, minute = 15, zone = zone)
+
+        val zdt = java.time.Instant.ofEpochMilli(replaced).atZone(zone)
+        assertEquals(3, zdt.hour)
+        assertEquals(15, zdt.minute)
+        assertEquals(java.time.LocalDate.of(2023, 11, 15), zdt.toLocalDate())
+        assertEquals("2023-11-14T18:15:00Z", java.time.Instant.ofEpochMilli(replaced).toString())
+    }
+
+    @Test
     fun `day label names today and yesterday`() {
         val zone = ZoneId.of("UTC")
         // 2023-11-14T12:00:00Z was a Tuesday; two days earlier was Sunday 12 Nov.

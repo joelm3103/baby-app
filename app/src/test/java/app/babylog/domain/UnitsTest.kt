@@ -28,8 +28,15 @@ class UnitsTest {
         assertEquals("1 oz", formatVolume(30.0, VolumeUnit.FLUID_OUNCES)) // 1.014 oz -> trimmed
     }
 
-    // --- weight ------------------------------------------------------------
+    @Test
+    fun `fromMillilitres round trips through toMillilitres`() {
+        // The amount stepper steps in display units and converts once on save, so this must be exact.
+        assertEquals(120.0, fromMillilitres(120.0, VolumeUnit.MILLILITRES), 1e-12)
+        assertEquals(4.0, fromMillilitres(toMillilitres(4.0, VolumeUnit.FLUID_OUNCES), VolumeUnit.FLUID_OUNCES), 1e-12)
+        assertEquals(2.5, fromMillilitres(toMillilitres(2.5, VolumeUnit.FLUID_OUNCES), VolumeUnit.FLUID_OUNCES), 1e-12)
+    }
 
+    // --- weight ------------------------------------------------------------
     @Test
     fun `weight in kilos has one decimal`() {
         assertEquals("5.4 kg", formatWeight(5443.0, WeightUnit.KILOGRAMS))

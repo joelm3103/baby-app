@@ -11,7 +11,9 @@ change under you, gate the useful parts, and put content feeds and upsells where
 actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
 years.
 
-**Status:** toolchain, scaffold, theme and domain layer done and green. No screens yet. See `PLAN.md`.
+**Status:** through Phase 6. Toolchain, theme, domain, Room, repository/settings and the Activity screen
+are built (the screen device-verified); Bottle, Diaper and Solids log through full-screen sheets with a
+seeded food catalogue. Growth and Health are next (Phases 8-9). See `PLAN.md`.
 
 ---
 

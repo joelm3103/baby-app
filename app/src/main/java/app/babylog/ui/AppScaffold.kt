@@ -47,11 +47,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.babylog.di.AppContainer
+import app.babylog.domain.EventType
 import app.babylog.ui.home.ActivityScreen
+import app.babylog.ui.home.BottleSheet
+import app.babylog.ui.home.DiaperSheet
 import app.babylog.ui.home.HomeViewModel
+import app.babylog.ui.home.SolidsSheet
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
+import app.babylog.ui.theme.accentFor
 import androidx.compose.runtime.collectAsState
+import java.time.ZoneId
 
 enum class Destination(val label: String, val icon: ImageVector) {
     ACTIVITY("Activity", Icons.Filled.Home),
@@ -75,11 +81,15 @@ fun AppScaffold(container: AppContainer) {
     var destination by rememberSaveable { mutableStateOf(Destination.ACTIVITY) }
     val factory = remember {
         viewModelFactory {
-            initializer { HomeViewModel(container.events, container.children, container.settings) }
+            initializer {
+                HomeViewModel(container.events, container.children, container.settings, container.foods)
+            }
         }
     }
     val home: HomeViewModel = viewModel(factory = factory)
     val state by home.state.collectAsState()
+    val openSheet by home.openSheet.collectAsState()
+    val foods by home.foodList.collectAsState()
     val colors = BabyLogTheme.colors
 
     // Owned here, not inside ActivityScreen, so this shell can react to scrolling. The insets are
@@ -97,6 +107,10 @@ fun AppScaffold(container: AppContainer) {
         destination = Destination.ACTIVITY
     }
 
+    // The whole shell sits inside a Box so the logging sheet can be drawn, as a SIBLING of the
+    // Scaffold, over the bottom nav. A sheet rendered inside the Scaffold's content would sit under
+    // the navigation bar, which is exactly the clipping bug this app exists to avoid.
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = colors.background,
         bottomBar = {
@@ -129,8 +143,9 @@ fun AppScaffold(container: AppContainer) {
                 Destination.ACTIVITY -> ActivityScreen(
                     state = state,
                     onSelectChild = home::select,
-                    onAction = home::quickLog,
+                    onOpenSheet = home::openSheet,
                     onQuickDiaper = home::logDiaper,
+                    onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
                     contentPadding = padding,
@@ -158,6 +173,43 @@ fun AppScaffold(container: AppContainer) {
                         ),
                     ),
             )
+        }
+    }
+
+        val sheetType = openSheet
+        if (sheetType != null) {
+            val sheetNow = remember(sheetType) { System.currentTimeMillis() }
+            val zone = remember { ZoneId.systemDefault() }
+            val accent = colors.accentFor(sheetType)
+            when (sheetType) {
+                EventType.BOTTLE -> BottleSheet(
+                    accent = accent,
+                    units = state.units,
+                    zone = zone,
+                    now = sheetNow,
+                    initialAmountMl = state.lastBottleAmountMl,
+                    onDismiss = home::dismissSheet,
+                    onSave = home::save,
+                )
+                EventType.DIAPER -> DiaperSheet(
+                    accent = accent,
+                    zone = zone,
+                    now = sheetNow,
+                    onDismiss = home::dismissSheet,
+                    onSave = home::save,
+                )
+                EventType.SOLIDS -> SolidsSheet(
+                    accent = accent,
+                    zone = zone,
+                    now = sheetNow,
+                    foods = foods,
+                    onAddFood = home::addCustomFood,
+                    onDismiss = home::dismissSheet,
+                    onSave = home::save,
+                )
+                // Sleep runs from the card as a timer; Growth and Health are Phases 8-9.
+                else -> Unit
+            }
         }
     }
 }

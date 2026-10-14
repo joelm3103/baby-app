@@ -31,26 +31,29 @@ import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
-import app.babylog.ui.theme.labelFor
 import app.babylog.ui.theme.displayName
+import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
 
 /**
  * The core component. Anatomy from the approved mockup: activity name in its accent hue with the last
  * event's relative time opposite, the last value, a full-width action in the accent, then recent rows.
  *
- * The card surface is NOT tinted: a tint over a dark surface collapses the accent to a muddy chroma
- * and drops the label below AA (measured - see `Tokens.kt`). Identity comes from a full-chroma accent
- * bar at the leading edge plus the accent-filled action button. At 3am the bar is what you aim at.
+ * The card surface is TINTED (accent at 26% over `surface`): full-section tint is what identifies a
+ * section at a glance, and the fraction is measured rather than taste. The consequences are deliberate
+ * — the label uses `colors.labelFor(accent)` because the raw accent is not legible on its own tint, and
+ * meta text uses `textOnCard` rather than `textSecondary`, which fails AA on the stronger fills.
  */
 @Composable
 fun ActivityCard(
     card: CardUi,
     units: UnitPreferences,
+    childLabel: String,
     now: Long,
     zone: ZoneId,
-    onAction: () -> Unit,
+    onOpenSheet: (EventType) -> Unit,
     onQuickDiaper: (DiaperKind) -> Unit,
+    onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onSeeAll: () -> Unit,
 ) {
@@ -118,23 +121,77 @@ fun ActivityCard(
             }
 
             when (card.type) {
-                // Diaper asks one question with three answers, so it answers in place of a sheet.
-                EventType.DIAPER -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DiaperKind.entries.forEach { kind ->
-                        PillButton(
-                            label = kind.name.lowercase().replaceFirstChar { it.uppercase() },
-                            fill = colors.surface,
-                            textColor = accent,
-                            onClick = { onQuickDiaper(kind) },
-                        )
+                // Diaper asks one question with three answers, so it answers in place of a sheet. The
+                // sheet, behind "More", is only for what the pills cannot say: back-dating, a rash, a note.
+                EventType.DIAPER -> Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DiaperKind.entries.forEach { kind ->
+                            PillButton(
+                                label = kind.name.lowercase().replaceFirstChar { it.uppercase() },
+                                fill = colors.surface,
+                                textColor = accent,
+                                onClick = { onQuickDiaper(kind) },
+                            )
+                        }
                     }
+                    Text(
+                        text = "More \u203a",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textOnCard,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .clickable { onOpenSheet(EventType.DIAPER) },
+                    )
                 }
-                else -> ActionButton(
-                    type = card.type,
+
+                // Sleep is a timer, not a form: the action starts it on the card (see PLAN.md Task 6.2).
+                EventType.SLEEP -> PillButton(
+                    label = "Start sleep",
                     fill = accent,
                     textColor = colors.onAccent,
-                    onClick = onAction,
+                    onClick = onStartSleep,
+                    fullWidth = true,
                 )
+
+                EventType.BOTTLE -> PillButton(
+                    label = "+ Log feed for $childLabel",
+                    fill = accent,
+                    textColor = colors.onAccent,
+                    onClick = { onOpenSheet(EventType.BOTTLE) },
+                    fullWidth = true,
+                )
+
+                EventType.SOLIDS -> PillButton(
+                    label = "+ Log solids for $childLabel",
+                    fill = accent,
+                    textColor = colors.onAccent,
+                    onClick = { onOpenSheet(EventType.SOLIDS) },
+                    fullWidth = true,
+                )
+
+                // Deliberately not wired to anything until their sheets exist. The Phase-5 stub logged a
+                // growth/health event with no values at all, which would put meaningless rows in the log
+                // the moment real data arrives — a disabled button is the honest placeholder.
+                EventType.GROWTH, EventType.HEALTH -> Column {
+                    PillButton(
+                        label = if (card.type == EventType.GROWTH) "+ Add measurement" else "+ Add health",
+                        fill = colors.surfaceRaised,
+                        textColor = colors.textSecondary,
+                        enabled = false,
+                        onClick = {},
+                        fullWidth = true,
+                    )
+                    Text(
+                        text = if (card.type == EventType.GROWTH) {
+                            "Growth charts arrive in Phase 8"
+                        } else {
+                            "Health records arrive in Phase 9"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textOnCard,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
 
@@ -177,30 +234,13 @@ fun ActivityCard(
 }
 
 @Composable
-private fun ActionButton(
-    type: EventType,
-    fill: Color,
-    textColor: Color,
-    onClick: () -> Unit,
-) {
-    val verb = when (type) {
-        EventType.BOTTLE -> "Log bottle"
-        EventType.SOLIDS -> "Log solids"
-        EventType.SLEEP -> "Start sleep"
-        EventType.GROWTH -> "Add measurement"
-        EventType.HEALTH -> "Add health"
-        EventType.DIAPER -> "Log diaper"
-    }
-    PillButton(label = "+ $verb", fill = fill, textColor = textColor, onClick = onClick, fullWidth = true)
-}
-
-@Composable
 private fun PillButton(
     label: String,
     fill: Color,
     onClick: () -> Unit,
     textColor: Color = BabyLogTheme.colors.textPrimary,
     fullWidth: Boolean = false,
+    enabled: Boolean = true,
 ) {
     Text(
         text = label,
@@ -211,7 +251,7 @@ private fun PillButton(
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .clip(RoundedCornerShape(Radius.pill))
             .background(fill)
-            .clickable(onClick = onClick)
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     )
 }

@@ -34,8 +34,9 @@ private val headerDate = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLIS
 fun ActivityScreen(
     state: HomeUiState,
     onSelectChild: (app.babylog.domain.ChildSelection) -> Unit,
-    onAction: (app.babylog.domain.EventType) -> Unit,
+    onOpenSheet: (app.babylog.domain.EventType) -> Unit,
     onQuickDiaper: (app.babylog.domain.DiaperKind) -> Unit,
+    onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
@@ -104,10 +105,12 @@ fun ActivityScreen(
             ActivityCard(
                 card = card,
                 units = state.units,
+                childLabel = state.childLabel,
                 now = now,
                 zone = zone,
-                onAction = { onAction(card.type) },
+                onOpenSheet = onOpenSheet,
                 onQuickDiaper = onQuickDiaper,
+                onStartSleep = onStartSleep,
                 onStop = onStop,
                 onSeeAll = {},
             )

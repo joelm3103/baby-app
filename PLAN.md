@@ -31,11 +31,13 @@ everything after it is additive.**
 | 2 — Domain: events, formatting, grouping | **DONE** — 12 unit tests green |
 | 3 — Room schema + DAO + mappers | **DONE** — `app/schemas/…/1.json` committed, 50 tests green |
 | 4 — Repository, settings, adjusted age | **DONE** — 78 tests green |
-| 5 — Activity screen | **DONE, visually UNVERIFIED** — compiles, APK builds |
+| 5 — Activity screen | **DONE, device-verified** — tinted sections, top scroll scrim, no timer on point events |
+| 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
 
-Verified today: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is 12/12; `aapt2 dump badging`
-on the output reads `app.babylog v0.1.0, compileSdk 37, targetSdk 36`; `./gradlew` works
-end-to-end. Toolchain details and the AGP 9 / KSP traps are in `research/toolchain.md`.
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **121/121** with 0 failures. The
+Phase-5 layout, the two launch bugs, and now the Phase-6 sheets were confirmed on a real device (see the
+device-verification sections at the end of this file) — a green build proves nothing about layout or
+about system back. Toolchain details and the AGP 9 / KSP traps are in `research/toolchain.md`.
 
 ---
 
@@ -114,7 +116,7 @@ now)`, formatting as `9 months, 1 week, 5 days`. Adjusted age = chronological mi
 **and the premature offset is per child**. Tests must cover a preemie and a full-term child.
 **Verify:** tests green. **Commit:** `feat(data): repository, settings, age with adjusted age`
 
-## Phase 5 — Activity screen (the home) — DONE (compiles, APK builds; layout NOT yet seen)
+## Phase 5 — Activity screen (the home) — DONE (device-verified)
 
 Built: `AppScaffold` (insets + back), `ActivityScreen`, `ChildSwitcher` (Child 1 · Child 2 · Both),
 `ActivityCard`, `HomeViewModel`, `AppContainer` (manual DI), first-run seed of the two boys.
@@ -139,7 +141,25 @@ present because the owner asked for it explicitly.
 **Verify:** on device — switch children, scroll to the very bottom with 3-button navigation on, and
 confirm nothing is clipped. **Commit:** `feat(ui): activity screen with child switcher`
 
-## Phase 6 — Sheets and logging
+## Phase 6 — Sheets and logging — DONE, device-verified
+
+Built: `ActivitySheet` (full-screen, activity-tinted title bar with X / title / Save, hairline
+`InputRow`s, `BackHandler` so system back dismisses), Bottle (time, amount stepper in the display unit,
+formula brand, notes), Diaper (time, Wet/Dirty/Mixed, rash, notes — the card keeps its one-tap pills),
+and Solids (meal chips, `FoodPicker` with search / multi-select / recent-first / custom add, meal-level
+reaction, notes). The Phase-5 `quickLog` stub is gone: every write is now one
+`EventRepository.log(childIds, draft, CREATED_BY)` call, so Both mode still writes one row per child
+with identical timestamps.
+
+Foods: a curated ~90-food catalogue ships as `app/src/main/assets/foods/foods.json` and is seeded
+insert-if-absent into the previously empty `foods` table, so a later asset adds foods without an APK
+release and can never clobber a parent's custom entry or a touched `lastUsedAt`. No Room migration was
+needed — `FoodEntity` already carried `custom` and `lastUsedAt`. Reactions stay **per meal** (the
+schema's existing `FoodReaction`); the per-food join-table escape hatch remains documented in
+`domain/FoodIds.kt`.
+
+Growth and Health action buttons are **disabled** with a phase note rather than writing a valueless
+stub event. Their sheets are Phases 8-9.
 
 **Task 6.1** `ActivitySheet` scaffold — tinted title bar, **X / title / Save**, and
 `BackHandler(enabled = true) { dismiss() }` so system back closes it (complaint #2).
@@ -375,3 +395,31 @@ pipeline is verified on the device; a JVM test for it needs fake DAOs, not Room.
 The phone is the feedback loop: `adb install -r`, `logcat -d` for crashes, `uiautomator dump` for real
 tap coordinates, `exec-out screencap` for what it actually looks like. Do not call a phase done on a
 green build.
+
+---
+
+## Phase 6 device verification — 2026-10-14
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase6/`.
+
+| Check | Result |
+| --- | --- |
+| Launches without crashing; app is the current activity | pass |
+| Card action label is context-aware (`+ Log feed for Child 1` / `... for both`) | pass |
+| Bottle sheet: tinted title bar, time, amount stepper, brand, notes; no bottom nav | pass |
+| **Both mode writes two rows with identical timestamps** | pass — child 1 + child 2 BOTTLE at 13:59:53 UTC, 120 ml (read from the Room DB) |
+| Solids sheet: meal chips, food picker, per-meal reaction, notes | pass |
+| Food picker: full catalogue, search, custom add, recent-first | pass — custom `mango-lassi` created, then sorted above the alphabetical list |
+| Both mode for solids and diaper | pass — SOLIDS child 1+child 2 at 14:01:00, DIAPER child 1+child 2 at 14:03:37, rash = 1 |
+| Seed is additive on an existing database (no clobber) | pass — 91 seeded + 1 custom; `lastUsedAt` preserved |
+| **System back dismisses the picker, then the sheet, without exiting** | pass — app stayed foreground through both |
+| Growth / Health buttons disabled, not writing valueless events | pass |
+
+### Found on device, not by the build
+
+- The Rash toggle (and the food rows in the picker) drew a `›` chevron, which the design contract
+  reserves for rows that push a screen. Fixed: `InputRow` takes `chevron` (default `onClick != null`),
+  and the in-place controls pass `chevron = false`.
+- Cosmetic, not fixed: the Solids card's detail line renders the food **id** rather than its catalogue
+  name (`mango lassi`, lowercase). `CardSummary.detailLine` works from `foodIds` and has no access to
+  the catalogue; showing the display name is a small follow-up, not a Phase 6 blocker.
