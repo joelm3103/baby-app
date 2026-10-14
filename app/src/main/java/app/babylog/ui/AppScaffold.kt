@@ -61,6 +61,8 @@ import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
 import app.babylog.ui.home.HomeViewModel
 import app.babylog.ui.home.SolidsSheet
+import app.babylog.ui.history.HistoryScreen
+import app.babylog.ui.history.HistoryViewModel
 import app.babylog.ui.settings.SettingsScreen
 import app.babylog.ui.settings.SettingsViewModel
 import app.babylog.ui.theme.BabyLogTheme
@@ -105,6 +107,17 @@ fun AppScaffold(container: AppContainer) {
     val openSheet by home.openSheet.collectAsState()
     val foods by home.foodList.collectAsState()
 
+    // History observes the SAME stored child selection as Activity (via the shared switcher), so
+    // "who am I looking at" cannot mean two different things on two tabs.
+    val historyFactory = remember {
+        viewModelFactory {
+            initializer { HistoryViewModel(container.events, container.children, container.settings) }
+        }
+    }
+    val history: HistoryViewModel = viewModel(factory = historyFactory)
+    val historyState by history.state.collectAsState()
+    val historyHidden by history.hidden.collectAsState()
+
     val settingsFactory = remember {
         viewModelFactory {
             initializer {
@@ -116,6 +129,7 @@ fun AppScaffold(container: AppContainer) {
     val settingsChildren by settingsVm.childrenList.collectAsState()
     val settingsUnits by settingsVm.units.collectAsState()
     val settingsTheme by settingsVm.theme.collectAsState()
+    val settingsNight by settingsVm.nightWindow.collectAsState()
     val settingsMessage by settingsVm.message.collectAsState()
 
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
@@ -223,17 +237,28 @@ fun AppScaffold(container: AppContainer) {
                     contentPadding = padding,
                     listState = listState,
                 )
-                Destination.HISTORY -> HistoryScreen(padding)
+                Destination.HISTORY -> HistoryScreen(
+                    state = historyState,
+                    hidden = historyHidden,
+                    onSelectRange = history::setRange,
+                    onToggleFilter = history::toggleFilter,
+                    onSelectChild = home::select,
+                    onOpenSettings = { destination = Destination.SETTINGS },
+                    contentPadding = padding,
+                )
                 Destination.TRENDS -> TrendsScreen(padding)
                 Destination.SETTINGS -> SettingsScreen(
                     children = settingsChildren,
                     units = settingsUnits,
+                    nightWindow = settingsNight,
                     theme = settingsTheme,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
                     onLengthUnit = settingsVm::setLengthUnit,
                     onWeightUnit = settingsVm::setWeightUnit,
                     onVolumeUnit = settingsVm::setVolumeUnit,
+                    onNightStart = settingsVm::setNightStartHour,
+                    onNightEnd = settingsVm::setNightEndHour,
                     onUpdateChild = settingsVm::updateChild,
                     onAddChild = settingsVm::addChild,
                     onArchiveChild = settingsVm::archiveChild,

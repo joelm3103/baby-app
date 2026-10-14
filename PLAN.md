@@ -34,7 +34,7 @@ everything after it is additive.**
 | 5 — Activity screen | **DONE, device-verified** — tinted sections, top scroll scrim, no timer on point events |
 | 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
 | 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
-| 8 — History | not started |
+| 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Growth | not started |
 | 10 — Health | not started |
 | 11 — Trends | not started |
@@ -42,10 +42,11 @@ everything after it is additive.**
 | 13 — Update delivery | not started |
 | 14 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **121/121** with 0 failures. The
-Phase-5 layout, the two launch bugs, and now the Phase-6 sheets were confirmed on a real device (see the
-device-verification sections at the end of this file) — a green build proves nothing about layout or
-about system back. Toolchain details and the AGP 9 / KSP traps are in `research/toolchain.md`.
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **149/149** with 0 failures. The
+Phase-5 layout, the two launch bugs, and the Phase-6, 7 and 8 screens were all confirmed on a real
+device (see the device-verification sections at the end of this file) — a green build proves nothing
+about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
+`research/toolchain.md`.
 
 ---
 
@@ -202,11 +203,18 @@ tested**, so this phase is UI plus one export path — no new storage and no sch
 an export opens as readable JSON and round-trips the row count.
 **Commit:** `feat(settings): units, theme, children and export`
 
-## Phase 8 — History
+## Phase 8 — History — DONE, device-verified
 
-Range `1d · 7d · 14d`, then per-activity totals computed in pure Kotlin (`domain/Totals.kt`) over an
-`EventDao.between(from, to)` read — not in SQL, for the timezone reason given in Task 3.2.
-Big value + muted label, no charts. **Verify:** totals match a hand-count of a seeded day.
+Built: `domain/Totals.kt` (pure, `zone`-explicit `dayRange` / `isNight` / `totalsFor`), a shared
+`ui/home/ScreenHeader.kt` now used by Activity **and** History, `ui/history/HistoryScreen.kt` +
+`HistoryViewModel.kt`, and `EventDao.observeBetween` so the range read is live rather than a snapshot.
+
+Settled during planning: ranges are CALENDAR days; Both mode adds a per-child line; the day/night split
+uses a CONFIGURABLE window (default 18:00-06:00, edited in Settings → Day & night); all six activity
+cards appear, with multi-select filter chips (session-only). Growth and Health are "latest in range"
+rather than sums, because a total weight is meaningless. `EVENT_DISPLAY_ORDER` moved into the domain so
+the dashboard and History cannot disagree about card order.
+
 **Commit:** `feat(ui): history totals`
 
 # STAGE 2 — Growth and Health
@@ -506,3 +514,34 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 - **The skill's `design-tokens.md` was stale**: it still asserted "cards are NOT tinted" and described
   the rejected accent bar, contradicting the shipped 26% tint. Corrected in the same pass, with the
   measured derivations.
+
+---
+
+## Phase 8 device verification — 2026-10-14
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode, device timezone `America/Port_of_Spain`.
+Screenshots: `docs/timeline/2026-10-14-phase8/`.
+
+Every number below was hand-counted from the Room database in the DEVICE'S timezone first, then compared
+against the screen. The totals are not trusted because they look plausible.
+
+| Check | Result |
+| --- | --- |
+| History opens from the nav tab with the SAME header and child switcher as Activity | pass |
+| `1d` totals match a hand-count | pass — 3 bottles / 330 ml = **11.2 oz**, average 110 ml = **3.7 oz**, 2 diapers (day 2, night 0) |
+| `7d` totals match a hand-count | pass — 7 sessions / 330 ml = 11.2 oz, 20 diapers (day 20, night 0) |
+| Per-child line in Both mode | pass — Child 1 7.1 oz + Child 2 4.1 oz = the 11.2 oz combined headline |
+| **Live update**: log on Activity, History follows without a relaunch | pass — 7 → **9 sessions** and 11.2 → **17.2 oz**, matching the DB after the write |
+| Filter chips hide a card | pass — turning Diaper off left the chip but removed the card and its Day/Night rows |
+| **Configurable night window moves the split** | pass — 18:00-06:00 gave Day 20 / Night 0; 06:00-18:00 gave Day 0 / Night 20, exactly as predicted from the diaper hours (10:00 and 15:00) |
+| No crash at any point | pass |
+
+### Notes
+
+- **The average bottle is the mean of bottles that RECORDED an amount.** Four of the nine 7d sessions have
+  a null amount, so 510 ml over 5 measured bottles is 102 ml (3.4 oz), not 57 ml. Averaging the nulls in
+  as zeros would have produced a confidently wrong number.
+- `Time between feeds` reuses `elapsed`, so it reads `7h 12m 36s`; the seconds are noise in a summary.
+  Left as-is rather than adding an unplanned formatter — a candidate polish item.
+- The window is computed when the range is subscribed. Calendar days are stable for the day, so only an
+  app left open across midnight would show a stale `1d`.

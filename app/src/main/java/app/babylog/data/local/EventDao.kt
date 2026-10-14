@@ -27,6 +27,16 @@ interface EventDao {
     )
     suspend fun between(childIds: List<String>, fromMs: Long, toMs: Long): List<EventEntity>
 
+    /**
+     * The same range as [between], but observed. History uses this so that logging an event on the
+     * Activity tab is reflected the moment the History tab is looked at, rather than only on relaunch.
+     */
+    @Query(
+        "SELECT * FROM events WHERE deleted = 0 AND childId IN (:childIds) " +
+            "AND startedAt >= :fromMs AND startedAt < :toMs ORDER BY startedAt DESC",
+    )
+    fun observeBetween(childIds: List<String>, fromMs: Long, toMs: Long): Flow<List<EventEntity>>
+
     @Query(
         "SELECT * FROM events WHERE deleted = 0 AND type = :type AND childId IN (:childIds) " +
             "ORDER BY startedAt DESC LIMIT 1",

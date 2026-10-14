@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.Child
 import app.babylog.domain.LengthUnit
+import app.babylog.domain.NightWindow
 import app.babylog.domain.Sex
 import app.babylog.domain.TERM_GESTATION_DAYS
 import app.babylog.domain.ThemeMode
@@ -44,9 +45,13 @@ import app.babylog.ui.home.SwitchRow
 import app.babylog.ui.home.TextFieldRow
 import app.babylog.ui.theme.BabyLogTheme
 import java.time.LocalDate
+import java.util.Locale
 
 /** 20 weeks. Below this is not a viable gestational age, so the stepper stops. */
 private const val MIN_GESTATION_DAYS = 140
+
+/** "18:00" — the night window is hour-granular, so minutes would be false precision. */
+private fun hourLabel(hour: Int): String = String.format(Locale.ENGLISH, "%02d:00", hour)
 
 /**
  * Settings: appearance, units, the children and the backup. One scrolling screen rather than a list of
@@ -58,12 +63,15 @@ private const val MIN_GESTATION_DAYS = 140
 fun SettingsScreen(
     children: List<Child>,
     units: UnitPreferences,
+    nightWindow: NightWindow,
     theme: ThemeMode,
     onTheme: (ThemeMode) -> Unit,
     onUnitSystem: (UnitSystem) -> Unit,
     onLengthUnit: (LengthUnit) -> Unit,
     onWeightUnit: (WeightUnit) -> Unit,
     onVolumeUnit: (VolumeUnit) -> Unit,
+    onNightStart: (Int) -> Unit,
+    onNightEnd: (Int) -> Unit,
     onUpdateChild: (Child) -> Unit,
     onAddChild: () -> Unit,
     onArchiveChild: (Child) -> Unit,
@@ -138,6 +146,35 @@ fun SettingsScreen(
             color = colors.textSecondary,
             modifier = Modifier.padding(top = 8.dp),
         )
+
+        SectionTitle("Day & night")
+        Text(
+            text = "Overnight changes are counted as night in the History diaper split.",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        // Hours wrap at midnight rather than clamping, because that is how a clock reads: 23:00 -> 00:00.
+        StepperRow(
+            label = "Night starts",
+            value = hourLabel(nightWindow.startHour),
+            onDecrease = { onNightStart((nightWindow.startHour + 23) % 24) },
+            onIncrease = { onNightStart((nightWindow.startHour + 1) % 24) },
+        )
+        StepperRow(
+            label = "Night ends",
+            value = hourLabel(nightWindow.endHour),
+            onDecrease = { onNightEnd((nightWindow.endHour + 23) % 24) },
+            onIncrease = { onNightEnd((nightWindow.endHour + 1) % 24) },
+        )
+        if (nightWindow.isEmpty) {
+            Text(
+                text = "Start and end are the same, so nothing counts as night.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
 
         SectionTitle("Children")
         if (children.isEmpty()) {

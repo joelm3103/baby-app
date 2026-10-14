@@ -4,9 +4,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.LengthUnit
+import app.babylog.domain.NightWindow
 import app.babylog.domain.ThemeMode
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.UnitSystem
@@ -43,6 +45,23 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     /** True once the first-run children seed has run. Never reset — see [seedChildrenOnce]. */
     val childSeedDone: Flow<Boolean> = dataStore.data.map { it[KEY_CHILD_SEEDED] == true }
+
+    /**
+     * When night is, for the History day/night diaper split. Defaults to 18:00-06:00; `start == end`
+     * means no night at all (see [NightWindow]).
+     */
+    val nightWindow: Flow<NightWindow> = dataStore.data.map {
+        NightWindow(
+            startHour = it[KEY_NIGHT_START] ?: DEFAULT_NIGHT_START_HOUR,
+            endHour = it[KEY_NIGHT_END] ?: DEFAULT_NIGHT_END_HOUR,
+        )
+    }
+
+    suspend fun setNightStartHour(hour: Int) =
+        dataStore.edit { it[KEY_NIGHT_START] = hour.coerceIn(0, 23) }
+
+    suspend fun setNightEndHour(hour: Int) =
+        dataStore.edit { it[KEY_NIGHT_END] = hour.coerceIn(0, 23) }
 
     /**
      * Runs [seed] at most once in the app's lifetime, and reports whether it ran.
@@ -94,5 +113,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
         val KEY_THEME = stringPreferencesKey("ui.theme")
         val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
+        val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
+        val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
+
+        const val DEFAULT_NIGHT_START_HOUR = 18
+        const val DEFAULT_NIGHT_END_HOUR = 6
     }
 }

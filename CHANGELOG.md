@@ -17,7 +17,7 @@
 
 - Bottle, diaper and solids are logged with real values through full-screen sheets, instead of the timestamp-only stub.
 - Both-mode logging writes one row per child with identical timestamps, confirmed in the Room database, and the bundled 91-food catalogue accepts custom foods ordered by recent use.
-- Settings is now a real screen: appearance, the three unit families, children you can add, edit, archive or permanently delete, and a JSON backup you can export and restore.
+- Settings is a real screen (appearance, units, children you can add/edit/archive/permanently delete, and a JSON backup you can export and restore), and History now shows calendar-day totals with a configurable day/night split and filter chips.
 - System back closes a sheet instead of leaving the app, and the plan gained a Settings phase plus an Update delivery phase.
 
 ### Added
@@ -29,6 +29,12 @@
 - A semantic `danger` token (`#FF7A7A` dark, `#B3261E` light), used only for permanent deletion; measured at 6.85:1 and 6.19:1 on `background`, with `onAccent` text on the fill at 6.85:1 and 6.54:1.
 - `ChildRepository.add`, and the DAO surface it needs: `allIncludingDeleted`, `deleteAll`, `deleteByChild`, `softDeleteByChild`, `idsForChild`, `hardDelete`, `maxSortOrder`, `totalCount`, plus outbox `deleteByEntityIds` and `deleteEverything`.
 - 15 tests: `BackupTest` (4), `MaintenanceRepositoryTest` (6), `ChildSeedOnceTest` (2) and three more in `ChildSelectionTest`; the suite is 136.
+- `domain/Totals.kt`: pure, `zone`-explicit `dayRange`, `isNight` and `totalsFor`, plus `ActivityTotal`, `HistoryRange` (1d/7d/14d) and `NightWindow`. Totals are deliberately not SQL aggregates, because a day boundary and the day/night split are local-timezone facts.
+- `ui/history/HistoryScreen.kt` and `HistoryViewModel.kt`, and `ui/home/ScreenHeader.kt` extracted from `ActivityScreen` so Activity and History share one header and child switcher.
+- `EventDao.observeBetween` and the `EventRepository` wrapper, so History reflects a write on the Activity tab without a relaunch. An empty child list short-circuits, because Room expands `IN (:childIds)` into `IN ()`, which SQLite rejects.
+- `SettingsRepository.nightWindow` with `setNightStartHour`/`setNightEndHour` (defaults 18 and 6, clamped to 0-23), and a **Day & night** section in Settings using two hour steppers.
+- `EVENT_DISPLAY_ORDER` in the domain, now read by both `CardBuilder` and `Totals`, so the dashboard and History cannot disagree about card order.
+- 13 more tests: `TotalsTest` (10, including a hand-counted day, a non-UTC boundary, night wrap-around and `start == end`) and `SettingsNightWindowTest` (3); the suite is 149.
 
 - `ActivitySheet`, a full-screen logging frame with an activity-tinted title bar (`X` / title / `Save`), hairline `InputRow`s, and a `BackHandler` so system back dismisses the sheet rather than leaving the app (`app/src/main/java/app/babylog/ui/home/ActivitySheet.kt`).
 - Bottle, Diaper and Solids logging sheets (`ui/home/BottleSheet.kt`, `ui/home/DiaperSheet.kt`, `ui/home/SolidsSheet.kt`) and their shared controls (`ui/home/SheetControls.kt`).
@@ -53,6 +59,8 @@
 - The **Both** pill now appears only at exactly two children. `ChildSelection.resolve` falls back to the first child in sort order, `isValidFor`/`fallbackFor` express the rule, and `HomeViewModel` persists the fallback when a child is added or removed.
 - `AppScaffold` renders the real Settings screen, owns the export/import launchers, and adds the bottom navigation inset for Settings, which has no bottom bar of its own; `AppContainer` exposes `maintenance`; the Settings placeholder is gone from `ui/Placeholders.kt`.
 - `.hermes/skills/babylog-ui/references/design-tokens.md`: documents `danger`, and the stale "cards are NOT tinted" section was corrected to the shipped 26% tint with its measured derivations.
+- History replaced its placeholder: a `1d · 7d · 14d` calendar-day range selector, multi-select filter chips (session-only, all shown by default), and six total cards that carry a per-child line in Both mode. Growth and Health report the latest measurement in range rather than a sum.
+- `ActivityScreen` no longer builds its own header; both Activity and History use `ScreenHeader`, per the contract's "keep it identical on Activity and History".
 
 ### Removed
 
@@ -64,3 +72,4 @@
 - The Rash toggle and the food rows in the picker drew a `›` chevron, which the design contract reserves for rows that push a screen. `InputRow` now takes `chevron` (default `onClick != null`) and the in-place controls pass `chevron = false` (`ui/home/SheetControls.kt`, `ui/home/FoodPicker.kt`). Found on device, not by the build.
 - `ChildSelection.resolve` returned **all** children for a stale single-child selection, which would have shown a combined view that the switcher no longer offers once there are three. It now falls back to the first child in sort order.
 - The skill's `design-tokens.md` still asserted "cards are NOT tinted" and described the rejected accent bar, contradicting the shipped 26% tint in `Tokens.kt` and `ActivityCard`.
+- `PLAN.md`'s verification line still read **121/121** and listed only the Phase 5 and 6 device passes; corrected to 149 and Phases 5-8.

@@ -29,6 +29,22 @@ enum class EventType(
 /** DELIBERATELY three. Both source apps shipped a clinical taxonomy nobody asks for at 3am. */
 enum class DiaperKind { WET, DIRTY, MIXED }
 
+/**
+ * The order activities are presented in. The dashboard cards and the History totals both read from
+ * this, so the two screens can never disagree about where an activity lives.
+ *
+ * Fixed by how often each is used. Sleep is LAST and present: it is tracked rarely but was asked for
+ * explicitly, so do not "optimise" it away.
+ */
+val EVENT_DISPLAY_ORDER: List<EventType> = listOf(
+    EventType.BOTTLE,
+    EventType.DIAPER,
+    EventType.SOLIDS,
+    EventType.GROWTH,
+    EventType.HEALTH,
+    EventType.SLEEP,
+)
+
 enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
 
 /** the reference app's exact wording for the solids reaction field. */

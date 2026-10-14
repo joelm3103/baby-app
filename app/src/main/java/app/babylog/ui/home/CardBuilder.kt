@@ -1,20 +1,15 @@
 package app.babylog.ui.home
 
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.EVENT_DISPLAY_ORDER
 import app.babylog.domain.EventType
 
 /**
- * Fixed order, by how often each is used. Sleep is LAST and present: the owner rarely tracks it but asked
- * for the card to exist for the occasional night he does. Do not "optimise" it away.
+ * The shared display order, kept under this name so the card code reads locally. The order itself lives
+ * in the domain (`EVENT_DISPLAY_ORDER`) because History uses it too — one list, so the two screens
+ * cannot drift apart.
  */
-internal val CARD_ORDER = listOf(
-    EventType.BOTTLE,
-    EventType.DIAPER,
-    EventType.SOLIDS,
-    EventType.GROWTH,
-    EventType.HEALTH,
-    EventType.SLEEP,
-)
+internal val CARD_ORDER = EVENT_DISPLAY_ORDER
 
 /** How many recent entries a card shows under its value. */
 internal const val CARD_RECENT_LIMIT = 3

@@ -7,6 +7,7 @@ import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.Child
 import app.babylog.domain.LengthUnit
+import app.babylog.domain.NightWindow
 import app.babylog.domain.Sex
 import app.babylog.domain.ThemeMode
 import app.babylog.domain.UnitPreferences
@@ -40,6 +41,10 @@ class SettingsViewModel(
     val theme: StateFlow<ThemeMode> = settings.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 
+    /** When night is, for the History day/night diaper split. Defaults to 18:00-06:00. */
+    val nightWindow: StateFlow<NightWindow> = settings.nightWindow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NightWindow())
+
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -53,6 +58,10 @@ class SettingsViewModel(
     fun setWeightUnit(unit: WeightUnit) = viewModelScope.launch { settings.setWeightUnit(unit) }
 
     fun setVolumeUnit(unit: VolumeUnit) = viewModelScope.launch { settings.setVolumeUnit(unit) }
+
+    fun setNightStartHour(hour: Int) = viewModelScope.launch { settings.setNightStartHour(hour) }
+
+    fun setNightEndHour(hour: Int) = viewModelScope.launch { settings.setNightEndHour(hour) }
 
     fun updateChild(child: Child) = viewModelScope.launch { children.upsert(child) }
 

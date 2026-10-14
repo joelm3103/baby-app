@@ -30,9 +30,5 @@ private fun Placeholder(title: String, phase: String, contentPadding: PaddingVal
 }
 
 @Composable
-fun HistoryScreen(contentPadding: PaddingValues) =
-    Placeholder("History", "1d \u00b7 7d \u00b7 14d totals arrive in Phase 8.", contentPadding)
-
-@Composable
 fun TrendsScreen(contentPadding: PaddingValues) =
     Placeholder("Trends", "Charts over time arrive in Phase 11, once there is real data to plot.", contentPadding)

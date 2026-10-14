@@ -12,6 +12,7 @@ import java.time.Clock
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
@@ -36,6 +37,19 @@ class EventRepository(
 
     fun observeForChildren(childIds: List<String>): Flow<List<BabyEvent>> =
         eventDao.observeForChildren(childIds).map { it.toDomain() }
+
+    /**
+     * The events inside a half-open `[from, to)` window, observed.
+     *
+     * An empty child list is short-circuited: Room expands `IN (:childIds)` into `IN ()`, which SQLite
+     * rejects, and "no children" is a normal state on a fresh install.
+     */
+    fun observeBetween(childIds: List<String>, fromMs: Long, toMs: Long): Flow<List<BabyEvent>> =
+        if (childIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            eventDao.observeBetween(childIds, fromMs, toMs).map { it.toDomain() }
+        }
 
     fun observeRecentByType(
         type: EventType,
