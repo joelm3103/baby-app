@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
@@ -34,12 +35,17 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,11 +62,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.babylog.data.repo.EventDraft
 import app.babylog.di.AppContainer
+import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
+import app.babylog.ui.common.rememberNow
 import app.babylog.ui.home.ActivityScreen
 import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
+import app.babylog.ui.home.EventListOverlay
 import app.babylog.ui.home.HomeViewModel
 import app.babylog.ui.home.SolidsSheet
 import app.babylog.ui.history.HistoryScreen
@@ -70,6 +80,7 @@ import app.babylog.ui.settings.SettingsViewModel
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
+import app.babylog.ui.theme.displayName
 import androidx.compose.runtime.collectAsState
 import java.time.LocalDate
 import java.time.ZoneId
@@ -107,7 +118,13 @@ fun AppScaffold(container: AppContainer) {
     val home: HomeViewModel = viewModel(factory = factory)
     val state by home.state.collectAsState()
     val openSheet by home.openSheet.collectAsState()
+    val openEntries by home.openEntries.collectAsState()
+    val editing by home.editing.collectAsState()
     val foods by home.foodList.collectAsState()
+
+    // One snackbar for the whole app, owned here because the overlay it is raised from is drawn over
+    // the Scaffold: a host inside the Scaffold's content would sit underneath it.
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // History observes the SAME stored child selection as Activity (via the shared switcher), so
     // "who am I looking at" cannot mean two different things on two tabs.
@@ -140,6 +157,9 @@ fun AppScaffold(container: AppContainer) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pendingImport by remember { mutableStateOf<String?>(null) }
+    // A pending delete is confirmed before anything is written: a soft delete is recoverable, but only
+    // for as long as the snackbar is on screen.
+    var pendingDelete by remember { mutableStateOf<BabyEvent?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -173,6 +193,9 @@ fun AppScaffold(container: AppContainer) {
     }
 
     val colors = BabyLogTheme.colors
+    // The system navigation bar's height, needed twice: Settings' own bottom padding, and the snackbar,
+    // which has to clear both it and the app's own navigation bar.
+    val navBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     // Owned here, not inside ActivityScreen, so this shell can react to scrolling. The insets are
     // applied as LazyColumn contentPadding, which means items scroll THROUGH the status-bar region -
@@ -235,11 +258,7 @@ fun AppScaffold(container: AppContainer) {
         // Settings has no bottom bar of its own, so the Scaffold does not consume the bottom inset for
         // it. That inset is handed to SettingsScreen to apply OUTSIDE its scroll: inside, it scrolls
         // away with the content and rows pass under the transparent system navigation bar.
-        val settingsBottomInset = if (destination == Destination.SETTINGS) {
-            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        } else {
-            0.dp
-        }
+        val settingsBottomInset = if (destination == Destination.SETTINGS) navBarInset else 0.dp
         val padding = PaddingValues(
             start = inner.calculateStartPadding(layoutDirection) + Spacing.gutter,
             end = inner.calculateEndPadding(layoutDirection) + Spacing.gutter,
@@ -256,6 +275,9 @@ fun AppScaffold(container: AppContainer) {
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
+                    onSeeAll = home::openEntries,
+                    onEditEntry = home::editEntry,
+                    onDeleteEntry = { pendingDelete = it },
                     contentPadding = padding,
                     listState = activityListState,
                 )
@@ -318,43 +340,83 @@ fun AppScaffold(container: AppContainer) {
         }
     }
 
-        val sheetType = openSheet
+        // "See all": every entry of one activity for the current child/both selection. Drawn before the
+        // sheets so the edit sheet it launches stacks on top of it, and as a sibling of the Scaffold so
+        // it covers the bottom navigation bar rather than being clipped by it.
+        val listType = openEntries
+        if (listType != null) {
+            // The clock ticks only while the list is open: its day headers ("Today"/"Yesterday") are all
+            // it feeds, so there is no reason to recompose the shell for it the rest of the time.
+            val listNow = rememberNow(anyRunning = false)
+            EventListOverlay(
+                type = listType,
+                entries = state.entriesOf(listType),
+                units = state.units,
+                childLabel = state.childLabel,
+                childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
+                showChildBadge = state.childIds.size > 1,
+                zone = remember { ZoneId.systemDefault() },
+                now = listNow,
+                onDismiss = home::dismissEntries,
+                onEditEntry = home::editEntry,
+                onDeleteEntry = { pendingDelete = it },
+            )
+        }
+
+        // One sheet, two jobs: logging a new event (`openSheet`) or editing a row (`editing`, which wins,
+        // because tapping a row while the list is open means that row). Keyed on the target so tapping a
+        // SECOND row re-seeds the fields instead of showing the previous row's values.
+        val editingEvent = editing
+        val sheetType = editingEvent?.type ?: openSheet
         if (sheetType != null) {
-            val sheetNow = remember(sheetType) { System.currentTimeMillis() }
-            val zone = remember { ZoneId.systemDefault() }
-            val accent = colors.accentFor(sheetType)
-            when (sheetType) {
-                EventType.BOTTLE -> BottleSheet(
-                    accent = accent,
-                    childLabel = state.childLabel,
-                    units = state.units,
-                    presets = settingsPresets,
-                    zone = zone,
-                    now = sheetNow,
-                    initialAmountMl = state.lastBottleAmountMl,
-                    onDismiss = home::dismissSheet,
-                    onSave = home::save,
-                )
-                EventType.DIAPER -> DiaperSheet(
-                    accent = accent,
-                    childLabel = state.childLabel,
-                    zone = zone,
-                    now = sheetNow,
-                    onDismiss = home::dismissSheet,
-                    onSave = home::save,
-                )
-                EventType.SOLIDS -> SolidsSheet(
-                    accent = accent,
-                    childLabel = state.childLabel,
-                    zone = zone,
-                    now = sheetNow,
-                    foods = foods,
-                    onAddFood = home::addCustomFood,
-                    onDismiss = home::dismissSheet,
-                    onSave = home::save,
-                )
-                // Sleep runs from the card as a timer; Growth and Health are Phases 10-11.
-                else -> Unit
+            key(sheetType, editingEvent?.id) {
+                val sheetNow = remember(sheetType) { System.currentTimeMillis() }
+                val zone = remember { ZoneId.systemDefault() }
+                val accent = colors.accentFor(sheetType)
+                // Editing says who the row belongs to, which in Both mode is not the switcher's answer.
+                val sheetChildLabel = editingEvent?.let { state.childName(it.childId) } ?: state.childLabel
+                val onSaveSheet: (EventDraft) -> Unit = { draft ->
+                    if (editingEvent != null) home.saveEdit(editingEvent, draft) else home.save(draft)
+                }
+                val onDismissSheet: () -> Unit = {
+                    if (editingEvent != null) home.dismissEdit() else home.dismissSheet()
+                }
+                when (sheetType) {
+                    EventType.BOTTLE -> BottleSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        units = state.units,
+                        presets = settingsPresets,
+                        zone = zone,
+                        now = sheetNow,
+                        initialAmountMl = state.lastBottleAmountMl,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    )
+                    EventType.DIAPER -> DiaperSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        zone = zone,
+                        now = sheetNow,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    )
+                    EventType.SOLIDS -> SolidsSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        zone = zone,
+                        now = sheetNow,
+                        foods = foods,
+                        onAddFood = home::addCustomFood,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    )
+                    // Sleep runs from the card as a timer; Growth and Health are Phases 10-11.
+                    else -> Unit
+                }
             }
         }
 
@@ -392,6 +454,48 @@ fun AppScaffold(container: AppContainer) {
                 },
             )
         }
+
+        // Deleting an entry is confirmed, then offers an Undo for as long as the snackbar is up: a
+        // mis-tap at 3am should cost one tap to fix, not a re-typed feed.
+        pendingDelete?.let { event ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text("Delete this ${event.type.displayName().lowercase()}?") },
+                text = {
+                    Text(
+                        "It will disappear from the cards and from History. " +
+                            "There is an Undo on the next message if you did not mean it.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pendingDelete = null
+                        scope.launch {
+                            val tombstone = home.deleteEntry(event)
+                            val result = snackbarHostState.showSnackbar(
+                                message = "${event.type.displayName()} deleted",
+                                actionLabel = "Undo",
+                                duration = SnackbarDuration.Short,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) home.undo(tombstone)
+                        }
+                    }) { Text("Delete", color = colors.danger) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                },
+            )
+        }
+
+        // Drawn LAST, so it is visible above the Scaffold AND above the "See all" overlay, which is a
+        // sibling of the Scaffold rather than content inside it. Raised clear of the app's own bottom
+        // bar, which covers the bottom of the screen on every destination that shows one.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = Spacing.bottomBarHeight + navBarInset + Spacing.cardGap),
+        )
     }
 }
 

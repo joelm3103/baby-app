@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.babylog.data.local.FoodEntity
 import app.babylog.data.repo.EventDraft
+import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
@@ -29,6 +30,8 @@ import java.time.ZoneId
  * (`BabyEvent.reaction`). A per-food flag would need a join table and a migration; the documented
  * escape hatch is in `domain/FoodIds.kt`, and it is not worth paying for until the distinction is
  * actually needed.
+ *
+ * [initial] is set when a row is being EDITED rather than a new meal logged.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -41,16 +44,17 @@ fun SolidsSheet(
     onAddFood: suspend (String) -> FoodEntity,
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
+    initial: BabyEvent? = null,
 ) {
-    var startedAt by remember { mutableStateOf(now) }
-    var mealSlot by remember { mutableStateOf<MealSlot?>(null) }
-    var reaction by remember { mutableStateOf<FoodReaction?>(null) }
-    var selectedIds by remember { mutableStateOf<List<String>>(emptyList()) }
-    var note by remember { mutableStateOf("") }
+    var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
+    var mealSlot by remember { mutableStateOf(initial?.mealSlot) }
+    var reaction by remember { mutableStateOf(initial?.reaction) }
+    var selectedIds by remember { mutableStateOf(initial?.foodIds.orEmpty()) }
+    var note by remember { mutableStateOf(initial?.note.orEmpty()) }
     var showPicker by remember { mutableStateOf(false) }
 
     ActivitySheet(
-        title = "Solids",
+        title = if (initial != null) "Edit solids" else "Solids",
         accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,

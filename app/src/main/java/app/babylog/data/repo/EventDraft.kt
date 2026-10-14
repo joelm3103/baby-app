@@ -32,7 +32,13 @@ data class EventDraft(
     val vaccineName: String? = null,
     val note: String? = null,
 ) {
-    fun toEvent(id: String, childId: String, createdBy: String, updatedAt: Long): BabyEvent = BabyEvent(
+    fun toEvent(
+        id: String,
+        childId: String,
+        createdBy: String,
+        updatedAt: Long,
+        deleted: Boolean = false,
+    ): BabyEvent = BabyEvent(
         id = id,
         childId = childId,
         type = type,
@@ -54,5 +60,33 @@ data class EventDraft(
         note = note,
         createdBy = createdBy,
         updatedAt = updatedAt,
+        deleted = deleted,
     )
+
+    /**
+     * The EDIT path: this draft's values written onto an event that already exists.
+     *
+     * Identity is the point. The row keeps its `id`, its `childId` and its `createdBy`, so an edit is an
+     * edit rather than a delete-and-reinsert — which matters beyond tidiness, because sync (Phase 13)
+     * propagates by id and a re-inserted row would arrive as a brand-new event on the other phone.
+     *
+     * Deliberately implemented as [toEvent] with the identity filled in from [existing] rather than as
+     * a second field-by-field copy: a duplicated field list is how a new column silently fails to
+     * survive an edit.
+     *
+     * [existing]'s child is NOT taken from the draft. In Both mode one tap writes two rows, and editing
+     * First Twin's feed must never rewrite Second Twin's.
+     */
+    fun applyTo(existing: BabyEvent, updatedAt: Long): BabyEvent {
+        require(type == existing.type) {
+            "a draft edits its own activity type: ${existing.type} cannot become $type"
+        }
+        return toEvent(
+            id = existing.id,
+            childId = existing.childId,
+            createdBy = existing.createdBy,
+            updatedAt = updatedAt,
+            deleted = existing.deleted,
+        )
+    }
 }

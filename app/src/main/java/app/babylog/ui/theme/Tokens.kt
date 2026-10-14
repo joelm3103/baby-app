@@ -159,6 +159,14 @@ object Spacing {
     val sectionGap = 24.dp
     val bottomBarHeight = 64.dp
 
+    /**
+     * A card's entry rows. Measured down from 8dp of vertical padding and an 18dp badge, which sat a
+     * 20dp line of text in a 35dp row - over 40% air, on a card that is often read at arm's length.
+     * The badge is also reserved for Both mode: six identical K badges down one card say nothing.
+     */
+    val rowVertical = 5.dp
+    val rowBlockTop = 8.dp
+    val rowBadge = 16.dp
 }
 
 object Radius {

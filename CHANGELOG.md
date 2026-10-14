@@ -19,6 +19,7 @@
 - Both-mode logging writes one row per child with identical timestamps, and History shows calendar-day totals with a configurable day/night split and filter chips.
 - Settings is a real screen — units, children, backup/restore and bottle presets — laid out as distinct alternating cards.
 - The shell's fade follows the active tab and content no longer runs under the system navigation bar, while the sheets gained an editable date and now say who they log for.
+- **Later the same day:** the activity cards were corrected after use — a card now lists today's entries (up to five, and the feed behind the big number is one of them), `See all ›` opens every entry of that activity grouped by day, and any row can be edited in place or long-pressed to delete with an Undo. The device pass for this part is recorded under `docs/timeline/`.
 
 ### Added
 
@@ -51,6 +52,12 @@
 - `fromMillilitres` (`domain/Units.kt`), so the bottle amount stepper converts once on save rather than on every press.
 - `timeOfDayOn` (`domain/Formatting.kt`), which keeps the local day when a sheet's time is edited.
 - 18 unit tests: `FoodSlugTest` (8), `FoodRepositoryTest` (8, against a real Room database under Robolectric), and one each in `FormattingTest` and `UnitsTest`; the suite is 121 tests.
+- `EventListOverlay` (`ui/home/EventListOverlay.kt`): the full-screen "See all" list — every entry of one activity for the current child/both selection, newest first, grouped by day (`Today` / `Yesterday` / `Wed 12 Mar`). Drawn as a sibling of the `Scaffold` so it covers the bottom navigation bar, with its own `BackHandler`.
+- `EntryRow` (`ui/home/EntryRow.kt`): one logged entry as a tappable row, shared by the cards and the overlay so the two renderings cannot drift. Meta text picks its token by surface — `textOnCard` on a tinted card, `textSecondary` on the overlay's plain background.
+- `domain/EventOrder.kt`: one newest-first comparator, with the configured child order as the tie-break, used by the card builder and the day grouping.
+- `EventDraft.applyTo(existing, updatedAt)` (`data/repo/EventDraft.kt`): the edit path, implemented as `toEvent` with the identity filled in from the existing row rather than a second field-by-field copy. `EventRepository.update` existed until now with no UI on top of it.
+- Editing and deleting reach the UI: tap a row to open its sheet pre-filled and save back onto the same row (same `id`, child and creator — `EventRepository.update`), long-press to soft delete with a `Undo` snackbar (`softDelete` / `undoDelete`), both confirmed first. The snackbar host lives in the shell's `Box`, drawn above the overlay and the bottom bar, because the overlay is a sibling of the `Scaffold` and would otherwise cover it.
+- 20 unit tests: `EventOrderTest` (5 — identical timestamps, both input orders, archived child, reversed child order, timestamps still winning), `EventDraftTest` (6 — identity preserved, the child taken from the row, cleared values staying cleared, a draft that cannot retype a row, a tombstone staying deleted), 6 more in `CardBuilderTest` (today-only rows, the five cap, no padding from yesterday, the headline in the rows, nothing-left-over meaning no footer, a local-midnight boundary) and 2 in `EventRepositoryTest` (an edit updating in place with exactly one queue entry; an edit that cannot move a row to the other child). The suite is 178 tests.
 
 ### Changed
 
@@ -90,6 +97,14 @@
 - `SettingsScreen` applied its insets INSIDE `verticalScroll`, so they scrolled away with the content and rows ran under the transparent system navigation bar.
 - Settings and History had no top fade, because `scrimAlpha` read Activity's list state rather than the active destination's.
 - The child switcher's initial was not centred in its circle: a `Text`'s line box is taller than its glyph.
+
+These four were found on the device and are the reason this day has a second entry:
+
+- **`See all ›` did nothing.** `ActivityScreen` passed `onSeeAll = {}`, and the footer only rendered when a card happened to hold three events of a type, so in the ordinary case the link was not even there. It now opens the full-screen entry list.
+- **A card could never show more than two rows.** `CardBuilder` kept the newest three events of each type and `ActivityCard` drew `recent.drop(1)`, because the big number consumed the newest of them; and those three were "the last three ever", printed with a bare clock time, so a feed from yesterday was indistinguishable from one an hour ago. Cards now list today's entries, newest first, capped at five, with the big number's own entry included.
+- **The Both card's numbers read as wrong, and the data was fine.** the second twin's 14:14 feed was the headline on the second twin's card and a row on the Both card, and the two lists could not be compared because the headline had swallowed one entry. The headline now carries the child's badge and the absolute time whenever more than one child is in scope, and the rows include it, so the second twin's 13:09 feed is visible in Both mode.
+- **Rows wasted their space** — 8dp of vertical padding around a 20dp line of text in a 35dp row, plus an 18dp `K` badge on every row of a single-child card. Now 5dp, a 16dp badge in Both mode only, and an 8dp gap above the block.
+- **Two rows written by one Both-mode tap could swap places.** They share a `startedAt`, and `ORDER BY startedAt DESC` alone left their order to SQLite; one comparator now resolves ties by the configured child order.
 
 ## [2026-10-12]
 

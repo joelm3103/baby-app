@@ -36,6 +36,7 @@ everything after it is additive.**
 | 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
 | 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
+| 9.1 — Card entries, See all, in-place edits | **CODE LANDED — 178 tests green; device pass pending** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering |
 | 10 — Growth | NEXT |
 | 11 — Health | not started |
 | 12 — Trends | not started |
@@ -43,10 +44,11 @@ everything after it is additive.**
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **158/158** with 0 failures. The
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **178/178** with 0 failures. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8 and 9 screens were all confirmed on a real
 device (see the device-verification sections at the end of this file) — a green build proves nothing
-about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
+about layout or about system back. **Phase 9.1 is code-complete but NOT yet device-verified**; its
+device pass is the outstanding item. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
 
 ---
@@ -240,6 +242,45 @@ pass that makes Stage 1's screens comfortable to actually live with.
   transparent system navigation bar.
 
 **Commit:** `feat(ui): daily-use polish`
+
+## Phase 9.1 — Card entries, See all, in-place edits — CODE LANDED; DEVICE PASS PENDING
+
+Four defects reported after using the Phase 9 build, all of them on the Activity cards. Treated like
+Phase 9: a pass in place, not a new stage. No schema change, no DAO change, no new query —
+`HomeViewModel` already loads every event for the selection, so the cards and the entry list are two
+views of the same list.
+
+- **`See all ›` did nothing.** `ActivityScreen` passed `onSeeAll = {}`, and the footer only rendered
+  when a card happened to hold three events of a type, so in the ordinary case it was not even drawn.
+  It now opens `EventListOverlay`: every entry of that activity for the current child/both selection,
+  all time, newest first, grouped by day (`Today` / `Yesterday` / `Wed 12 Mar`).
+- **A card could never show more than two rows.** `CardBuilder` kept the newest three of each type and
+  `ActivityCard` drew `recent.drop(1)` because the big number had consumed the newest of those — and the
+  three were "the last three ever", printed with a bare clock time, so yesterday's feed was
+  indistinguishable from one an hour ago. Cards now list **today's** entries, newest first, capped at
+  five, **including the entry behind the big number**. 4 today + 1 yesterday shows 4.
+- **The Both card's numbers read as wrong; the data was fine.** the second twin's 14:14 feed was the headline on
+  the second twin's card and a row on the Both card, so the two lists could not be compared and its 13:09 feed
+  looked missing. The headline keeps its meaning (the newest event of that type in scope) and now
+  carries the child's badge and the absolute time when the scope is both children, and the rows include
+  it — so the per-child list and the Both list finally agree.
+- **Rows wasted their space:** 8dp of vertical padding around a 20dp line of text in a 35dp row, an 18dp
+  badge that said `K` on every row of a single-child card, and a 12dp gap above the block. Now 5dp, a
+  16dp badge in Both mode only, and 8dp — about 27dp per row. The tokens are `Spacing.rowVertical`,
+  `rowBlockTop` and `rowBadge` so the numbers live with the rest of the measured values.
+- **Rows are editable and deletable** (the data layer already had both paths with no UI on them): tap a
+  row — on a card or in the list — and that activity's sheet opens pre-filled for **that row's own
+  child**, saving back onto the same row via `EventDraft.applyTo` (same `id`, child and creator), so
+  editing the first twin's feed never rewrites the second twin's. Long-press confirms a soft delete and offers `Undo`.
+- **Ordering is deterministic.** A Both-mode save writes two rows with an identical `startedAt`, and
+  `ORDER BY startedAt DESC` alone leaves their order to SQLite. `domain/EventOrder.kt` is now the single
+  comparator — newest first, then the configured child order — used by the cards and by the day grouping.
+
+**Verified so far:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **178/178** with 0
+failures (20 new tests: today-only rows and the five cap, the tie-break rules, the edit path's identity
+guarantees, and an in-place edit against a real Room database). **Not yet verified on a device** — per
+the rule above, that is what decides whether this phase is done.
+**Commit:** `fix(cards): today's entries, a working See all, and in-place edits`
 
 # STAGE 2 — Growth and Health
 

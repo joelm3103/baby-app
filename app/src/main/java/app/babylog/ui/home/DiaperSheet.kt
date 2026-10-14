@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import app.babylog.data.repo.EventDraft
+import app.babylog.domain.BabyEvent
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
 import app.babylog.domain.dateOn
@@ -19,6 +20,8 @@ import java.time.ZoneId
  * The card keeps its in-place Wet/Dirty/Mixed pills, because the common answer is one tap with no
  * sheet at all. This sheet exists for the cases the pills cannot express — a back-dated change, a rash,
  * or a note — so it opens with the same three answers rather than sending the parent back to the card.
+ *
+ * [initial] is set when a row is being EDITED rather than a new change logged.
  */
 @Composable
 fun DiaperSheet(
@@ -28,14 +31,16 @@ fun DiaperSheet(
     now: Long,
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
+    initial: BabyEvent? = null,
 ) {
-    var startedAt by remember { mutableStateOf(now) }
-    var kind by remember { mutableStateOf(DiaperKind.WET) }
-    var rash by remember { mutableStateOf(false) }
-    var note by remember { mutableStateOf("") }
+    var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
+    var kind by remember { mutableStateOf(initial?.diaperKind ?: DiaperKind.WET) }
+    // null means "not recorded", so an edit must not turn it into a recorded false.
+    var rash by remember { mutableStateOf(initial?.rash == true) }
+    var note by remember { mutableStateOf(initial?.note.orEmpty()) }
 
     ActivitySheet(
-        title = "Diaper",
+        title = if (initial != null) "Edit diaper" else "Diaper",
         accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,

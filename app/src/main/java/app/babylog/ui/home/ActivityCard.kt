@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.BabyEvent
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
 import app.babylog.domain.UnitPreferences
@@ -43,6 +44,10 @@ import java.time.ZoneId
  * section at a glance, and the fraction is measured rather than taste. The consequences are deliberate
  * — the label uses `colors.labelFor(accent)` because the raw accent is not legible on its own tint, and
  * meta text uses `textOnCard` rather than `textSecondary`, which fails AA on the stronger fills.
+ *
+ * The row block shows TODAY's entries (see [cardRows]) — newest first, the entry behind the big number
+ * included — and "See all" whenever something is not on the card. Rows are tappable for editing: a
+ * dashboard you cannot correct is a dashboard you stop trusting.
  */
 @Composable
 fun ActivityCard(
@@ -50,6 +55,7 @@ fun ActivityCard(
     units: UnitPreferences,
     childLabel: String,
     childInitials: Map<String, String>,
+    showChildBadge: Boolean,
     now: Long,
     zone: ZoneId,
     onOpenSheet: (EventType) -> Unit,
@@ -57,6 +63,8 @@ fun ActivityCard(
     onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onSeeAll: () -> Unit,
+    onEditEntry: (BabyEvent) -> Unit,
+    onDeleteEntry: (BabyEvent) -> Unit,
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(card.type)
@@ -106,10 +114,28 @@ fun ActivityCard(
             if (last != null) {
                 val value = bigValue(last, units)
                 if (value != null) {
-                    Row(verticalAlignment = Alignment.Bottom) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                         Text(value.first, style = MaterialTheme.typography.displayLarge, color = colors.textPrimary)
                         if (value.second.isNotBlank()) {
                             Text(" ${value.second}", style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        // In Both mode the newest event is ONE child's, and the card used to say which
+                        // only by omission. Naming it (and dating it) removes the "combined is wrong"
+                        // reading without changing what the number means.
+                        if (showChildBadge) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            ) {
+                                ChildBadge(initials = childInitials[last.childId] ?: "?", size = Spacing.rowBadge)
+                                Text(
+                                    text = clockTime(last.startedAt, zone),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textOnCard,
+                                )
+                            }
                         }
                     }
                 }
@@ -196,47 +222,36 @@ fun ActivityCard(
             }
         }
 
-        // 3. recent rows, excluding whatever the header already showed
-        val more = card.recent.drop(1)
-        if (more.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            more.forEachIndexed { index, event ->
+        // 3. today's entries, the one behind the big number included
+        val rows = cardRows(card.entries, now, zone)
+        if (rows.shown.isNotEmpty()) {
+            Spacer(Modifier.height(Spacing.rowBlockTop))
+            rows.shown.forEachIndexed { index, event ->
                 if (index > 0) HorizontalDivider(color = colors.divider)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        // Which child, then how much. In Both mode two rows could otherwise read
-                        // identically: the brand is the same on every bottle and says nothing.
-                        ChildBadge(initials = childInitials[event.childId] ?: "?", size = 18.dp)
-                        Text(
-                            text = recentRowLabel(event, units),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.textPrimary,
-                        )
-                    }
-                    Text(
-                        text = clockTime(event.startedAt, zone),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textOnCard,
-                    )
-                }
+                EntryRow(
+                    event = event,
+                    units = units,
+                    initials = childInitials[event.childId],
+                    showChild = showChildBadge,
+                    zone = zone,
+                    onTap = { onEditEntry(event) },
+                    onLongPress = { onDeleteEntry(event) },
+                )
             }
         }
 
-        // 4. footer
-        if (card.recent.size >= 3) {
+        // 4. footer: only when at least one entry is not already on the card — today's overflow, or
+        // anything older than today. With everything visible the link would lead to the same list twice.
+        if (rows.hasMore) {
             HorizontalDivider(color = colors.divider)
             Text(
                 text = "See all \u203a",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textOnCard,
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onSeeAll).padding(top = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onSeeAll)
+                    .padding(top = 10.dp, bottom = 2.dp),
             )
         }
     }

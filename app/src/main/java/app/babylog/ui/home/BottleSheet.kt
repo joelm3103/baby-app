@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.babylog.data.repo.EventDraft
+import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.VolumeUnit
@@ -38,6 +39,9 @@ private const val MAX_BOTTLE_ML = 1000
  * The amount is FREE TEXT in the display unit, with chips for the stored presets. A stepper was the
  * wrong control here: it cannot express 135 ml, and it put a common number twelve taps away. The value
  * is converted to canonical millilitres once on save, so the unit preference never rewrites storage.
+ *
+ * [initial] is set when a row is being EDITED rather than a new feed logged: the sheet then opens on
+ * that row's values and saves back onto it (see `EventDraft.applyTo`).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,11 +55,15 @@ fun BottleSheet(
     initialAmountMl: Int?,
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
+    initial: BabyEvent? = null,
 ) {
-    var startedAt by remember { mutableStateOf(now) }
-    var brand by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    val initialText = initialAmountMl?.let { editableAmount(it, units.volume) } ?: ""
+    var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
+    var brand by remember { mutableStateOf(initial?.formulaBrand.orEmpty()) }
+    var note by remember { mutableStateOf(initial?.note.orEmpty()) }
+    // Editing seeds from the row being edited; logging seeds from the last feed, because a parent logs
+    // the same 120 ml far more often than a new number.
+    val seedAmountMl = initial?.amountMl ?: initialAmountMl
+    val initialText = seedAmountMl?.let { editableAmount(it, units.volume) } ?: ""
     var amount by remember { mutableStateOf(initialText) }
 
     // Blank is allowed: a bottle can be logged without an amount. Anything else must be a plausible
@@ -66,13 +74,13 @@ fun BottleSheet(
     // amount. Round-tripping through a coarser display unit must not change what is stored.
     val millilitres = when {
         amount.isBlank() -> null
-        amount == initialText && initialAmountMl != null -> initialAmountMl
+        amount == initialText && seedAmountMl != null -> seedAmountMl
         else -> amount.trim().toDoubleOrNull()?.let { toMillilitres(it, units.volume).roundToInt() }
     }
     val amountOk = amount.isBlank() || (millilitres != null && millilitres in MIN_BOTTLE_ML..MAX_BOTTLE_ML)
 
     ActivitySheet(
-        title = "Bottle feed",
+        title = if (initial != null) "Edit feed" else "Bottle feed",
         accent = accent,
         subtitle = "for $childLabel",
         saveEnabled = amountOk,

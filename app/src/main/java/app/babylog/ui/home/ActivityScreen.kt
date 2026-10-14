@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.BabyEvent
 import app.babylog.ui.common.rememberNow
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
@@ -26,6 +27,9 @@ fun ActivityScreen(
     onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
+    onSeeAll: (app.babylog.domain.EventType) -> Unit,
+    onEditEntry: (BabyEvent) -> Unit,
+    onDeleteEntry: (BabyEvent) -> Unit,
     contentPadding: PaddingValues,
     listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
     zone: ZoneId = ZoneId.systemDefault(),
@@ -68,13 +72,17 @@ fun ActivityScreen(
                 units = state.units,
                 childLabel = state.childLabel,
                 childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
+                // The initial is worth its space only when a row could belong to either child.
+                showChildBadge = state.childIds.size > 1,
                 now = now,
                 zone = zone,
                 onOpenSheet = onOpenSheet,
                 onQuickDiaper = onQuickDiaper,
                 onStartSleep = onStartSleep,
                 onStop = onStop,
-                onSeeAll = {},
+                onSeeAll = { onSeeAll(card.type) },
+                onEditEntry = onEditEntry,
+                onDeleteEntry = onDeleteEntry,
             )
         }
     }

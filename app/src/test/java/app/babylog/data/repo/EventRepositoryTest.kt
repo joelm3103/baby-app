@@ -124,6 +124,48 @@ class EventRepositoryTest {
         assertEquals(listOf("UPSERT", "DELETE", "UPSERT"), db.outboxDao().pending().map { it.op })
     }
 
+    // ---- editing one row in place ----------------------------------------
+
+    @Test
+    fun `editing a row updates it in place and leaves its Both-mode twin alone`() = runBlocking {
+        val created = repo.log(
+            listOf("first-twin", "second-twin"),
+            EventDraft(type = EventType.BOTTLE, startedAt = T0, amountMl = 120),
+            createdBy = "owner",
+        )
+        val firstRow = created.first { it.childId == "first-twin" }
+
+        clock.advanceMinutes(10)
+        val edited = repo.update(
+            EventDraft(type = EventType.BOTTLE, startedAt = T0, amountMl = 150)
+                .applyTo(firstRow, updatedAt = clock.millis()),
+        )
+
+        assertEquals(firstRow.id, edited.id)
+        val rows = repo.observeForChildren(listOf("first-twin", "second-twin")).first()
+        assertEquals(2, rows.size)                                          // edited, never re-inserted
+        assertEquals(150, rows.first { it.childId == "first-twin" }.amountMl)
+        assertEquals(120, rows.first { it.childId == "second-twin" }.amountMl)     // the twin is untouched
+        // One queue entry per write: two logs plus this edit. A re-insert would have shown as a 4th row.
+        assertEquals(3, db.outboxDao().observeCount().first())
+    }
+
+    @Test
+    fun `an edit cannot move a row to another child`() = runBlocking {
+        val event = repo.log(
+            listOf("second-twin"),
+            EventDraft(type = EventType.BOTTLE, startedAt = T0, amountMl = 120),
+            "owner",
+        ).single()
+
+        val edited = repo.update(
+            EventDraft(type = EventType.BOTTLE, startedAt = T0, amountMl = 90).applyTo(event, 1L),
+        )
+
+        assertEquals("second-twin", edited.childId)
+        assertTrue(repo.observeForChildren(listOf("first-twin")).first().isEmpty())
+    }
+
     // ---- sleep timer ------------------------------------------------------
 
     @Test

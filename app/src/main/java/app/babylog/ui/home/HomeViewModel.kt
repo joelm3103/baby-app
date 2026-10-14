@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
 data class CardUi(
     val type: EventType,
     val last: BabyEvent?,
-    val recent: List<BabyEvent>,
+    /** Every entry of this activity in scope, newest first. The card draws today's slice of it. */
+    val entries: List<BabyEvent>,
     val running: BabyEvent?,
 )
 
@@ -39,6 +40,12 @@ data class HomeUiState(
     val units: app.babylog.domain.UnitPreferences = app.babylog.domain.UnitPreferences(),
 ) {
     val anyRunning: Boolean get() = cards.any { it.running != null }
+
+    /** Every entry of one activity in scope, newest first — what the "See all" list draws. */
+    fun entriesOf(type: EventType): List<BabyEvent> = cards.firstOrNull { it.type == type }?.entries.orEmpty()
+
+    /** The name behind a row's badge, for the edit sheet's subtitle in Both mode. */
+    fun childName(childId: String): String = children.firstOrNull { it.id == childId }?.name.orEmpty()
 
     /** "both" or the child's name — used to make the action button say who it will log for. */
     val childLabel: String
@@ -78,6 +85,19 @@ class HomeViewModel(
     /** Which logging sheet is open, if any. A separate flow from [state] so an event emission cannot reset it. */
     private val _openSheet = MutableStateFlow<EventType?>(null)
     val openSheet: StateFlow<EventType?> = _openSheet.asStateFlow()
+
+    /**
+     * Which activity's full entry list is open, if any — the "See all" overlay.
+     *
+     * Its own flow rather than a field on the sheet state, because the two stack: the list stays open
+     * underneath the edit sheet it launches.
+     */
+    private val _openEntries = MutableStateFlow<EventType?>(null)
+    val openEntries: StateFlow<EventType?> = _openEntries.asStateFlow()
+
+    /** The row currently being edited, if any. Set by tapping a row, cleared on save or dismiss. */
+    private val _editing = MutableStateFlow<BabyEvent?>(null)
+    val editing: StateFlow<BabyEvent?> = _editing.asStateFlow()
 
     val state: StateFlow<HomeUiState> = combine(
         children.observeAll(),
@@ -125,7 +145,7 @@ class HomeViewModel(
         selection = selection,
         childIds = ids,
         units = units,
-        cards = buildCards(all),
+        cards = buildCards(all, kids.map { it.id }),
     )
 
     fun select(selection: ChildSelection) = viewModelScope.launch { settings.setSelectedChild(selection) }
@@ -167,6 +187,38 @@ class HomeViewModel(
     fun dismissSheet() {
         _openSheet.value = null
     }
+
+    fun openEntries(type: EventType) {
+        // A sheet and the list are two ways to look at the same activity; opening one closes the other
+        // so the back stack matches what is on screen.
+        _openSheet.value = null
+        _openEntries.value = type
+    }
+
+    fun dismissEntries() {
+        _openEntries.value = null
+    }
+
+    /** Opens the row for editing: the sheet comes up pre-filled and saves back onto this same event. */
+    fun editEntry(event: BabyEvent) {
+        _editing.value = event
+    }
+
+    fun dismissEdit() {
+        _editing.value = null
+    }
+
+    /**
+     * Commits an edit. Identity comes from the row being edited, never from the sheet, so a Both-mode
+     * pair stays two independent rows and an edit cannot move a feed to the other child.
+     */
+    fun saveEdit(original: BabyEvent, draft: EventDraft) = viewModelScope.launch {
+        events.update(draft.applyTo(original, updatedAt = System.currentTimeMillis()))
+        _editing.value = null
+    }
+
+    /** Soft delete, returning the tombstone so the caller can offer Undo. */
+    suspend fun deleteEntry(event: BabyEvent): BabyEvent = events.softDelete(event)
 
     /** Called from the picker's coroutine scope; the new food appears (and sorts) on its own via the flow. */
     suspend fun addCustomFood(name: String): FoodEntity = foods.addCustom(name)
