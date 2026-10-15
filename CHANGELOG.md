@@ -24,6 +24,7 @@
 ### Added
 
 - `docs/timeline/`: the Phase 6, 7, 8 and 9 device captures — 32 screenshots under `docs/timeline/2026-10-14-phase6/` through `-phase9/` (9 + 8 + 6 + 9), with `index.html` sections 07-10 and the matching rows in `docs/timeline/README.md` (`a6407a0`, `11a6d4d`, `9011f7e`, `e8922dc`).
+- `docs/timeline/2026-10-14-phase9.1/`: the Phase 9.1 device capture — 10 screenshots plus the three `before/` JPGs that came from the phone as the defect report, with `index.html` section 11 and the matching rows in `docs/timeline/README.md` (`6ebadab`).
 - `PLAN.md` gains **Phase 7 — Settings** (appearance, units, children, export) and **Phase 13 — Update delivery** (release signing plus delivery without a cable). The latter precedes the ship step because a release-signed APK is what gets delivered.
 - `MaintenanceRepository` (`data/repo/MaintenanceRepository.kt`): read-all including tombstones, replace-everything import in one transaction, archive a child, permanently delete a child with their events and outbox rows.
 - `Backup.kt` (`data/backup/Backup.kt`): a versioned (`schema: 1`), indented JSON envelope of children, every event including tombstones, and the foods table including custom foods, with `UnsupportedBackupException` for a newer schema.
@@ -98,7 +99,7 @@
 - Settings and History had no top fade, because `scrimAlpha` read Activity's list state rather than the active destination's.
 - The child switcher's initial was not centred in its circle: a `Text`'s line box is taller than its glyph.
 
-These four were found on the device and are the reason this day has a second entry:
+These were found on the device and are the reason this day has a second entry — the first four as reported after the Phase-9 build, the last two found while fixing and verifying them:
 
 - **`See all ›` did nothing.** `ActivityScreen` passed `onSeeAll = {}`, and the footer only rendered when a card happened to hold three events of a type, so in the ordinary case the link was not even there. It now opens the full-screen entry list.
 - **A card could never show more than two rows.** `CardBuilder` kept the newest three events of each type and `ActivityCard` drew `recent.drop(1)`, because the big number consumed the newest of them; and those three were "the last three ever", printed with a bare clock time, so a feed from yesterday was indistinguishable from one an hour ago. Cards now list today's entries, newest first, capped at five, with the big number's own entry included.
