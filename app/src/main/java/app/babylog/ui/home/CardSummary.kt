@@ -123,10 +123,11 @@ fun growthDetail(latest: GrowthLatest, units: UnitPreferences): String = listOfN
  * One child's latest measurements, for the two-column summary the card shows in Both mode.
  *
  * The columns exist because a combined headline has no single owner: "6 kg" in Both mode is one child's
- * weight dressed up as the twins'. Each column is that child's own newest weight, length and head, which
- * need not come from the same entry — see [growthLatest].
+ * weight dressed up as the twins'. Each column is the child's name followed by ONE MEASUREMENT PER LINE
+ * — weight, then length, then head — because a single line holding all three wrapped into an unreadable
+ * block at half the card's width (the owner's report: "looks too cramped").
  */
-data class ChildGrowth(val childId: String, val detail: String, val hasData: Boolean)
+data class ChildGrowth(val childId: String, val lines: List<String>, val hasData: Boolean)
 
 fun growthByChild(
     entries: List<BabyEvent>,
@@ -136,7 +137,11 @@ fun growthByChild(
     val latest = growthLatest(entries.filter { it.childId == childId })
     ChildGrowth(
         childId = childId,
-        detail = growthDetail(latest, units),
+        lines = listOfNotNull(
+            latest.weight?.weightGrams?.let { "W " + formatWeight(it.toDouble(), units.weight) },
+            latest.length?.lengthMm?.let { "L " + formatLength(it.toDouble(), units.length) },
+            latest.head?.headMm?.let { "H " + formatLength(it.toDouble(), units.length) },
+        ),
         hasData = !latest.isEmpty,
     )
 }

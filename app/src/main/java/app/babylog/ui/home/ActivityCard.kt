@@ -138,15 +138,28 @@ fun ActivityCard(
                                 Text(
                                     text = childNames[column.childId] ?: "",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = labelFor(accent),
+                                    color = colors.labelFor(accent),
                                 )
                             }
-                            Text(
-                                text = column.detail.ifEmpty { "No measurements yet" },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (column.hasData) colors.textPrimary else colors.textSecondary,
-                                modifier = Modifier.padding(top = 2.dp),
-                            )
+                            // One measurement per line. Wrapped into a single line, three values plus their
+                            // codes were unreadable at half a card's width.
+                            if (column.hasData) {
+                                column.lines.forEach { line ->
+                                    Text(
+                                        text = line,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = colors.textPrimary,
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "No measurements yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
                         }
                     }
                 }

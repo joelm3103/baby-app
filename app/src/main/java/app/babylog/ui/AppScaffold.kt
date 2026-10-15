@@ -68,8 +68,8 @@ import app.babylog.di.AppContainer
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.ui.common.rememberNow
-import app.babylog.ui.growth.GrowthScreen
 import app.babylog.ui.growth.GrowthViewModel
+import app.babylog.ui.trends.TrendsScreen
 import app.babylog.ui.home.ActivityScreen
 import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
@@ -123,7 +123,6 @@ fun AppScaffold(container: AppContainer) {
     val state by home.state.collectAsState()
     val openSheet by home.openSheet.collectAsState()
     val openEntries by home.openEntries.collectAsState()
-    val openGrowth by home.openGrowth.collectAsState()
     val editing by home.editing.collectAsState()
     val foods by home.foodList.collectAsState()
 
@@ -236,11 +235,13 @@ fun AppScaffold(container: AppContainer) {
     val activityListState = rememberLazyListState()
     val historyListState = rememberLazyListState()
     val settingsListState = rememberLazyListState()
+    // Trends scrolls its own list now that it holds a chart pane, so it fades like the others.
+    val trendsListState = rememberLazyListState()
     val activeListState = when (destination) {
         Destination.ACTIVITY -> activityListState
         Destination.HISTORY -> historyListState
         Destination.SETTINGS -> settingsListState
-        Destination.TRENDS -> null
+        Destination.TRENDS -> trendsListState
     }
     val scrolled by remember(activeListState) {
         derivedStateOf {
@@ -304,7 +305,7 @@ fun AppScaffold(container: AppContainer) {
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
-                    onSeeAll = home::openAllFor,
+                    onSeeAll = home::openEntries,
                     onEditEntry = home::editEntry,
                     onDeleteEntry = { pendingDelete = it },
                     contentPadding = padding,
@@ -320,7 +321,13 @@ fun AppScaffold(container: AppContainer) {
                     contentPadding = padding,
                     listState = historyListState,
                 )
-                Destination.TRENDS -> TrendsScreen(padding)
+                Destination.TRENDS -> TrendsScreen(
+                    state = growthState,
+                    onSelectMetric = growthVm::selectMetric,
+                    onEnsureLoaded = growthVm::ensureLoaded,
+                    contentPadding = padding,
+                    listState = trendsListState,
+                )
                 Destination.SETTINGS -> SettingsScreen(
                     children = settingsChildren,
                     units = settingsUnits,
@@ -370,15 +377,7 @@ fun AppScaffold(container: AppContainer) {
         }
     }
 
-        // The percentile chart, the Growth card's "See all". Drawn as a sibling of the Scaffold so it
-        // covers the bottom navigation bar, and before the sheets so opening one stacks on top.
-        if (openGrowth) {
-            GrowthScreen(
-                state = growthState,
-                onSelectMetric = growthVm::selectMetric,
-                onDismiss = home::dismissGrowth,
-            )
-        }
+        // The percentile chart lives in Trends' Growth tab now, so there is no Growth overlay to host here.
 
         // "See all": every entry of one activity for the current child/both selection. Drawn before the
         // sheets so the edit sheet it launches stacks on top of it, and as a sibling of the Scaffold so

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,13 +47,17 @@ fun GrowthChartPane(
     onSelectMetric: (GrowthMetric) -> Unit,
     listState: LazyListState,
     contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(EventType.GROWTH)
     val chart = state.chart
 
+    // `modifier` carries the parent's weight: inside Trends' Column this pane must fill the space LEFT
+    // BELOW the tab row, not the whole screen. `fillMaxSize()` here made it claim the full height, so it
+    // overlapped the chips and its last items could never be scrolled to (found on the S23).
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxWidth(),
         state = listState,
         contentPadding = contentPadding,
     ) {

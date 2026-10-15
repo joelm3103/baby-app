@@ -99,16 +99,6 @@ class HomeViewModel(
     private val _editing = MutableStateFlow<BabyEvent?>(null)
     val editing: StateFlow<BabyEvent?> = _editing.asStateFlow()
 
-    /**
-     * Whether the percentile chart is open.
-     *
-     * Its own flow, like [openEntries]: the Growth card's "See all" is the chart rather than the plain
-     * entry list, because a list of weights without a curve answers a different question. The card's
-     * action button still opens the logging sheet, so a measurement is two taps from the chart.
-     */
-    private val _openGrowth = MutableStateFlow(false)
-    val openGrowth: StateFlow<Boolean> = _openGrowth.asStateFlow()
-
     val state: StateFlow<HomeUiState> = combine(
         children.observeAll(),
         settings.selectedChild,
@@ -216,26 +206,6 @@ class HomeViewModel(
 
     fun dismissEntries() {
         _openEntries.value = null
-    }
-
-    fun openGrowth() {
-        _openSheet.value = null
-        _openEntries.value = null
-        _openGrowth.value = true
-    }
-
-    fun dismissGrowth() {
-        _openGrowth.value = false
-    }
-
-    /**
-     * "See all" on the Growth card opens the chart; every other card opens its entry list.
-     *
-     * One place decides it, so the two paths cannot drift and leave Growth with two different "all"
-     * screens depending on which one was wired last.
-     */
-    fun openAllFor(type: EventType) {
-        if (type == EventType.GROWTH) openGrowth() else openEntries(type)
     }
 
     /** Opens the row for editing: the sheet comes up pre-filled and saves back onto this same event. */

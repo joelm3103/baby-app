@@ -9,6 +9,7 @@ import app.babylog.domain.UnitPreferences
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.WeightUnit
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,24 +75,55 @@ class CardSummaryTest {
     }
 
     @Test
-    fun `growth detail lists every measurement present`() {
+    fun `growth detail lists every measurement present, each labelled`() {
         val e = event(EventType.GROWTH).copy(weightGrams = 5443, lengthMm = 571, headMm = 430)
-        assertEquals("5.4 kg \u00b7 57.1 cm \u00b7 43 cm", detailLine(e, metric))
+        // W/L/H, not bare numbers: "57.1 cm" and "43 cm" are otherwise indistinguishable as length or
+        // head circumference, which is the confusion the owner reported on the card.
+        assertEquals("W 5.4 kg \u00b7 L 57.1 cm \u00b7 H 43 cm", detailLine(e, metric))
     }
 
     @Test
     fun `a growth card ROW lists every measurement recorded, not just the headline one`() {
         val allThree = event(EventType.GROWTH).copy(weightGrams = 5443, lengthMm = 571, headMm = 430)
-        assertEquals("5.4 kg \u00b7 57.1 cm \u00b7 43 cm", recentRowLabel(allThree, metric))
-        assertEquals("12 lb 0 oz \u00b7 22.5 in \u00b7 16.9 in", recentRowLabel(allThree, imperial))
+        assertEquals("W 5.4 kg \u00b7 L 57.1 cm \u00b7 H 43 cm", recentRowLabel(allThree, metric))
+        assertEquals("W 12 lb 0 oz \u00b7 L 22.5 in \u00b7 H 16.9 in", recentRowLabel(allThree, imperial))
 
         // ...and a weight-only measurement says so honestly, rather than padding with blanks.
         val weightOnly = event(EventType.GROWTH).copy(weightGrams = 5443)
-        assertEquals("5.4 kg", recentRowLabel(weightOnly, metric))
+        assertEquals("W 5.4 kg", recentRowLabel(weightOnly, metric))
 
-        // Length and head without a weight still both appear.
+        // Length and head without a weight still both appear, and still say which is which.
         val noWeight = event(EventType.GROWTH).copy(lengthMm = 571, headMm = 430)
-        assertEquals("57.1 cm \u00b7 43 cm", recentRowLabel(noWeight, metric))
+        assertEquals("L 57.1 cm \u00b7 H 43 cm", recentRowLabel(noWeight, metric))
+    }
+
+    @Test
+    fun `the Both-mode summary gives each child their own column`() {
+        // The owner's rule: in Both mode a combined headline has no owner - "6 kg" was one child's weight
+        // read as the twins' - so each child gets their own latest weight, length and head.
+        val first-twin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000, lengthMm = 660, headMm = 420)
+        val second-twin = event(EventType.GROWTH).copy(id = "l", childId = "second-twin", weightGrams = 5400, headMm = 410)
+
+        val columns = growthByChild(listOf(second-twin, first-twin), listOf("first-twin", "second-twin"), metric)
+
+        assertEquals(listOf("first-twin", "second-twin"), columns.map { it.childId })
+        // One line per measurement, in the sheet's field order — the shape the card draws.
+        assertEquals(listOf("W 6 kg", "L 66 cm", "H 42 cm"), columns[0].lines)
+        // Second Twin never recorded a length, so his column omits it rather than borrowing First Twin's.
+        assertEquals(listOf("W 5.4 kg", "H 41 cm"), columns[1].lines)
+        assertTrue(columns.all { it.hasData })
+    }
+
+    @Test
+    fun `a child with no measurements gets an empty column, not the other child's numbers`() {
+        val first-twin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000)
+
+        val columns = growthByChild(listOf(first-twin), listOf("first-twin", "second-twin"), metric)
+
+        assertEquals(listOf("W 6 kg"), columns[0].lines)
+        assertTrue(columns[0].hasData)
+        assertTrue(columns[1].lines.isEmpty())
+        assertFalse(columns[1].hasData)
     }
 
     @Test
@@ -113,11 +145,11 @@ class CardSummaryTest {
         assertEquals(550, latest.length!!.lengthMm)
         assertEquals(250, latest.head!!.headMm)
         assertEquals("20" to "kg", growthBigValue(latest, metric))
-        assertEquals("20 kg \u00b7 55 cm \u00b7 25 cm", growthDetail(latest, metric))
+        assertEquals("W 20 kg \u00b7 L 55 cm \u00b7 H 25 cm", growthDetail(latest, metric))
         // ...and the same in pounds and inches, in the fields' own order.
         // ...and the same in pounds and inches, in the fields' own order. Lengths use the display
         // convention's one decimal, so 55 cm reads 21.7 in rather than 21.65.
-        assertEquals("44 lb 1 oz \u00b7 21.7 in \u00b7 9.8 in", growthDetail(latest, imperial))
+        assertEquals("W 44 lb 1 oz \u00b7 L 21.7 in \u00b7 H 9.8 in", growthDetail(latest, imperial))
     }
 
     @Test
@@ -125,8 +157,8 @@ class CardSummaryTest {
         val older = event(EventType.GROWTH, at = t0 - day).copy(weightGrams = 10_000, headMm = 400)
         val newer = event(EventType.GROWTH, at = t0).copy(lengthMm = 600)
 
-        assertEquals("10 kg \u00b7 60 cm \u00b7 40 cm", growthDetail(growthLatest(listOf(newer, older)), metric))
-        assertEquals("10 kg \u00b7 60 cm \u00b7 40 cm", growthDetail(growthLatest(listOf(older, newer)), metric))
+        assertEquals("W 10 kg \u00b7 L 60 cm \u00b7 H 40 cm", growthDetail(growthLatest(listOf(newer, older)), metric))
+        assertEquals("W 10 kg \u00b7 L 60 cm \u00b7 H 40 cm", growthDetail(growthLatest(listOf(older, newer)), metric))
         // The headline is the newest WEIGHT, which is the older entry here, so its date is what the card
         // shows beside the number.
         assertEquals(older.startedAt, growthLatest(listOf(newer, older)).headline!!.startedAt)

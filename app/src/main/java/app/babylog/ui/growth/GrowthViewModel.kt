@@ -86,6 +86,17 @@ class GrowthViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GrowthUiState())
 
     init {
+        // The reference is NOT loaded here. It is ~490 KB of JSON and only Trends' Growth tab needs it, so
+        // `ensureLoaded` is called from that tab: a parent logging a 3am feed should not pay for a parse
+        // they may never look at.
+    }
+
+    private var loadStarted = false
+
+    /** Loads the growth reference once, on demand. Safe to call from a composition effect. */
+    fun ensureLoaded() {
+        if (loadStarted) return
+        loadStarted = true
         viewModelScope.launch { referenceState.value = reference() }
     }
 
