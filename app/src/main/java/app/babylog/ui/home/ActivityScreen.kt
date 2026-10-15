@@ -72,6 +72,8 @@ fun ActivityScreen(
                 units = state.units,
                 childLabel = state.childLabel,
                 childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
+                childNames = state.children.associate { it.id to it.name },
+                childIds = state.childIds,
                 // The initial is worth its space only when a row could belong to either child.
                 showChildBadge = state.childIds.size > 1,
                 now = now,

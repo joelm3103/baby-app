@@ -189,7 +189,12 @@ private fun growthTotal(
     zone: ZoneId,
 ): ActivityTotal {
     val measured = events.filter { it.weightGrams != null || it.lengthMm != null || it.headMm != null }
-    val latest = measured.maxByOrNull { it.startedAt }
+    // Per-FIELD latest, matching the Activity card's rule: a weight logged today and a length logged last
+    // week are both the current answer, and taking only the newest entry hid the older measurement.
+    val latestWeight = measured.filter { it.weightGrams != null }.maxByOrNull { it.startedAt }
+    val latestLength = measured.filter { it.lengthMm != null }.maxByOrNull { it.startedAt }
+    val latestHead = measured.filter { it.headMm != null }.maxByOrNull { it.startedAt }
+    val latest = latestWeight ?: latestLength ?: latestHead
     if (latest == null) {
         return ActivityTotal(
             type = EventType.GROWTH,
@@ -199,9 +204,9 @@ private fun growthTotal(
         )
     }
 
-    val weight = latest.weightGrams
-    val length = latest.lengthMm
-    val head = latest.headMm
+    val weight = latestWeight?.weightGrams
+    val length = latestLength?.lengthMm
+    val head = latestHead?.headMm
     // Headline is the weight when there is one, since that is the measurement parents track; otherwise
     // the first measurement that exists. The rest become rows rather than disappearing.
     val (headline, unit) = when {
@@ -209,11 +214,21 @@ private fun growthTotal(
         length != null -> lengthHeadline(length, units.length)
         else -> lengthHeadline(head!!, units.length)
     }
+    // Each of the three shown against its OWN date, because with per-field latest they can differ.
+    val dateOf = { at: Long ->
+        Instant.ofEpochMilli(at).atZone(zone).toLocalDate().format(measuredOn)
+    }
     val rows = buildList {
-        if (weight != null && length != null) add(TotalRow("Length", formatLength(length.toDouble(), units.length)))
-        if (head != null && (weight != null || length != null)) add(TotalRow("Head", formatLength(head.toDouble(), units.length)))
-        if (weight != null && length == null && head == null) add(TotalRow("Weight", formatWeight(weight.toDouble(), units.weight)))
-        add(TotalRow("Measured", Instant.ofEpochMilli(latest.startedAt).atZone(zone).toLocalDate().format(measuredOn)))
+        if (length != null && weight != null) {
+            add(TotalRow("Length · ${dateOf(latestLength!!.startedAt)}", formatLength(length.toDouble(), units.length)))
+        }
+        if (head != null && (weight != null || length != null)) {
+            add(TotalRow("Head · ${dateOf(latestHead!!.startedAt)}", formatLength(head.toDouble(), units.length)))
+        }
+        if (weight != null && length == null && head == null) {
+            add(TotalRow("Weight", formatWeight(weight.toDouble(), units.weight)))
+        }
+        add(TotalRow("Measured", dateOf(latest.startedAt)))
     }
     return ActivityTotal(
         type = EventType.GROWTH,

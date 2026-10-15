@@ -37,10 +37,10 @@ import kotlin.math.roundToInt
  */
 
 /** Which measurement the chart is showing. */
-enum class GrowthMetric(val measure: GrowthMeasure, val label: String) {
-    WEIGHT(GrowthMeasure.WEIGHT_FOR_AGE, "Weight"),
-    LENGTH(GrowthMeasure.LENGTH_HEIGHT_FOR_AGE, "Length"),
-    HEAD(GrowthMeasure.HEAD_CIRCUMFERENCE_FOR_AGE, "Head"),
+enum class GrowthMetric(val measure: GrowthMeasure, val label: String, val code: String) {
+    WEIGHT(GrowthMeasure.WEIGHT_FOR_AGE, "Weight", "W"),
+    LENGTH(GrowthMeasure.LENGTH_HEIGHT_FOR_AGE, "Length", "L"),
+    HEAD(GrowthMeasure.HEAD_CIRCUMFERENCE_FOR_AGE, "Head", "H"),
 }
 
 /** The unit the chart's y-axis is drawn in, and how to print a tick. */
@@ -77,9 +77,39 @@ data class GrowthMarker(
     val measuredOn: LocalDate,
     val ageLabel: String,
     val wasAdjusted: Boolean,
+    /** Taken before term, so [axis] is the DUE DATE (adjusted day 0), not a day since birth. */
+    val preTerm: Boolean = false,
     /** Why there is no percentile, when there is not one. Null means the percentile is the answer. */
     val noPercentileReason: String? = null,
 )
+
+/** One point of a child's own line, in display units. */
+data class TrajectoryPoint(val axis: Double, val value: Double, val preTerm: Boolean)
+
+/**
+ * One child's own growth, OLDEST measurement first so the line reads left to right.
+ *
+ * [GrowthChartData.markers] is newest-first because that is how a list is read; a trajectory is the other
+ * order, so it is built and kept separately rather than re-sorting markers at the drawing site.
+ */
+data class GrowthTrajectory(
+    val childId: String,
+    val badge: String,
+    val points: List<TrajectoryPoint>,
+) {
+    /** One measurement is a dot, not a line. */
+    val drawable: Boolean get() = points.size >= 2
+}
+
+/**
+ * A segment is dashed when either end was taken before term.
+ *
+ * The line is unbroken on purpose — one story per child, which is what a parent reads — but the segment
+ * that crosses the pre-term boundary says so, because the birth point sits at the DUE DATE and the slope
+ * across that join is not growth that happened.
+ */
+internal fun segmentIsDashed(from: TrajectoryPoint, to: TrajectoryPoint): Boolean =
+    from.preTerm || to.preTerm
 
 /** Everything the Growth screen renders for one metric and one child selection. */
 data class GrowthChartData(
@@ -87,6 +117,8 @@ data class GrowthChartData(
     val unit: ChartUnit,
     val curves: List<PercentileCurve>,
     val markers: List<GrowthMarker>,
+    /** Each child's own line, oldest first. Empty for a child with a single measurement. */
+    val trajectories: List<GrowthTrajectory> = emptyList(),
     val latest: GrowthMarker?,
     val identityLine: String,
     /** e.g. "WHO boys" — the curve bundle is one sex's, and that must be visible. */
@@ -146,11 +178,26 @@ fun growthChart(
     }
 
     val latest = markers.firstOrNull()
+    // Each child's own line, oldest first. Points the reference cannot place are still plotted and still
+    // joined; they are marked pre-term so the join into them is drawn dashed.
+    val trajectories = children.mapNotNull { child ->
+        val points = markers
+            .filter { it.childId == child.id }
+            .sortedBy { it.measuredOn }
+            .map { TrajectoryPoint(axis = it.axis, value = it.value, preTerm = it.preTerm) }
+        GrowthTrajectory(
+            childId = child.id,
+            badge = child.name.take(1).uppercase(Locale.ENGLISH),
+            points = points,
+        ).takeIf { it.drawable }
+    }
+
     return GrowthChartData(
         metric = metric,
         unit = unit,
         curves = curves,
         markers = markers,
+        trajectories = trajectories,
         latest = latest,
         identityLine = reference.identityLine,
         referenceLabel = "WHO ${if (curveSex == Sex.BOY) "boys" else "girls"}",
@@ -202,6 +249,7 @@ private fun markersFor(
             // about whether this child's age is adjusted.
             ageLabel = ageText(child = child, on = measuredOn),
             wasAdjusted = child.useAdjustedAge && child.prematureDays > 0,
+            preTerm = beforeTerm,
             noPercentileReason = reason,
         )
     }

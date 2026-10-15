@@ -10,6 +10,7 @@ import app.babylog.domain.VolumeUnit
 import app.babylog.domain.WeightUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -79,6 +80,67 @@ class CardSummaryTest {
     }
 
     @Test
+    fun `a growth card ROW lists every measurement recorded, not just the headline one`() {
+        val allThree = event(EventType.GROWTH).copy(weightGrams = 5443, lengthMm = 571, headMm = 430)
+        assertEquals("5.4 kg \u00b7 57.1 cm \u00b7 43 cm", recentRowLabel(allThree, metric))
+        assertEquals("12 lb 0 oz \u00b7 22.5 in \u00b7 16.9 in", recentRowLabel(allThree, imperial))
+
+        // ...and a weight-only measurement says so honestly, rather than padding with blanks.
+        val weightOnly = event(EventType.GROWTH).copy(weightGrams = 5443)
+        assertEquals("5.4 kg", recentRowLabel(weightOnly, metric))
+
+        // Length and head without a weight still both appear.
+        val noWeight = event(EventType.GROWTH).copy(lengthMm = 571, headMm = 430)
+        assertEquals("57.1 cm \u00b7 43 cm", recentRowLabel(noWeight, metric))
+    }
+
+    @Test
+    fun `the growth summary takes the latest of EACH measurement, not the newest entry`() {
+        // The scenario that prompted this, with a blank where no measurement was taken:
+        //   weight 10, 12, 20 kg  |  length 50, 55, (blank) cm  |  head (blank), 25, (blank) cm
+        // The newest entry holds only a weight, so reading it alone answered "20 kg" and hid a 55 cm
+        // length and a 25 cm head circumference that are still the most recent of their kind.
+        val day1 = event(EventType.GROWTH, at = t0 - 2 * day)
+            .copy(weightGrams = 10_000, lengthMm = 500)
+        val day2 = event(EventType.GROWTH, at = t0 - day)
+            .copy(weightGrams = 12_000, lengthMm = 550, headMm = 250)
+        val day3 = event(EventType.GROWTH, at = t0).copy(weightGrams = 20_000)
+        val entries = listOf(day3, day2, day1)
+
+        val latest = growthLatest(entries)
+
+        assertEquals(20_000, latest.weight!!.weightGrams)
+        assertEquals(550, latest.length!!.lengthMm)
+        assertEquals(250, latest.head!!.headMm)
+        assertEquals("20" to "kg", growthBigValue(latest, metric))
+        assertEquals("20 kg \u00b7 55 cm \u00b7 25 cm", growthDetail(latest, metric))
+        // ...and the same in pounds and inches, in the fields' own order.
+        // ...and the same in pounds and inches, in the fields' own order. Lengths use the display
+        // convention's one decimal, so 55 cm reads 21.7 in rather than 21.65.
+        assertEquals("44 lb 1 oz \u00b7 21.7 in \u00b7 9.8 in", growthDetail(latest, imperial))
+    }
+
+    @Test
+    fun `the growth summary is indifferent to the order it is given`() {
+        val older = event(EventType.GROWTH, at = t0 - day).copy(weightGrams = 10_000, headMm = 400)
+        val newer = event(EventType.GROWTH, at = t0).copy(lengthMm = 600)
+
+        assertEquals("10 kg \u00b7 60 cm \u00b7 40 cm", growthDetail(growthLatest(listOf(newer, older)), metric))
+        assertEquals("10 kg \u00b7 60 cm \u00b7 40 cm", growthDetail(growthLatest(listOf(older, newer)), metric))
+        // The headline is the newest WEIGHT, which is the older entry here, so its date is what the card
+        // shows beside the number.
+        assertEquals(older.startedAt, growthLatest(listOf(newer, older)).headline!!.startedAt)
+    }
+
+    @Test
+    fun `a growth summary with nothing measured says nothing`() {
+        val latest = growthLatest(listOf(event(EventType.BOTTLE)))
+        assertTrue(latest.isEmpty)
+        assertNull(growthBigValue(latest, metric))
+        assertEquals("", growthDetail(latest, metric))
+    }
+
+    @Test
     fun `temperature is always celsius`() {
         val e = event(EventType.HEALTH).copy(temperatureC = 38.2)
         assertEquals("38.2" to "\u00b0C", bigValue(e, metric))
@@ -121,8 +183,11 @@ class CardSummaryTest {
         assertEquals(detailLine(diaper, metric), recentRowLabel(diaper, metric))
     }
 
-    private fun event(type: EventType) = BabyEvent(
-        id = "e", childId = "first-twin", type = type, startedAt = t0,
-        createdBy = "u1", updatedAt = t0,
+    private fun event(type: EventType, at: Long = t0) = BabyEvent(
+        id = "e", childId = "first-twin", type = type, startedAt = at,
+        createdBy = "u1", updatedAt = at,
     )
+
+    /** One day, for the per-measurement-latest cases where the fields were taken on different days. */
+    private val day = 86_400_000L
 }

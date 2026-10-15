@@ -190,8 +190,17 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * Opens the logging sheet for [type].
+     *
+     * Deliberately unguarded. This used to be `if (type in SHEET_TYPES)`, where the set listed the three
+     * types that had sheets in Phase 6 - so when Growth's sheet landed, its button looked live, had the
+     * right label, and did nothing at all. The sheet host in `AppScaffold` now names every type explicitly
+     * and has no `else`, so adding an EventType without deciding its sheet is a compile error instead of a
+     * dead control. Found on the S23, not by the build.
+     */
     fun openSheet(type: EventType) {
-        if (type in SHEET_TYPES) _openSheet.value = type
+        _openSheet.value = type
     }
 
     fun dismissSheet() {
@@ -258,8 +267,5 @@ class HomeViewModel(
     companion object {
         /** Until sign-in exists (Phase 13) every write is attributed to the local device. */
         const val CREATED_BY = "local"
-
-        /** Only these three have a logging sheet; sleep runs from the card and Growth/Health are Phase 10-11. */
-        private val SHEET_TYPES = setOf(EventType.BOTTLE, EventType.DIAPER, EventType.SOLIDS)
     }
 }

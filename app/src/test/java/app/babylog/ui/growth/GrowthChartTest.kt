@@ -339,6 +339,109 @@ class GrowthChartTest {
     }
 
     @Test
+    fun `a child's own line runs oldest to newest, unlike the marker list`() {
+        val chart = growthChart(
+            children = listOf(first-twin),
+            events = listOf(
+                growth("new", "first-twin", birth.plusDays(200), grams = 6000),
+                growth("old", "first-twin", birth.plusDays(100), grams = 3300),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        // The list reads newest first; the LINE reads left to right.
+        assertEquals(listOf(6.0, 3.3), chart.markers.map { it.value })
+        val line = chart.trajectories.single()
+        assertEquals(2, line.points.size)
+        assertEquals(30.0, line.points.first().axis, 1e-9)
+        assertEquals(130.0, line.points.last().axis, 1e-9)
+        assertTrue(line.points.first().value < line.points.last().value)
+    }
+
+    @Test
+    fun `the join into a pre-term point is dashed and the rest is not`() {
+        // The birth measurement sits at x = 0, which is the DUE DATE. An unbroken line through it would
+        // draw a slope that is not growth, so only that segment is dashed.
+        val chart = growthChart(
+            children = listOf(first-twin),
+            events = listOf(
+                growth("birth", "first-twin", birth, grams = 1370),
+                growth("three", "first-twin", birth.plusDays(100), grams = 3300),
+                growth("six", "first-twin", birth.plusDays(200), grams = 6000),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        val points = chart.trajectories.single().points
+        assertEquals(3, points.size)
+        assertTrue("the birth point is pre-term", points.first().preTerm)
+        assertTrue(!points[1].preTerm && !points[2].preTerm)
+        assertTrue("the join into the birth point is dashed", segmentIsDashed(points[0], points[1]))
+        assertTrue("growth after term is a solid line", !segmentIsDashed(points[1], points[2]))
+    }
+
+    @Test
+    fun `one measurement is a dot, not a line`() {
+        val chart = growthChart(
+            children = listOf(first-twin),
+            events = listOf(growth("only", "first-twin", birth.plusDays(100), grams = 3300)),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        assertEquals(1, chart.markers.size)
+        assertTrue("a single point has nothing to join", chart.trajectories.isEmpty())
+    }
+
+    @Test
+    fun `Both mode gives each child their own line from their own measurements`() {
+        val chart = growthChart(
+            children = listOf(first-twin, second-twin),
+            events = listOf(
+                growth("k1", "first-twin", birth.plusDays(100), grams = 3300),
+                growth("k2", "first-twin", birth.plusDays(200), grams = 6000),
+                growth("l1", "second-twin", birth.plusDays(100), grams = 3100),
+                growth("l2", "second-twin", birth.plusDays(200), grams = 5600),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        assertEquals(2, chart.trajectories.size)
+        val firstLine = chart.trajectories.single { it.childId == "first-twin" }
+        val secondLine = chart.trajectories.single { it.childId == "second-twin" }
+        assertEquals("K", firstLine.badge)
+        assertEquals(listOf(3300.0 / 1000, 6000.0 / 1000), firstLine.points.map { it.value })
+        // Second Twin never borrowed one of First Twin's measurements.
+        assertEquals(listOf(3.1, 5.6), secondLine.points.map { it.value })
+    }
+
+    @Test
+    fun `a length measurement does not appear on the weight line`() {
+        val chart = growthChart(
+            children = listOf(first-twin),
+            events = listOf(
+                growth("w", "first-twin", birth.plusDays(100), grams = 3300),
+                growth("l", "first-twin", birth.plusDays(190), mm = 520),
+                growth("w2", "first-twin", birth.plusDays(200), grams = 6000),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        assertEquals(2, chart.markers.size)
+        assertEquals(2, chart.trajectories.single().points.size)
+        assertTrue("the length row must not join the weight line", chart.trajectories.single().points.none { it.value > 20 })
+    }
+
+    @Test
     fun `the measured-on label is readable`() {
         assertEquals("10 Apr 2026", measuredOnLabel(birth.plusDays(100)))
     }

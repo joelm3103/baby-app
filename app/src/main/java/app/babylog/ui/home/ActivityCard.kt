@@ -55,6 +55,10 @@ fun ActivityCard(
     units: UnitPreferences,
     childLabel: String,
     childInitials: Map<String, String>,
+    /** Names, for the Growth card's per-child columns, which are headed by name rather than initial. */
+    childNames: Map<String, String> = emptyMap(),
+    /** The children in scope, in switcher order. Two or more means Both mode. */
+    childIds: List<String> = emptyList(),
     showChildBadge: Boolean,
     now: Long,
     zone: ZoneId,
@@ -111,8 +115,51 @@ fun ActivityCard(
                 PillButton(label = "Stop", fill = accent, textColor = colors.onAccent, onClick = onStop)
             }
         } else {
-            if (last != null) {
-                val value = bigValue(last, units)
+            // Growth in Both mode: one column per child, each holding that child's own latest weight,
+            // length and head. A single combined number has no owner — "6 kg" was one child's weight read
+            // as the twins'. With one child selected the big-number card below is unchanged.
+            val twoColumns = card.type == EventType.GROWTH && childIds.size > 1
+            if (twoColumns) {
+                val columns = growthByChild(card.entries, childIds, units)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    columns.forEach { column ->
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                ChildBadge(
+                                    initials = childInitials[column.childId] ?: "?",
+                                    size = Spacing.rowBadge,
+                                )
+                                Text(
+                                    text = childNames[column.childId] ?: "",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = labelFor(accent),
+                                )
+                            }
+                            Text(
+                                text = column.detail.ifEmpty { "No measurements yet" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (column.hasData) colors.textPrimary else colors.textSecondary,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+
+            // Growth's summary is the newest value of EACH measurement, not the newest entry's fields:
+            // weight logged today and a head circumference logged last week are both the current answer,
+            // and reading only the newest entry made the older one vanish from the card.
+            val growth = if (card.type == EventType.GROWTH) growthLatest(card.entries) else null
+            val headline = growth?.headline ?: last
+            if (headline != null && !twoColumns) {
+                val value = growth?.let { growthBigValue(it, units) } ?: bigValue(headline, units)
                 if (value != null) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                         Text(value.first, style = MaterialTheme.typography.displayLarge, color = colors.textPrimary)
@@ -129,9 +176,9 @@ fun ActivityCard(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.padding(bottom = 4.dp),
                             ) {
-                                ChildBadge(initials = childInitials[last.childId] ?: "?", size = Spacing.rowBadge)
+                                ChildBadge(initials = childInitials[headline.childId] ?: "?", size = Spacing.rowBadge)
                                 Text(
-                                    text = clockTime(last.startedAt, zone),
+                                    text = clockTime(headline.startedAt, zone),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.textOnCard,
                                 )
@@ -140,7 +187,7 @@ fun ActivityCard(
                     }
                 }
                 Text(
-                    text = detailLine(last, units),
+                    text = growth?.let { growthDetail(it, units) } ?: detailLine(headline, units),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textOnCard,
                 )
@@ -245,9 +292,10 @@ fun ActivityCard(
             }
         }
 
-        // 4. footer: only when at least one entry is not already on the card — today's overflow, or
-        // anything older than today. With everything visible the link would lead to the same list twice.
-        if (rows.hasMore) {
+        // 4. footer: `See all` once the activity has any entry at all — the same rule for every card, and
+        // the full list of that activity's entries behind it. The link is the route to everything the card
+        // cannot fit: today's overflow, older entries, and (for growth) the whole measurement history.
+        if (showsFooter(card.entries.size)) {
             HorizontalDivider(color = colors.divider)
             Text(
                 text = "See all \u203a",

@@ -107,11 +107,20 @@ fun normalCdf(z: Double): Double {
 }
 
 /**
- * `42nd`, for the callout card. Clamped to 1–100 so a value at either tail cannot render as `0th` or
- * as an unrounded float, and the teens are special-cased so 11th/12th/13th do not read as 11st/12nd.
+ * `42nd`, for the callout card.
+ *
+ * Below the 1st and above the 99th it says so instead of rounding: a measurement 3.9 SD below the
+ * median is not "the 1st percentile", it is off the bottom of the plotted bundle, and clamping it to
+ * `1st` claims more than the reference says. Measured on the S23: 5.4 kg at 218 adjusted days is
+ * z = -3.9, which the old clamp printed as `1st percentile`.
+ *
+ * The teens are special-cased so 11th/12th/13th do not read as 11st/12nd.
  */
 fun percentileLabel(percentile: Double): String {
-    val n = percentile.roundToInt().coerceIn(1, 100)
+    if (percentile.isNaN()) return "—"
+    if (percentile < 0.5) return "<1st"
+    if (percentile > 99.5) return ">99th"
+    val n = percentile.roundToInt().coerceIn(1, 99)
     val suffix = when {
         n % 100 in 11..13 -> "th"
         n % 10 == 1 -> "st"

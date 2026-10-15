@@ -1,28 +1,21 @@
 package app.babylog.ui.growth
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,163 +32,132 @@ import app.babylog.ui.theme.cardFor
 import app.babylog.ui.theme.labelFor
 
 /**
- * Growth: the percentile chart for one measurement, the callout for the newest one, and the log of
- * every measurement behind it.
+ * The growth percentile chart, as the content of Trends' Growth tab.
  *
- * Drawn as a sibling of the `Scaffold` (like `EventListOverlay`), so it covers the bottom navigation bar
- * and carries its own `BackHandler`; the bottom nav stays at three items, as the design contract
- * requires.
+ * This was a full-screen overlay reached from the Activity card. The owner moved the chart into Trends,
+ * where every activity will eventually have a chart, so it is now a pane inside that screen: no Close
+ * button and no `BackHandler`, because the tab and the shell own the navigation.
  *
  * The dataset identity line is not decoration: a percentile a parent might act on must say which tables
  * produced it, and the Project's own revision date has not moved since 2006.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun GrowthScreen(
+fun GrowthChartPane(
     state: GrowthUiState,
     onSelectMetric: (GrowthMetric) -> Unit,
-    onDismiss: () -> Unit,
+    listState: LazyListState,
+    contentPadding: PaddingValues,
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(EventType.GROWTH)
     val chart = state.chart
 
-    BackHandler(enabled = true, onBack = onDismiss)
-
-    Surface(modifier = Modifier.fillMaxSize(), color = colors.background) {
-        Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardFor(accent))
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        tint = colors.labelFor(accent),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        contentPadding = contentPadding,
+    ) {
+        item {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GrowthMetric.entries.forEach { option ->
+                    ChoiceChip(
+                        label = option.label,
+                        selected = state.metric == option,
+                        accent = accent,
+                        onClick = { onSelectMetric(option) },
                     )
-                }
-                Column(modifier = Modifier.padding(start = 4.dp)) {
-                    Text(
-                        text = "Growth",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = colors.labelFor(accent),
-                    )
-                    if (state.childLabel.isNotEmpty()) {
-                        Text(
-                            text = state.childLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.labelFor(accent),
-                        )
-                    }
                 }
             }
+        }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp,
-                    bottom = 24.dp,
-                ),
-            ) {
-                item {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        GrowthMetric.entries.forEach { option ->
-                            ChoiceChip(
-                                label = option.label,
-                                selected = state.metric == option,
-                                accent = accent,
-                                onClick = { onSelectMetric(option) },
-                            )
+        if (chart == null) {
+            item {
+                Text(
+                    text = "Reading the growth reference\u2026",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+            }
+            return@LazyColumn
+        }
+
+        if (!chart.hasData) {
+            item {
+                Text(
+                    text = "No ${chart.metric.label.lowercase()} measurements yet. " +
+                        "Use + Add measurement on the Growth card.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+            }
+        } else {
+            item {
+                PercentileChart(
+                    curves = chart.curves,
+                    markers = chart.markers,
+                    trajectories = chart.trajectories,
+                    // Two shades from the activity's own hue rather than a second hue: the accent family
+                    // is the design contract's, and a per-child palette would invent one.
+                    trajectoryColors = listOf(accent, colors.labelFor(accent)),
+                    xMaxDays = chart.xMaxDays,
+                    unit = chart.unit,
+                    accent = accent,
+                    gridColor = colors.divider,
+                    axisTextColor = colors.textSecondary,
+                    markerRingColor = colors.textPrimary,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+                Text(
+                    text = buildString {
+                        append("Age in months \u00b7 ${chart.unit.label} \u00b7 ${chart.referenceLabel}")
+                        if (chart.trajectories.isNotEmpty()) {
+                            append(" \u00b7 the line is ")
+                            append(chart.trajectories.joinToString(" and ") { it.badge })
                         }
-                    }
-                }
-
-                if (chart == null) {
-                    item {
-                        Text(
-                            text = "Reading the growth reference…",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(top = 24.dp),
-                        )
-                    }
-                    return@LazyColumn
-                }
-
-                if (!chart.hasData) {
-                    item {
-                        Text(
-                            text = "No ${chart.metric.label.lowercase()} measurements yet. " +
-                                "Use + Add measurement on the Growth card.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(top = 24.dp),
-                        )
-                    }
-                } else {
-                    item {
-                        PercentileChart(
-                            curves = chart.curves,
-                            markers = chart.markers,
-                            xMaxDays = chart.xMaxDays,
-                            unit = chart.unit,
-                            accent = accent,
-                            gridColor = colors.divider,
-                            axisTextColor = colors.textSecondary,
-                            markerRingColor = colors.textPrimary,
-                            modifier = Modifier.padding(top = 16.dp),
-                        )
-                        Text(
-                            text = "Age in months · ${chart.unit.label} · ${chart.referenceLabel}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
-                    }
-
-                    item {
-                        chart.latest?.let { Callout(it, chart.unit, accent) }
-                    }
-
-                    item {
-                        Text(
-                            text = chart.identityLine,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
-
-                    item {
-                        Text(
-                            text = "Measurements",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colors.textPrimary,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
-                        )
-                    }
-
-                    items(chart.markers) { marker ->
-                        MeasurementRow(marker, chart, accent)
-                    }
-                }
-
-                item {
-                    Text(
-                        text = "Percentiles are read from the bundled WHO reference and are not " +
-                            "medical advice.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 20.dp),
-                    )
-                }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
+
+            item {
+                chart.latest?.let { Callout(it, chart.unit, accent) }
+            }
+
+            item {
+                Text(
+                    text = chart.identityLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
+            item {
+                Text(
+                    text = "Measurements",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary,
+                    modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+                )
+            }
+
+            items(chart.markers) { marker ->
+                MeasurementRow(marker, chart, accent)
+            }
+        }
+
+        item {
+            Text(
+                text = "Percentiles are read from the bundled WHO reference and are not medical advice.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 20.dp),
+            )
         }
     }
 }
@@ -238,7 +200,7 @@ private fun Callout(marker: GrowthMarker, unit: ChartUnit, accent: Color) {
             text = buildString {
                 append(marker.childName)
                 if (marker.axis > 0) {
-                    append(" · ")
+                    append(" \u00b7 ")
                     append(marker.ageLabel)
                     if (marker.wasAdjusted) append(" (adjusted)")
                 }
@@ -284,14 +246,17 @@ private fun MeasurementRow(marker: GrowthMarker, chart: GrowthChartData, accent:
             }
         }
         Text(
-            text = "${chart.unit.format(marker.value)} ${chart.unit.label}",
+            // Labelled with the metric's code, so a value reads the same way wherever it appears.
+            text = "${chart.metric.code} ${chart.unit.format(marker.value)} ${chart.unit.label}",
             style = MaterialTheme.typography.bodyMedium,
             color = colors.textPrimary,
         )
         Text(
-            text = marker.percentile?.let { " · ${percentileLabel(it)}" }.orEmpty(),
+            text = marker.percentile?.let { " \u00b7 ${percentileLabel(it)}" } ?: " \u00b7 no percentile",
             style = MaterialTheme.typography.bodyMedium,
-            color = colors.labelFor(accent),
+            // A row with no percentile says so. The full reason is in the callout when this row is the
+            // newest one, and in PRETERM_NOTE.
+            color = if (marker.percentile != null) colors.labelFor(accent) else colors.textSecondary,
         )
         Box(modifier = Modifier.weight(1f))
         Text(

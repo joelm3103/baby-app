@@ -124,7 +124,7 @@ class PercentilesTest {
 
     @Test
     fun `the percentile label reads as an ordinal`() {
-        assertEquals("1st", percentileLabel(0.4))
+        assertEquals("1st", percentileLabel(1.0))
         assertEquals("2nd", percentileLabel(2.0))
         assertEquals("3rd", percentileLabel(3.0))
         assertEquals("4th", percentileLabel(4.4))
@@ -134,7 +134,19 @@ class PercentilesTest {
         assertEquals("21st", percentileLabel(21.0))
         assertEquals("42nd", percentileLabel(42.4))
         assertEquals("99th", percentileLabel(98.6))
-        assertEquals("100th", percentileLabel(100.0))
-        assertNotEquals("0th", percentileLabel(0.0))
+    }
+
+    @Test
+    fun `a value off the bottom or top of the curves is not rounded into a percentile`() {
+        // Found on the S23: 5.4 kg at 218 adjusted days is z = -3.9, a 0.005th percentile, and clamping
+        // it to "1st" claimed the child was ON the 1st percentile line rather than below every curve.
+        assertEquals("<1st", percentileLabel(0.005))
+        assertEquals("<1st", percentileLabel(0.4))
+        assertEquals(">99th", percentileLabel(99.6))
+        assertEquals(">99th", percentileLabel(100.0))
+        // The boundary itself still reads as a percentile.
+        assertEquals("1st", percentileLabel(0.5))
+        assertEquals("99th", percentileLabel(99.5))
+        assertEquals("—", percentileLabel(Double.NaN))
     }
 }

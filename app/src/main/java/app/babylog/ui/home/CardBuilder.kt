@@ -54,6 +54,16 @@ internal fun buildCards(all: List<BabyEvent>, childOrder: List<String> = emptyLi
 internal data class CardRows(val shown: List<BabyEvent>, val hasMore: Boolean)
 
 /**
+ * Whether a card shows its `See all` link.
+ *
+ * As soon as the activity has ONE entry, for every card. The rule used to be "an entry is not already on
+ * the card", which left the link invisible whenever today's few rows happened to be everything — exactly
+ * when a parent wants the full list, and the reason the Growth card had no route to its own data. The
+ * owner's call: the same rule for all cards.
+ */
+internal fun showsFooter(entryCount: Int): Boolean = entryCount > 0
+
+/**
  * The card's row list: today's entries, newest first, capped at [limit].
  *
  * Two rules, both of which the previous `take(3)` + `drop(1)` pair got wrong:

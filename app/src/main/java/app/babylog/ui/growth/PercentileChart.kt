@@ -35,6 +35,8 @@ import kotlin.math.abs
 fun PercentileChart(
     curves: List<PercentileCurve>,
     markers: List<GrowthMarker>,
+    trajectories: List<GrowthTrajectory>,
+    trajectoryColors: List<Color>,
     xMaxDays: Double,
     unit: ChartUnit,
     accent: Color,
@@ -46,6 +48,8 @@ fun PercentileChart(
     val textMeasurer = rememberTextMeasurer()
     val tickStyle = TextStyle(color = axisTextColor, fontSize = 10.sp)
 
+    // The child's own points are part of the range, so a pre-term 1.37 kg cannot push the axis off the
+    // bottom or be clipped by the plot box.
     val allValues = curves.flatMap { curve -> curve.points.map { it.value } } +
         markers.map { it.value }
     val yRange = yRangeFor(allValues)
@@ -55,6 +59,8 @@ fun PercentileChart(
             drawChart(
                 curves = curves,
                 markers = markers,
+                trajectories = trajectories,
+                trajectoryColors = trajectoryColors,
                 xMaxDays = xMaxDays,
                 yRange = yRange,
                 unit = unit,
@@ -95,6 +101,8 @@ internal fun yRangeFor(values: List<Double>): ClosedFloatingPointRange<Float> {
 private fun DrawScope.drawChart(
     curves: List<PercentileCurve>,
     markers: List<GrowthMarker>,
+    trajectories: List<GrowthTrajectory>,
+    trajectoryColors: List<Color>,
     xMaxDays: Double,
     yRange: ClosedFloatingPointRange<Float>,
     unit: ChartUnit,
@@ -159,6 +167,27 @@ private fun DrawScope.drawChart(
                 pathEffect = if (isMedian) null else PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
             ),
         )
+    }
+
+    // ---- the children's own lines ---------------------------------------------------------------
+    // Drawn over the reference and under the markers: the bundle is the backdrop, the line is the child.
+    // Each segment is decided separately, so the join into a pre-term point is dashed while the rest of
+    // the line stays solid - one unbroken story, with the one join that is not real growth flagged.
+    trajectories.forEachIndexed { index, trajectory ->
+        val color = trajectoryColors.getOrElse(index) { markerRingColor }
+        trajectory.points.zipWithNext { from, to ->
+            drawLine(
+                color = color,
+                start = Offset(x(from.axis), y(from.value)),
+                end = Offset(x(to.axis), y(to.value)),
+                strokeWidth = 3f,
+                pathEffect = if (segmentIsDashed(from, to)) {
+                    PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                } else {
+                    null
+                },
+            )
+        }
     }
 
     // ---- the children ------------------------------------------------------------------------

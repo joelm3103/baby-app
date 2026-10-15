@@ -178,6 +178,44 @@ class CardBuilderTest {
 
         assertEquals(3, rows.shown.size)
         assertFalse(rows.hasMore)
+        // ...and for a LIST destination that means no link, because it would lead to the same list twice.
+        assertFalse(showsFooter(EventType.BOTTLE, rows, entries.size))
+    }
+
+    @Test
+    fun `the Growth card offers the chart as soon as there is a measurement`() {
+        // The defect this pins, found on the S23 after saving the first 5.4 kg: the footer rule was
+        // "an entry is not already on the card", so with both rows visible there was NO link, and the
+        // percentile chart could not be opened at all until a measurement aged out of today's rows -
+        // which is precisely when a parent wants the curve most.
+        val entries = listOf(
+            event("first-twin", EventType.GROWTH, at = at(11, 9)),
+            event("second-twin", EventType.GROWTH, at = at(11, 9)),
+        ).sortedNewest()
+
+        val rows = cardRows(entries, now, zone)
+
+        assertEquals(2, rows.shown.size)
+        assertFalse("both rows are on the card, so the list rule says no", rows.hasMore)
+        assertTrue("the chart must still be reachable", showsFooter(EventType.GROWTH, rows, entries.size))
+        assertEquals("See the chart \u203a", footerLabel(EventType.GROWTH))
+        assertEquals("See all \u203a", footerLabel(EventType.BOTTLE))
+    }
+
+    @Test
+    fun `the Growth card with no measurements has nothing to chart`() {
+        val rows = cardRows(emptyList(), now, zone)
+        assertFalse(showsFooter(EventType.GROWTH, rows, 0))
+    }
+
+    @Test
+    fun `other cards keep the list rule and its label`() {
+        val todayOnly = listOf(event("a", EventType.DIAPER, at = at(9, 0))).sortedNewest()
+        val withOlder = (todayOnly + event("b", EventType.DIAPER, at = at(9, 0, dayOffset = -1))).sortedNewest()
+
+        assertFalse(showsFooter(EventType.DIAPER, cardRows(todayOnly, now, zone), todayOnly.size))
+        assertTrue(showsFooter(EventType.DIAPER, cardRows(withOlder, now, zone), withOlder.size))
+        assertEquals("See all \u203a", footerLabel(EventType.DIAPER))
     }
 
     @Test

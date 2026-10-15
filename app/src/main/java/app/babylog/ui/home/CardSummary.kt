@@ -37,6 +37,8 @@ fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = 
         }
     } ?: event.lengthMm?.let { mm ->
         formatLength(mm.toDouble(), units.length).let { v -> v.substringBeforeLast(" ") to v.substringAfterLast(" ") }
+    } ?: event.headMm?.let { mm ->
+        formatLength(mm.toDouble(), units.length).let { v -> v.substringBeforeLast(" ") to v.substringAfterLast(" ") }
     }
     EventType.HEALTH -> event.temperatureC?.let { c ->
         formatTemperature(c).removeSuffix(" \u00b0C") to "\u00b0C"
@@ -54,13 +56,89 @@ fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.t
         ?.joinToString(", ") { it.replace('-', ' ') }
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
     EventType.SLEEP -> if (event.isRunning) "Asleep now" else "Slept ${elapsed(event.durationMs ?: 0)}"
-    EventType.GROWTH -> listOfNotNull(
-        event.weightGrams?.let { formatWeight(it.toDouble(), units.weight) },
-        event.lengthMm?.let { formatLength(it.toDouble(), units.length) },
-        event.headMm?.let { formatLength(it.toDouble(), units.length) },
-    ).joinToString(" \u00b7 ")
+    EventType.GROWTH -> growthValues(event, units)
     EventType.HEALTH -> listOfNotNull(event.medication, event.vaccineName).joinToString(" \u00b7 ")
         .ifBlank { "Health" }
+}
+
+/**
+ * The value(s) an entry recorded, each labelled: `W 6 kg \u00b7 L 66 cm \u00b7 H 42 cm`.
+ *
+ * The codes are not decoration. Unlabelled, "66 cm" and "42 cm" are indistinguishable — either could be
+ * length or head circumference — and on a card that shows several measurements at once that is a reading
+ * error waiting to happen. Order is the sheet's: weight, length, head.
+ */
+internal fun growthValues(event: BabyEvent, units: UnitPreferences): String = listOfNotNull(
+    event.weightGrams?.let { "W " + formatWeight(it.toDouble(), units.weight) },
+    event.lengthMm?.let { "L " + formatLength(it.toDouble(), units.length) },
+    event.headMm?.let { "H " + formatLength(it.toDouble(), units.length) },
+).joinToString(" \u00b7 ")
+
+/**
+ * The newest value recorded for EACH growth measurement, which need not come from the same entry.
+ *
+ * A growth entry carries up to three fields, and a parent rarely measures all three every time: weight on
+ * one day, length and head circumference a week later. Reading only the newest entry therefore hides real
+ * measurements. Given weight on three days (10, 12, 20 kg), length on two (50, 55 cm) and a head
+ * circumference on one (25 cm), the current answer is 20 kg, 55 cm and 25 cm — each the latest of its own
+ * kind — not the newest entry's fields, which would show 20 kg alone.
+ */
+data class GrowthLatest(val weight: BabyEvent?, val length: BabyEvent?, val head: BabyEvent?) {
+    /** The big number: weight, because that is what parents track; otherwise the first taken. */
+    val headline: BabyEvent? get() = weight ?: length ?: head
+
+    val isEmpty: Boolean get() = headline == null
+}
+
+/**
+ * Picks the newest entry that recorded each measurement. Expects the card's newest-first list but sorts
+ * defensively, so a caller cannot change the answer by reordering.
+ */
+fun growthLatest(entries: List<BabyEvent>): GrowthLatest {
+    val growth = entries
+        .filter { it.type == EventType.GROWTH }
+        .sortedByDescending { it.startedAt }
+    return GrowthLatest(
+        weight = growth.firstOrNull { it.weightGrams != null },
+        length = growth.firstOrNull { it.lengthMm != null },
+        head = growth.firstOrNull { it.headMm != null },
+    )
+}
+
+/** The Growth card's big value, from [GrowthLatest] rather than from the newest entry. */
+fun growthBigValue(latest: GrowthLatest, units: UnitPreferences): Pair<String, String>? =
+    latest.headline?.let { bigValue(it, units) }
+
+/**
+ * All three latest measurements for ONE child, in the sheet's order, with the ones never recorded simply
+ * absent — no placeholder for a measurement that was not taken.
+ */
+fun growthDetail(latest: GrowthLatest, units: UnitPreferences): String = listOfNotNull(
+    latest.weight?.weightGrams?.let { "W " + formatWeight(it.toDouble(), units.weight) },
+    latest.length?.lengthMm?.let { "L " + formatLength(it.toDouble(), units.length) },
+    latest.head?.headMm?.let { "H " + formatLength(it.toDouble(), units.length) },
+).joinToString(" \u00b7 ")
+
+/**
+ * One child's latest measurements, for the two-column summary the card shows in Both mode.
+ *
+ * The columns exist because a combined headline has no single owner: "6 kg" in Both mode is one child's
+ * weight dressed up as the twins'. Each column is that child's own newest weight, length and head, which
+ * need not come from the same entry — see [growthLatest].
+ */
+data class ChildGrowth(val childId: String, val detail: String, val hasData: Boolean)
+
+fun growthByChild(
+    entries: List<BabyEvent>,
+    childIds: List<String>,
+    units: UnitPreferences,
+): List<ChildGrowth> = childIds.map { childId ->
+    val latest = growthLatest(entries.filter { it.childId == childId })
+    ChildGrowth(
+        childId = childId,
+        detail = growthDetail(latest, units),
+        hasData = !latest.isEmpty,
+    )
 }
 
 /**

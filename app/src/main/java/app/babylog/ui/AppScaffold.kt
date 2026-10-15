@@ -464,8 +464,11 @@ fun AppScaffold(container: AppContainer) {
                         onSave = onSaveSheet,
                         initial = editingEvent,
                     )
-                    // Sleep runs from the card as a timer; Health is Phase 11.
-                    else -> Unit
+                    // Named rather than swallowed by an `else`, and this `when` has NO else on purpose: a new
+                    // EventType must state what its sheet is, or the build fails. The bug this replaces was a
+                    // private "types with a sheet" set that went stale, so Growth's button looked live and
+                    // did nothing. Sleep runs from the card as a timer; Health has no sheet until Phase 11.
+                    EventType.SLEEP, EventType.HEALTH -> Unit
                 }
             }
         }
