@@ -128,7 +128,9 @@ fun GrowthChartPane(
             }
 
             item {
-                chart.latest?.let { Callout(it, chart.unit, accent) }
+                // One box per child in scope, so Both mode cannot show a single child's number as if it
+                // spoke for both.
+                chart.callouts.forEach { marker -> Callout(marker, chart.unit, accent) }
             }
 
             item {

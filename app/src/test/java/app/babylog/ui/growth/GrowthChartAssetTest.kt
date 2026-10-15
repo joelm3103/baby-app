@@ -148,7 +148,7 @@ class GrowthChartAssetTest {
             "a 30-week birth measurement must not be given a term percentile",
             marker.percentile,
         )
-        assertEquals(PRETERM_NOTE, chart.noPercentileReason)
+        assertEquals(PRETERM_NOTE, chart.callouts.single().noPercentileReason)
     }
 
     @Test

@@ -119,13 +119,19 @@ data class GrowthChartData(
     val markers: List<GrowthMarker>,
     /** Each child's own line, oldest first. Empty for a child with a single measurement. */
     val trajectories: List<GrowthTrajectory> = emptyList(),
-    val latest: GrowthMarker?,
+    /**
+     * The highlight box(es): one per child in scope, each that child's newest measurement for this metric.
+     *
+     * One per child rather than the single newest overall, because in Both mode "newest overall" is a
+     * winner picked by name order when both twins were measured the same day — a box that silently showed
+     * one child's number was the same defect as the card's combined headline. A child with no measurement
+     * for this metric simply has no box.
+     */
+    val callouts: List<GrowthMarker> = emptyList(),
     val identityLine: String,
     /** e.g. "WHO boys" — the curve bundle is one sex's, and that must be visible. */
     val referenceLabel: String,
     val xMaxDays: Double,
-    /** Set when the newest marker has no percentile, so the screen can say why instead of leaving a gap. */
-    val noPercentileReason: String?,
 ) {
     val hasData: Boolean get() = markers.isNotEmpty()
 }
@@ -177,7 +183,10 @@ fun growthChart(
         }
     }
 
-    val latest = markers.firstOrNull()
+    val callouts = children
+        .mapNotNull { child -> markers.firstOrNull { it.childId == child.id } }
+        .sortedBy { it.measuredOn }
+
     // Each child's own line, oldest first. Points the reference cannot place are still plotted and still
     // joined; they are marked pre-term so the join into them is drawn dashed.
     val trajectories = children.mapNotNull { child ->
@@ -198,11 +207,10 @@ fun growthChart(
         curves = curves,
         markers = markers,
         trajectories = trajectories,
-        latest = latest,
+        callouts = callouts,
         identityLine = reference.identityLine,
         referenceLabel = "WHO ${if (curveSex == Sex.BOY) "boys" else "girls"}",
         xMaxDays = xMax,
-        noPercentileReason = latest?.noPercentileReason,
     )
 }
 

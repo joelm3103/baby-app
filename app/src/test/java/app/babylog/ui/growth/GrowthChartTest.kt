@@ -142,7 +142,7 @@ class GrowthChartTest {
         val marker = chart.markers.single()
         assertNull(marker.percentile)
         assertEquals(PRETERM_NOTE, marker.noPercentileReason)
-        assertEquals(PRETERM_NOTE, chart.noPercentileReason)
+        assertEquals(PRETERM_NOTE, chart.callouts.single().noPercentileReason)
         // It is still plotted and still listed: the value is real even when the percentile is not.
         assertEquals(1.37, marker.value, 1e-9)
     }
@@ -257,10 +257,68 @@ class GrowthChartTest {
     fun `an empty log produces curves but no markers and no callout`() {
         val chart = growthChart(listOf(first-twin), emptyList(), reference(), GrowthMetric.WEIGHT, metric, zone)
         assertTrue(chart.markers.isEmpty())
-        assertNull(chart.latest)
-        assertNull(chart.noPercentileReason)
+        assertTrue(chart.callouts.isEmpty())
         assertTrue(!chart.hasData)
         assertEquals(7, chart.curves.size)
+    }
+
+    @Test
+    fun `Both mode gets one callout per child, not one winner`() {
+        // The owner's rule, matching the card's two columns: in Both mode a single highlight box
+        // showed whichever child won a name-order tie on the same day. Each child now gets their own.
+        val chart = growthChart(
+            children = listOf(first-twin, second-twin),
+            events = listOf(
+                // Second Twin's is the newer on the same date, and First Twin's the heavier: neither should decide the
+                // other's box.
+                growth("k", "first-twin", birth.plusDays(200), grams = 7000),
+                growth("l", "second-twin", birth.plusDays(200), grams = 6600),
+                growth("k-old", "first-twin", birth.plusDays(100), grams = 3300),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+
+        assertEquals(listOf("first-twin", "second-twin"), chart.callouts.map { it.childId })
+        // Each box is that child's OWN newest measurement.
+        assertEquals(7.0, chart.callouts.single { it.childId == "first-twin" }.value, 1e-9)
+        assertEquals(6.6, chart.callouts.single { it.childId == "second-twin" }.value, 1e-9)
+    }
+
+    @Test
+    fun `one child in scope gets one callout`() {
+        val chart = growthChart(
+            children = listOf(first-twin),
+            events = listOf(growth("k", "first-twin", birth.plusDays(100), grams = 3300)),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        assertEquals(1, chart.callouts.size)
+        assertEquals("first-twin", chart.callouts.single().childId)
+    }
+
+    @Test
+    fun `a child with nothing for this metric gets no callout`() {
+        // Second Twin has only a length measurement, so the WEIGHT chart must not invent a box for him.
+        val chart = growthChart(
+            children = listOf(first-twin, second-twin),
+            events = listOf(
+                growth("k", "first-twin", birth.plusDays(200), grams = 7000),
+                growth("l", "second-twin", birth.plusDays(200), mm = 660),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+        assertEquals(listOf("first-twin"), chart.callouts.map { it.childId })
+        // Second Twin's length is not a WEIGHT marker at all, so he is neither plotted nor highlighted here.
+        assertEquals(1, chart.markers.size)
+        assertEquals("first-twin", chart.markers.single().childId)
     }
 
     @Test
