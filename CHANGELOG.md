@@ -11,6 +11,43 @@
 > - An entry recorded after the fact **says so**, so a retrospective note cannot be
 >   mistaken for a same-day record.
 
+## [2026-10-15]
+
+**In short:**
+
+- Growth became real: WHO's LMS reference ships inside the APK, and a measurement now reads back as a percentile with its age, on a chart.
+- The bundled parameters were checked against WHO's **own** published tables, not against the mirror they were downloaded from — every row, both sexes: the L/M/S are identical, and the app's transform reproduces WHO's printed SD columns to 0.0005.
+- **INTERGROWTH-21st was dropped**, not deferred: its data carries reserved rights rather than an open licence, so a measurement taken before term gets no percentile and a sentence saying why.
+- The dataset update channel moved to Phase 13, because the Firestore it assumed does not exist yet — nothing was stubbed or faked in its place.
+- Phase 10's code and maths are verified by test (231 green); **the chart has not been seen on a phone**, and the plan says so.
+
+### Added
+
+- `app/src/main/assets/growth/who-igrowup.json`: WHO's five `igrowup` LMS tables (weight-for-age, length/height-for-age, head-circumference-for-age, BMI-for-age, weight-for-length/height), both sexes, 16,158 rows as compact arrays with an identity block (`version`, `publishedAt`, `retrievedAt`, citation, per-file `sha256` and source URLs). 488,449 bytes, asset sha256 `2df347597249d27490e73ae7ca8cce956d5ee1141dfcf1a84fec7fa1f518cb5c`.
+- `scripts/build-growth-assets.py`: downloads the five tables from the MIT-licensed `ki-tools/growthstandards` mirror, verifies each file's sha256 against `research/growth-data-sources.md`, asserts the shape the lookup depends on (age tables daily 0..1856 with day == row index; the weight-for-length table 45.0-110.0 cm in 0.1 cm steps) and fails loudly on drift rather than regenerating over it. Committed so the asset is regenerable and auditable, the same reason the Room schema is.
+- `scripts/verify-growth-asset.py`: the publisher-side check. Downloads WHO's own expanded z-score tables from `cdn.who.int` and compares every row, per measure per sex, reporting max |dLMS| and max |dSD| and exiting non-zero on any mismatch. Found two unguessable URL traps (length/height-for-age is served from `expandable-tables`; weight-for-length's file is `wfl-…-table.xlsx`, singular).
+- `data/growth/GrowthReference.kt`: dataset identity, the `org.json` loader, `GrowthMeasure`/`GrowthAxis` so a table's axis travels with it, `lms(measure, sex, axis)` returning null outside a published range instead of extrapolating, `curve()` for plotting, and `identityLine` deriving `WHO 2006 · v2026.10 · updated 15 Oct 2026`.
+- `domain/Percentiles.kt`: LMS to z-score to percentile, the standard normal CDF (Abramowitz & Stegun 26.2.17 — the JDK has no `erf`), the inverse for curve bundles, the seven published normal quantiles, and the ordinal label. Functions that can be asked a meaningless question return null, because "0 kg" has no percentile and a silent NaN would eventually be rendered as text.
+- `ui/home/GrowthEntry.kt` + `ui/home/GrowthSheet.kt`: logging weight (kg, or the compound lb/oz pair), length, head, date, time and a note. All three measurements are optional but at least one is required, because the Phase-5 stub's valueless rows are still in the log as a reminder of what a sheet that can save nothing does.
+- `ui/growth/PercentileChart.kt`: one hand-drawn Compose Canvas chart primitive — curves, markers, two ranges, two label functions — with no charting dependency, written to be reused by Phase 12's Trends rather than reimplemented.
+- `ui/growth/GrowthChartData.kt`: the pure rules behind the screen (which measurement gets a percentile, what the axis means, both children on one bundle, display-unit axes with metric maths), plus `GrowthViewModel` and `GrowthScreen`.
+- 53 tests, all green: `PercentilesTest` (11, pure JVM, against WHO's published values), `GrowthReferenceTest` (11, Robolectric, against the real bundled asset), `GrowthEntryTest` (16) and `GrowthChartTest` (15). The suite is 231.
+- The WHO xlsx sources are recorded in the script with the reasoning for each URL shape, so a future update does not have to rediscover that `wfh` is a different table from `wfl`.
+
+### Changed
+
+- The Activity Growth card is live: `+ Add measurement` opens the sheet, and `See all ›` opens the percentile chart rather than the plain entry list — a list of weights without a curve answers a different question. `HomeViewModel.openAllFor` decides that in one place, so the two paths cannot drift.
+- `SettingsScreen` gains a **Growth reference** section naming the bundled dataset, loaded only when Settings is actually shown: parsing ~490 KB at launch would cost every session a stall for a screen most sessions never open.
+- `AppContainer` exposes the growth reference as a suspending, cached loader rather than a `by lazy` val, for the same reason — and cached so a percentile cannot come from two copies of the truth in one session.
+- `domain/Units.kt`: `MM_PER_INCH` and `GRAMS_PER_POUND` are now public, because the chart converts continuous axis values and a second set of factors would be a second source of truth.
+- `PLAN.md` Phase 10 rewritten as built, with the update channel moved into Phase 13 and INTERGROWTH-21st recorded as evaluated-and-dropped; the status row now reads **BUILT — device pass outstanding** rather than DONE.
+- `research/growth-data-sources.md` corrected on three points: the INTERGROWTH repo path (`Yannngn/pygrowthstandards`, not a `pygrowthstandards` org that 404s), the `wflanthro` axis (45.0-110.0 cm in 0.1 cm steps, where the file's own header says something else), and that those tables are SD columns rather than LMS.
+
+### Fixed
+
+- The kg box in a measurement sheet now shows 10 g, not 100 g. `formatWeight`'s one decimal is right for a card but wrong for the sheet where the number is entered: 6350 g displayed as "6.4" kg and a parent could neither see nor correct the 50 g between them. Inches gained a second decimal for the same reason — 0.01 in is 0.254 mm, so the box is now finer than the millimetre stored behind it.
+- **A measurement taken before term no longer gets a percentile.** A 30-week baby's 1.37 kg plotted at "day 0" of a term-baby chart sits far below the 2nd percentile, which reads as a growth failure rather than as immaturity. It now shows the value, no percentile, and the reason.
+
 ## [2026-10-14]
 
 **In short:**
