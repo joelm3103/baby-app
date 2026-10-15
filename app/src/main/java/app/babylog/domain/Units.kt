@@ -30,8 +30,12 @@ enum class VolumeUnit { FLUID_OUNCES, MILLILITRES }
 
 enum class UnitSystem { IMPERIAL, METRIC, CUSTOM }
 
-private const val MM_PER_INCH = 25.4
-private const val GRAMS_PER_POUND = 453.59237
+/**
+ * Factors for the display-unit conversions. Public because the growth chart's axes convert continuous
+ * values (a curve, not a measurement) and duplicating them there would be the second source of truth.
+ */
+const val MM_PER_INCH = 25.4
+const val GRAMS_PER_POUND = 453.59237
 private const val GRAMS_PER_OUNCE = GRAMS_PER_POUND / 16.0 // 28.349523125
 private const val ML_PER_US_FL_OUNCE = 29.5735295625
 
