@@ -23,6 +23,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlin.math.abs
 
 /**
  * The chart's data layer, against a synthetic reference rather than the shipped asset.
@@ -283,6 +284,26 @@ class GrowthChartTest {
         val flat = yRangeFor(listOf(4.0, 4.0, 4.0))
         assertTrue("range $flat", flat.endInclusive > flat.start)
         assertTrue(yRangeFor(emptyList()).endInclusive > yRangeFor(emptyList()).start)
+    }
+
+    @Test
+    fun `the axis has a readable number of round gridlines at any span`() {
+        // A head circumference spanning ~31-52 cm is the case that caught this: rounding the ideal step
+        // UP to the next nice value gave a 10-unit step and only two gridlines.
+        val head = yRangeFor(listOf(32.5, 52.0))
+        val headTicks = yTicks(head)
+        assertTrue("head ticks were $headTicks", headTicks.size in 3..6)
+        assertEquals(headTicks, headTicks.sorted())
+
+        for (values in listOf(listOf(3.0, 9.0), listOf(0.5, 0.9), listOf(40.0, 100.0), listOf(31.0, 32.0))) {
+            val ticks = yTicks(yRangeFor(values))
+            assertTrue("ticks for $values were $ticks", ticks.size in 1..6)
+            // Every tick is a multiple of the step, so the labels read as a scale.
+            if (ticks.size > 1) {
+                val step = ticks[1] - ticks[0]
+                assertTrue("uneven spacing in $ticks", ticks.zipWithNext().all { (a, b) -> abs((b - a) - step) < 1e-9 })
+            }
+        }
     }
 
     @Test

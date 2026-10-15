@@ -195,11 +195,25 @@ private fun DrawScope.drawChart(
     }
 }
 
-/** Five evenly spaced ticks snapped to round values, which is what makes an axis readable. */
+/**
+ * At most this many gridlines. Fewer than three reads as a box rather than a scale; more than six
+ * crowds a 260dp-tall chart.
+ */
+private const val MAX_TICKS = 6
+
+/**
+ * Horizontal gridlines, snapped to round values, which is what makes an axis readable.
+ *
+ * Chooses the SMALLEST round step that still fits within [MAX_TICKS]. The first version rounded the
+ * ideal step (span / 4) up to the next "nice" value instead, and the ladder's jump from 5 to 10 meant a
+ * head circumference spanning ~31-52 cm got a 10-unit step and only TWO lines. The asset-driven test
+ * caught it; the synthetic one had a wide enough span to hide it.
+ */
 internal fun yTicks(range: ClosedFloatingPointRange<Float>): List<Double> {
     val span = (range.endInclusive - range.start).toDouble()
     if (span <= 0.0) return listOf(range.start.toDouble())
-    val step = niceStep(span / 4.0)
+
+    val step = tickStep(range, span)
     val first = kotlin.math.ceil(range.start / step) * step
     val out = mutableListOf<Double>()
     var value = first
@@ -210,19 +224,21 @@ internal fun yTicks(range: ClosedFloatingPointRange<Float>): List<Double> {
     return out
 }
 
-private fun niceStep(raw: Double): Double {
-    if (raw <= 0.0) return 1.0
-    val magnitude = kotlin.math.floor(kotlin.math.log10(raw))
-    val power = Math.pow(10.0, magnitude)
-    val normalised = raw / power
-    val nice = when {
-        normalised <= 1.0 -> 1.0
-        normalised <= 2.0 -> 2.0
-        normalised <= 2.5 -> 2.5
-        normalised <= 5.0 -> 5.0
-        else -> 10.0
+private fun tickStep(range: ClosedFloatingPointRange<Float>, span: Double): Double {
+    val ladder = listOf(1.0, 2.0, 2.5, 5.0)
+    var decade = 1e-3
+    while (decade <= 1e6) {
+        for (unit in ladder) {
+            val candidate = unit * decade
+            if (candidate <= 0.0) continue
+            val first = kotlin.math.ceil(range.start / candidate)
+            val last = kotlin.math.floor(range.endInclusive / candidate)
+            val count = last - first + 1
+            if (count in 1.0..MAX_TICKS.toDouble()) return candidate
+        }
+        decade *= 10.0
     }
-    return nice * power
+    return span
 }
 
 /** Month labels: every month under a year, then every three, so they never collide. */
