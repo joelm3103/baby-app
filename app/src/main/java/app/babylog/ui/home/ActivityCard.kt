@@ -196,12 +196,21 @@ fun ActivityCard(
                     fullWidth = true,
                 )
 
-                // Deliberately not wired to anything until their sheets exist. The Phase-5 stub logged a
-                // growth/health event with no values at all, which would put meaningless rows in the log
-                // the moment real data arrives — a disabled button is the honest placeholder.
-                EventType.GROWTH, EventType.HEALTH -> Column {
+                // Growth logs a measurement; its chart is the screen behind "See all".
+                EventType.GROWTH -> PillButton(
+                    label = "+ Add measurement",
+                    fill = accent,
+                    textColor = colors.onAccent,
+                    onClick = { onOpenSheet(EventType.GROWTH) },
+                    fullWidth = true,
+                )
+
+                // Health is still waiting for its sheets. The Phase-5 stub logged a health event with no
+                // values at all, which would put meaningless rows in the log the moment real data arrives
+                // — a disabled button is the honest placeholder.
+                EventType.HEALTH -> Column {
                     PillButton(
-                        label = if (card.type == EventType.GROWTH) "+ Add measurement" else "+ Add health",
+                        label = "+ Add health",
                         fill = colors.surfaceRaised,
                         textColor = colors.textSecondary,
                         enabled = false,
@@ -209,11 +218,7 @@ fun ActivityCard(
                         fullWidth = true,
                     )
                     Text(
-                        text = if (card.type == EventType.GROWTH) {
-                            "Growth charts arrive in Phase 10"
-                        } else {
-                            "Health records arrive in Phase 11"
-                        },
+                        text = "Health records arrive in Phase 11",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textOnCard,
                         modifier = Modifier.padding(top = 6.dp),

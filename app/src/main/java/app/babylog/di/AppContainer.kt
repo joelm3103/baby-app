@@ -12,9 +12,12 @@ import app.babylog.data.repo.EventRepository
 import app.babylog.data.repo.FoodRepository
 import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
+import app.babylog.data.growth.GrowthReference
+import app.babylog.data.growth.GrowthReferenceParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 
 /**
  * Manual dependency container. No Hilt/Koin: the graph is five objects deep and never changes shape,
@@ -61,5 +64,22 @@ class AppContainer(private val context: Context) {
                     .let(FoodCatalogueParser::parse)
             },
         )
+    }
+
+    private var cachedGrowth: GrowthReference? = null
+
+    /**
+     * The bundled growth reference, parsed once.
+     *
+     * Suspending and cached rather than a `by lazy` val: the asset is ~490 KB of JSON, and parsing it on
+     * the main thread would be a visible stall. Cached because a percentile must come from one dataset
+     * for the whole session - two parses would be two copies of the truth.
+     */
+    suspend fun growth(): GrowthReference = cachedGrowth ?: withContext(Dispatchers.IO) {
+        cachedGrowth ?: GrowthReferenceParser.parse(
+            context.assets.open(GrowthReferenceParser.ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() },
+        ).also { cachedGrowth = it }
     }
 }

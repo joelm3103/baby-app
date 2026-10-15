@@ -47,6 +47,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,10 +68,13 @@ import app.babylog.di.AppContainer
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.ui.common.rememberNow
+import app.babylog.ui.growth.GrowthScreen
+import app.babylog.ui.growth.GrowthViewModel
 import app.babylog.ui.home.ActivityScreen
 import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
 import app.babylog.ui.home.EventListOverlay
+import app.babylog.ui.home.GrowthSheet
 import app.babylog.ui.home.HomeViewModel
 import app.babylog.ui.home.SolidsSheet
 import app.babylog.ui.history.HistoryScreen
@@ -119,6 +123,7 @@ fun AppScaffold(container: AppContainer) {
     val state by home.state.collectAsState()
     val openSheet by home.openSheet.collectAsState()
     val openEntries by home.openEntries.collectAsState()
+    val openGrowth by home.openGrowth.collectAsState()
     val editing by home.editing.collectAsState()
     val foods by home.foodList.collectAsState()
 
@@ -137,6 +142,24 @@ fun AppScaffold(container: AppContainer) {
     val historyState by history.state.collectAsState()
     val historyHidden by history.hidden.collectAsState()
 
+    // The growth reference is loaded only when something needs it - the chart screen, or the Settings
+    // row that names the dataset. Parsing it at launch would cost every session a stall for a screen
+    // most sessions never open.
+    val growthFactory = remember {
+        viewModelFactory {
+            initializer {
+                GrowthViewModel(
+                    events = container.events,
+                    children = container.children,
+                    settings = container.settings,
+                    reference = container::growth,
+                )
+            }
+        }
+    }
+    val growthVm: GrowthViewModel = viewModel(factory = growthFactory)
+    val growthState by growthVm.state.collectAsState()
+
     val settingsFactory = remember {
         viewModelFactory {
             initializer {
@@ -151,6 +174,12 @@ fun AppScaffold(container: AppContainer) {
     val settingsNight by settingsVm.nightWindow.collectAsState()
     val settingsPresets by settingsVm.bottlePresets.collectAsState()
     val settingsMessage by settingsVm.message.collectAsState()
+
+    // Which growth reference produced a percentile is shown in Settings too. Loaded on demand rather
+    // than at launch, so the ~490 KB parse is paid only by whoever opens the screen that displays it.
+    val growthIdentity by produceState<String?>(initialValue = null, destination == Destination.SETTINGS) {
+        value = if (destination == Destination.SETTINGS) container.growth().identityLine else null
+    }
 
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
     // user chooses the destination, so the app never owns the file.
@@ -275,7 +304,7 @@ fun AppScaffold(container: AppContainer) {
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
-                    onSeeAll = home::openEntries,
+                    onSeeAll = home::openAllFor,
                     onEditEntry = home::editEntry,
                     onDeleteEntry = { pendingDelete = it },
                     contentPadding = padding,
@@ -298,6 +327,7 @@ fun AppScaffold(container: AppContainer) {
                     nightWindow = settingsNight,
                     theme = settingsTheme,
                     presets = settingsPresets,
+                    growthReference = growthIdentity,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
                     onLengthUnit = settingsVm::setLengthUnit,
@@ -339,6 +369,16 @@ fun AppScaffold(container: AppContainer) {
             )
         }
     }
+
+        // The percentile chart, the Growth card's "See all". Drawn as a sibling of the Scaffold so it
+        // covers the bottom navigation bar, and before the sheets so opening one stacks on top.
+        if (openGrowth) {
+            GrowthScreen(
+                state = growthState,
+                onSelectMetric = growthVm::selectMetric,
+                onDismiss = home::dismissGrowth,
+            )
+        }
 
         // "See all": every entry of one activity for the current child/both selection. Drawn before the
         // sheets so the edit sheet it launches stacks on top of it, and as a sibling of the Scaffold so
@@ -414,7 +454,17 @@ fun AppScaffold(container: AppContainer) {
                         onSave = onSaveSheet,
                         initial = editingEvent,
                     )
-                    // Sleep runs from the card as a timer; Growth and Health are Phases 10-11.
+                    EventType.GROWTH -> GrowthSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        units = state.units,
+                        zone = zone,
+                        now = sheetNow,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    )
+                    // Sleep runs from the card as a timer; Health is Phase 11.
                     else -> Unit
                 }
             }

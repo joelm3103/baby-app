@@ -96,6 +96,13 @@ fun SettingsScreen(
     onExport: () -> Unit,
     onImport: () -> Unit,
     message: String?,
+    /**
+     * The bundled dataset's identity line, e.g. `WHO 2006 · v2026.10 · updated 15 Oct 2026`.
+     *
+     * Null until it loads. A percentile a parent might act on is never shown elsewhere without this
+     * line; Settings is where they can find out which tables the app is reading.
+     */
+    growthReference: String? = null,
     contentPadding: PaddingValues,
     listState: LazyListState,
     /**
@@ -305,6 +312,21 @@ fun SettingsScreen(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+            }
+
+            SectionCard("Growth reference") {
+                Text(
+                    text = growthReference ?: "Reading the bundled reference…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textPrimary,
+                )
+                Text(
+                    text = "Percentiles are computed from this dataset, which ships inside the app: no " +
+                        "network, and no percentile without saying where it came from.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
             }
         }
     }
