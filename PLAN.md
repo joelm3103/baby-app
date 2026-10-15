@@ -37,19 +37,18 @@ everything after it is additive.**
 | 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
-| 10 — Growth | **BUILT — device pass outstanding** — WHO LMS bundled and checked against WHO's own tables, growth sheet, percentile chart screen, 237 tests green |
+| 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | not started |
 | 12 — Trends | not started |
 | 13 — Two accounts, one shared log | not started |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **237/237** with 0 failures. The
-Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9 and 9.1 screens were all confirmed on a
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **255/255** with 0 failures. The
+Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1 and 10 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
-nothing about layout or about system back. **Phase 10 is not yet in that list**: its maths is verified
-against WHO's published values and its dataset against WHO's own files, but no one has looked at the
-chart on a phone. Toolchain details and the AGP 9 / KSP traps are in `research/toolchain.md`.
+nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
+`research/toolchain.md`.
 
 ---
 
@@ -289,8 +288,9 @@ found in its own new code (the 4-second Undo window).
 
 ### As built — 2026-10-15. Read this before the tasks below.
 
-Shipped: the WHO dataset, the percentile maths, the growth logging sheet, and the chart screen.
-**237/237 tests green**, and the dataset is verified against WHO's own published tables (every measure,
+Shipped: the WHO dataset, the percentile maths, the growth logging sheet, the per-child card summary and
+the chart.
+**255/255 tests green**, and the dataset is verified against WHO's own published tables (every measure,
 both sexes: L/M/S identical to WHO's, and the app's own transform reproduces WHO's printed SD columns to
 0.0005 across z = −3..+3 — see `scripts/verify-growth-asset.py`).
 
@@ -316,12 +316,34 @@ the committed `scripts/build-growth-assets.py` with per-file sha256); `data/grow
 `domain/Percentiles.kt` (LMS, the normal CDF, the inverse for curves, the `L = 0` log case);
 `ui/home/GrowthSheet.kt` + `GrowthEntry.kt`; `ui/growth/PercentileChart.kt` (one hand-drawn Compose
 Canvas primitive, no charting dependency, reusable by Phase 12), `GrowthChartData.kt` (the pure rules),
-`GrowthViewModel.kt` and `GrowthScreen.kt`. The Activity Growth card's `+ Add measurement` opens the
-sheet and its `See all ›` opens the chart; Settings names the dataset. No schema change: `weightGrams`,
+`GrowthViewModel.kt` and `GrowthScreen.kt` — the last of which is now `GrowthChartPane`, the Growth tab's
+content rather than a screen of its own. Settings names the dataset. No schema change: `weightGrams`,
 `lengthMm` and `headMm` have existed since v1.
 
-**Not done, and not claimed: the device pass.** `adb devices` lists nothing, and a green build proves
-nothing about a chart's layout. The phase stays unverified on-device until someone connects the phone.
+What the owner changed after seeing it, all of it in this phase:
+
+- **The chart moved into Trends**, as one tab of a per-activity tab row over every type in
+  `EVENT_DISPLAY_ORDER` (Growth functional; the rest say honestly that their charts arrive in Phase 12).
+  A chart is something you go to look at, not something to trip over while logging a feed. This brings
+  Trends' shell forward from Phase 12; its feed, diaper, solids and sleep charts stay there.
+- **The card's summary is per child, one measurement per line.** A combined headline had no owner: "6 kg"
+  in Both mode was one child's weight dressed up as the twins'. Each column is that child's own newest
+  weight, length and head — and one per line, because three values plus their codes wrapped into an
+  unreadable block at half a card's width.
+- **Values carry W/L/H codes** wherever they appear, because a bare "42 cm" cannot be told from a length
+  or a head circumference. `W 6 kg · L 66 cm · H 42 cm`, in the sheet's field order.
+- **Each child's measurements are joined into their own line** over the reference curves, with the join
+  into a pre-term point dashed: the birth point sits at adjusted day 0, which is the DUE DATE, so that
+  slope is not growth that happened.
+- **`See all ›` shows as soon as an activity has one entry, for every card** (previously only when an
+  entry was off-card, which left the link invisible exactly when the full list was wanted), and it opens
+  the same entry-list overlay as the others.
+
+**Device pass: done, 2026-10-15** — see `## Phase 10 device verification` at the end of this file. The
+sheet, the card's per-child summary, the W/L/H labels, the overlay list, the Trends tabs and the chart were
+all confirmed on the S23, including three layout defects the phone found and unit tests could not.
+**One wrinkle, known and deliberately NOT fixed:** the last Trends chip is clipped at the right edge of the
+tab row — six activity chips do not fit a phone's width. Recorded, not changed.
 
 ### The original tasks
 
@@ -735,3 +757,68 @@ every tap came from a dump rather than from the screenshots.
   the rows it had before the pass. They remain in the database as tombstones — which is what a soft delete
   means, and why History, the cards and the lists show nothing of them. They will round-trip to sync in
   Phase 13 like any other delete.
+
+---
+
+## Phase 10 device verification — 2026-10-15
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-15-phase10/`
+(eleven captures, plus the three `before/` defects reported from the phone). Every tap coordinate came from
+`uiautomator dump`, never from a guess, and every value was read back either from the tree or from the Room
+database.
+
+| Check | Result |
+| --- | --- |
+| The app launches and stays foreground; no `FATAL EXCEPTION` at any point | pass |
+| `+ Add measurement` opens the sheet: Measurement, `for both`, Date, Time, Weight (kg), Length (cm), Head circumference (cm), Notes | pass |
+| With nothing entered, Save is disabled and the sheet says "Enter at least one measurement" | pass |
+| Both mode writes **two rows with identical timestamps** — read from the database: the twins, 5400 g at 15:09:16 UTC | pass |
+| The saved value reaches the card: headline `5.4` + `kg`, and a row per child | pass |
+| Growth values carry W/L/H wherever they appear — card summary, entry rows, the `See all` list, and the chart's list | pass |
+| Both-mode summary is **one column per child**, name on top, one measurement per line | pass |
+| The summary is the latest of EACH measurement, not the newest entry — assembled from three single-field saves into `W 6 kg` / `L 66 cm` / `H 42 cm` | pass |
+| `See all ›` on the Growth card opens the same entry-list overlay as every other card, labelled and grouped by day | pass |
+| Long-press deletes with a confirmation naming the entry, and offers Undo | pass |
+| Trends shows a tab per activity; Growth opens the percentile chart with segments, the axis caption, the dataset line and the measurement list | pass |
+| The other activity tabs state honestly that their charts arrive in Phase 12 | pass |
+| The chart draws curves, a hollow marker per measurement, and each child's own line — 105 near-full-alpha accent pixels where the pre-trajectory capture had 3 | pass |
+| The chart's list says why a row has no percentile (`1.4 kg · no percentile`), and an off-chart value reads `<1st`/`>99th` rather than being clamped | pass |
+| Summary back-navigation: the chart is reached by tab, and system back from Trends returns to Activity without leaving the app | pass |
+| Scroll to the very bottom of the Growth tab: the last content ends at y=1919, clear of the navigation bar at y=2095 | pass |
+
+### Found on the device, fixed in this pass
+
+Three of the six defects below are layout, which is exactly what a green build cannot see:
+
+- **`+ Add measurement` did nothing.** `HomeViewModel.openSheet` guarded on a private `SHEET_TYPES` set that
+  still listed only the three Phase-6 sheets, so the tap was silently dropped: a live-looking button with
+  the right label and no effect. The guard is gone, and the sheet host now names every type explicitly with
+  no `else`, so adding an EventType without deciding its sheet is a compile error.
+- **The chart had no route from the card.** The footer only rendered when an entry was not already on the
+  card, so with every measurement from today there was no link at all. `See all` is now shown whenever an
+  activity has one entry — for every card, not just growth.
+- **The Trends tab row was drawn from y=0**, under the 94 px status bar, so the top of every chip was
+  untappable and tapping a chip's centre did nothing. The row applies the shell's top inset itself.
+- **The Trends pane used `fillMaxSize()` inside the screen's Column**, so it claimed the whole height
+  instead of the space below the chips: it overlapped them, and the end of its list could not be scrolled
+  to. It now takes the remaining height with `weight(1f)`.
+- **The percentile label clamped off-chart values into a percentile.** 5.4 kg at 218 adjusted days is
+  z = −3.9, which the old clamp printed as `1st percentile` — claiming the child sat ON the 1st line rather
+  than below every curve. Now `<1st` / `>99th`.
+- **The kg box showed 100 g.** 6350 g rendered as "6.4" kg, hiding 50 g a parent could neither see nor
+  correct. The sheet now shows 10 g in kg and 0.01 in in inches, finer than the millimetre stored behind it,
+  while an untouched box still keeps its stored grams.
+
+### Notes
+
+- **The owner changed the design after seeing it**, and the changes are in this phase: the chart lived on
+  the Activity card and moved into Trends; the Both-mode summary was one combined headline and became one
+  column per child; values gained W/L/H codes; and the highlight box stopped picking one child by name order
+  and became one box per child.
+- **Test data is left in place, deliberately.** This pass created growth rows on the phone (1370 g dated
+  a date set in Settings, 5400 g, and 6 kg / 66 cm / 42 cm as three single-field saves). They are plausible enough to
+  keep while the screens are still being looked at, and one impossible row — a 25 kg weight created by a
+  stray scripted tap — was soft-deleted through the app's own long-press path, leaving a tombstone.
+- **`adb` was unauthorized for part of the pass** and the device dropped off once mid-run. Both were
+  environment, not app: the first needed the RSA prompt accepted on the phone, the second a re-plug. Worth
+  recording because the pass cannot distinguish "no device" from "no crash".
