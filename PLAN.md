@@ -37,14 +37,14 @@ everything after it is additive.**
 | 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
-| 10 — Growth | **BUILT — device pass outstanding** — WHO LMS bundled and checked against WHO's own tables, growth sheet, percentile chart screen, 231 tests green |
+| 10 — Growth | **BUILT — device pass outstanding** — WHO LMS bundled and checked against WHO's own tables, growth sheet, percentile chart screen, 237 tests green |
 | 11 — Health | not started |
 | 12 — Trends | not started |
 | 13 — Two accounts, one shared log | not started |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **231/231** with 0 failures. The
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **237/237** with 0 failures. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9 and 9.1 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. **Phase 10 is not yet in that list**: its maths is verified
@@ -290,7 +290,7 @@ found in its own new code (the 4-second Undo window).
 ### As built — 2026-10-15. Read this before the tasks below.
 
 Shipped: the WHO dataset, the percentile maths, the growth logging sheet, and the chart screen.
-**231/231 tests green**, and the dataset is verified against WHO's own published tables (every measure,
+**237/237 tests green**, and the dataset is verified against WHO's own published tables (every measure,
 both sexes: L/M/S identical to WHO's, and the app's own transform reproduces WHO's printed SD columns to
 0.0005 across z = −3..+3 — see `scripts/verify-growth-asset.py`).
 

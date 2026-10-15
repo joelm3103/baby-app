@@ -31,7 +31,8 @@
 - `ui/home/GrowthEntry.kt` + `ui/home/GrowthSheet.kt`: logging weight (kg, or the compound lb/oz pair), length, head, date, time and a note. All three measurements are optional but at least one is required, because the Phase-5 stub's valueless rows are still in the log as a reminder of what a sheet that can save nothing does.
 - `ui/growth/PercentileChart.kt`: one hand-drawn Compose Canvas chart primitive — curves, markers, two ranges, two label functions — with no charting dependency, written to be reused by Phase 12's Trends rather than reimplemented.
 - `ui/growth/GrowthChartData.kt`: the pure rules behind the screen (which measurement gets a percentile, what the axis means, both children on one bundle, display-unit axes with metric maths), plus `GrowthViewModel` and `GrowthScreen`.
-- 53 tests, all green: `PercentilesTest` (11, pure JVM, against WHO's published values), `GrowthReferenceTest` (11, Robolectric, against the real bundled asset), `GrowthEntryTest` (16) and `GrowthChartTest` (15). The suite is 231.
+- 59 tests, all green: `PercentilesTest` (11, pure JVM, against WHO's published values), `GrowthReferenceTest` (11, Robolectric, against the real bundled asset), `GrowthEntryTest` (16), `GrowthChartTest` (16) and `GrowthChartAssetTest` (5, the shipped asset driving the real chart). The suite is 237.
+- `GrowthChartAssetTest` exists for the seam the other tests cannot see: a measure key spelled differently in the asset, a sex key the chart never looks up, or an axis read in the wrong unit would each produce an empty chart on a phone while every unit test stayed green.
 - The WHO xlsx sources are recorded in the script with the reasoning for each URL shape, so a future update does not have to rediscover that `wfh` is a different table from `wfl`.
 
 ### Changed
@@ -45,6 +46,7 @@
 
 ### Fixed
 
+- **The chart's y-axis could be reduced to two gridlines.** `yTicks` rounded the ideal step (span / 4) up to the next "nice" value, and the ladder's jump from 5 to 10 gave a head circumference spanning ~31-52 cm a 10-unit step and only two lines. The chooser now takes the smallest round step that fits within six ticks, so the axis reads as a scale at any span. Found by the asset-driven chart test, not by the build.
 - The kg box in a measurement sheet now shows 10 g, not 100 g. `formatWeight`'s one decimal is right for a card but wrong for the sheet where the number is entered: 6350 g displayed as "6.4" kg and a parent could neither see nor correct the 50 g between them. Inches gained a second decimal for the same reason — 0.01 in is 0.254 mm, so the box is now finer than the millimetre stored behind it.
 - **A measurement taken before term no longer gets a percentile.** A 30-week baby's 1.37 kg plotted at "day 0" of a term-baby chart sits far below the 2nd percentile, which reads as a growth failure rather than as immaturity. It now shows the value, no percentile, and the reason.
 
