@@ -41,6 +41,7 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 12 | **Three tabs** | Activity · Summary · Trends. Settings is a header icon |
 | 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
 | 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |
+| 15 | **Export / backup** | Settings → Data: the whole log as readable JSON, and a restore. Deleted rows ride along as tombstones, so a restore can neither resurrect them nor lose them |
 
 ### Post-build changes
 
@@ -56,8 +57,9 @@ Guides, an Account tab, subscription/trial/paywall, the shop, Stop Tracking, nur
 logged), the clinical diaper taxonomy, pregnancy/postpartum modes, customizable home buttons,
 analytics. Full list with evidence in `.hermes/skills/babylog-ui/references/style-guide.md`.
 
-`Export` is no longer on this list: Settings → Data exports the whole log as readable JSON and imports
-it back, so a bad migration cannot lose the log and a replacement phone stays restorable.
+`Export` is no longer on this list: it is row 15 above, built in Phase 7 and device-verified — the JSON
+comes back in through `Import`, so a bad migration cannot lose the log and a replacement phone stays
+restorable.
 
 ### Staged on purpose
 
