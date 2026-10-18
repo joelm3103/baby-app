@@ -107,4 +107,18 @@ class HistoryViewModel(
     fun toggleFilter(type: EventType) {
         _hidden.value = if (type in _hidden.value) _hidden.value - type else _hidden.value + type
     }
+
+    /** The filter row's bulk chip: show every activity again. */
+    fun showAll() {
+        _hidden.value = emptySet()
+    }
+
+    /**
+     * The filter row's bulk chip: hide every activity. An empty Summary is a legitimate answer rather
+     * than a broken screen — the totals area says so in words — and it is the only way to get the six
+     * cards out of the way in one tap, which is why the bulk chip exists at all.
+     */
+    fun showNone() {
+        _hidden.value = EventType.entries.toSet()
+    }
 }

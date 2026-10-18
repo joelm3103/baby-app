@@ -12,7 +12,7 @@ actually perform should be. Babylog is the part we use, owned by us, that will w
 years.
 
 **Status:** through Phase 11. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
-the logging sheets, Settings, History, Growth and Health are built, and every screen is device-verified.
+the logging sheets, Settings, Summary, Growth and Health are built, and every screen is device-verified.
 All six activities now log real data: Growth ships WHO's LMS reference for percentile charts, and Health
 records a temperature, a medication with its dose, and vaccines. Trends has its shell with Growth's chart
 on one tab, and its feed, diaper, solids and sleep charts are Phase 12; the shared log across two accounts
@@ -34,11 +34,11 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 6 | **Sleep** | Present with a running timer even though it's rarely used — explicitly requested |
 | 7 | **Growth** | Weight / height / head size, WHO percentile charts |
 | 8 | **Health** | Temperature, medication (from a bundled names-only list) with its dose, and vaccines |
-| 9 | **History** | 1d / 7d / 14d totals per activity |
+| 9 | **Summary** | 1d / 7d / 14d totals per activity, with activity filter chips and one `All` / `None` bulk chip |
 | 10 | **Trends** | Charts over time |
 | 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |
 | 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature is **always °C** |
-| 12 | **Three tabs** | Activity · History · Trends. Settings is a header icon |
+| 12 | **Three tabs** | Activity · Summary · Trends. Settings is a header icon |
 | 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
 | 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |
 
@@ -60,7 +60,7 @@ analytics. Full list with evidence in `.hermes/skills/babylog-ui/references/styl
 
 The full set is a real project, not a weekend. Staging so it becomes useful early:
 
-- **Stage 1 — the 3am app.** Two children + switcher, Bottle, Diaper, Solids, Sleep, History totals,
+- **Stage 1 — the 3am app.** Two children + switcher, Bottle, Diaper, Solids, Sleep, Summary totals,
   system theme, correct insets and back handling.
 - **Stage 2 — Growth and Health.** WHO percentile curves (a real reference dataset) and the medical
   records. Growth is the single heaviest item; it lands after the app is already in daily use.

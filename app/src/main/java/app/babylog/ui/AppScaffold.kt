@@ -98,7 +98,7 @@ import kotlinx.coroutines.withContext
 
 enum class Destination(val label: String, val icon: ImageVector) {
     ACTIVITY("Activity", Icons.Filled.Home),
-    HISTORY("History", Icons.Filled.DateRange),
+    HISTORY("Summary", Icons.Filled.DateRange),
     TRENDS("Trends", Icons.Filled.List),
     SETTINGS("Settings", Icons.Filled.List),
 }
@@ -328,6 +328,8 @@ fun AppScaffold(container: AppContainer) {
                     hidden = historyHidden,
                     onSelectRange = history::setRange,
                     onToggleFilter = history::toggleFilter,
+                    onShowAll = history::showAll,
+                    onShowNone = history::showNone,
                     onSelectChild = home::select,
                     onOpenSettings = { destination = Destination.SETTINGS },
                     contentPadding = padding,
@@ -568,8 +570,8 @@ fun AppScaffold(container: AppContainer) {
                 title = { Text("Delete this ${event.type.displayName().lowercase()}?") },
                 text = {
                     Text(
-                        "It will disappear from the cards and from History. " +
-                            "There is an Undo on the next message if you did not mean it.",
+                        "It will disappear from the cards and from Summary. " +
+                            "You can undo it from the next message.",
                     )
                 },
                 confirmButton = {

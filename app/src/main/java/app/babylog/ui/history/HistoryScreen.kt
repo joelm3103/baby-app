@@ -56,6 +56,8 @@ fun HistoryScreen(
     hidden: Set<EventType>,
     onSelectRange: (HistoryRange) -> Unit,
     onToggleFilter: (EventType) -> Unit,
+    onShowAll: () -> Unit,
+    onShowNone: () -> Unit,
     onSelectChild: (ChildSelection) -> Unit,
     onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
@@ -72,7 +74,7 @@ fun HistoryScreen(
     ) {
         item {
             ScreenHeader(
-                title = "History",
+                title = "Summary",
                 children = state.children,
                 selection = state.selection,
                 onSelectChild = onSelectChild,
@@ -99,18 +101,16 @@ fun HistoryScreen(
         }
 
         item {
-            FilterChips(hidden = hidden, onToggle = onToggleFilter)
+            FilterChips(
+                hidden = hidden,
+                onToggle = onToggleFilter,
+                onShowAll = onShowAll,
+                onShowNone = onShowNone,
+            )
         }
 
         if (state.totals.isEmpty()) {
-            item {
-                Text(
-                    text = "No activities selected. Turn one back on above to see its totals.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
-            }
+            item { NoActivitiesCard() }
         }
 
         items(state.totals, key = { it.type.name }) { total ->
@@ -120,18 +120,36 @@ fun HistoryScreen(
 }
 
 /**
- * One chip per activity, selected = shown. Multi-select rather than a single choice, because wanting
- * "just feeds and nappies" is normal and wanting exactly one is not.
+ * The filter row: one bulk chip, then one chip per activity, selected = shown. Multi-select rather than
+ * a single choice, because wanting "just feeds and nappies" is normal and wanting exactly one is not.
+ *
+ * The bulk chip is FIRST and is filled with `navActive` — the same fill the selected range chip above it
+ * uses — because it is not an activity: those carry their own hue when on and `surfaceRaised` when off,
+ * and a seventh pill in that row would read as a seventh activity. Its label and its action both come
+ * from [bulkFilterAction], so the partial-selection rule is pinned by a test rather than decided here.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FilterChips(hidden: Set<EventType>, onToggle: (EventType) -> Unit) {
+private fun FilterChips(
+    hidden: Set<EventType>,
+    onToggle: (EventType) -> Unit,
+    onShowAll: () -> Unit,
+    onShowNone: () -> Unit,
+) {
     val colors = BabyLogTheme.colors
+    val bulk = bulkFilterAction(hidden)
     FlowRow(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        ChoiceChip(
+            label = bulk.label,
+            selected = true,
+            accent = colors.navActive,
+            onClick = { if (bulk.showAll) onShowAll() else onShowNone() },
+        )
+
         // Domain order, so the chips read in the same sequence as the cards they control.
         EventType.entries.sortedBy { type -> app.babylog.domain.EVENT_DISPLAY_ORDER.indexOf(type) }
             .forEach { type ->
@@ -144,6 +162,41 @@ private fun FilterChips(hidden: Set<EventType>, onToggle: (EventType) -> Unit) {
                     onClick = { onToggle(type) },
                 )
             }
+    }
+}
+
+/**
+ * Shown when every activity is filtered out. A CARD rather than a bare line, because this is the region
+ * the cards live in and a stray paragraph there reads as a section that failed to load.
+ *
+ * No "show everything" button: the control that caused this state is directly above it, and a second
+ * control for one action is a second thing to learn. It is also why the copy does not name the chip's
+ * current label — that label reads `All` in exactly this state, and hard-coding it here would be the
+ * one place in the app that could disagree with it.
+ */
+@Composable
+private fun NoActivitiesCard() {
+    val colors = BabyLogTheme.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.card))
+            .background(colors.surfaceRaised)
+            .padding(Spacing.cardPadding),
+    ) {
+        Text(
+            text = "No activities selected",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+        )
+        Spacer(Modifier.height(6.dp))
+        // A plain surface, not a tinted one, so `textSecondary` is the right token here: it is the tinted
+        // cards that must use `textOnCard`.
+        Text(
+            text = "Pick at least one above.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+        )
     }
 }
 

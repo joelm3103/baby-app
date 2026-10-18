@@ -202,7 +202,7 @@ fun SettingsScreen(
         item {
             SectionCard("Day & night") {
                 Text(
-                    text = "Overnight changes count as night in the History diaper split.",
+                    text = "Overnight changes count as night in the Summary diaper split.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                 )

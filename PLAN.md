@@ -34,7 +34,7 @@ everything after it is additive.**
 | 5 — Activity screen | **DONE, device-verified** — tinted sections, top scroll scrim, no timer on point events |
 | 6 — Sheets and logging | **DONE, device-verified** — Bottle/Diaper/Solids sheets, seeded food catalogue, 121 tests green |
 | 7 — Settings | **DONE, device-verified** — appearance, units, children (add/archive/delete), export + import, 136 tests green |
-| 8 — History | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
+| 8 — Summary (was History) | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
@@ -205,7 +205,7 @@ tested**, so this phase is UI plus one export path — no new storage and no sch
 an export opens as readable JSON and round-trips the row count.
 **Commit:** `feat(settings): units, theme, children and export`
 
-## Phase 8 — History — DONE, device-verified
+## Phase 8 — Summary (was History) — DONE, device-verified
 
 Built: `domain/Totals.kt` (pure, `zone`-explicit `dayRange` / `isNight` / `totalsFor`), a shared
 `ui/home/ScreenHeader.kt` now used by Activity **and** History, `ui/history/HistoryScreen.kt` +
@@ -216,6 +216,15 @@ uses a CONFIGURABLE window (default 18:00-06:00, edited in Settings → Day & ni
 cards appear, with multi-select filter chips (session-only). Growth and Health are "latest in range"
 rather than sums, because a total weight is meaningless. `EVENT_DISPLAY_ORDER` moved into the domain so
 the dashboard and History cannot disagree about card order.
+
+**Added 2026-10-18** (a second pass on this screen, after the tab was renamed): one **bulk chip** leads
+the filter row — `None` while every activity is shown, `All` once anything is hidden, so a partial
+selection reads `All` and the three states cycle. The rule lives in the pure `ui/history/HistoryFilter.kt`
+with `HistoryFilterTest`, not in the composable. With every activity off the totals area shows a neutral
+card, `No activities selected` / `Pick at least one above.`, with no button: the chip that caused it is
+directly above. Filtering stays session-only. The entry-delete confirmation was reworded in the same pass
+to `You can undo it from the next message.` — the wording first asked for, "This action cannot be undone.",
+would have been false while the 10-second Undo snackbar exists.
 
 **Commit:** `feat(ui): history totals`
 
