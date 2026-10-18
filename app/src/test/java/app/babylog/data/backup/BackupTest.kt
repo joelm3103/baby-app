@@ -48,6 +48,13 @@ class BackupTest {
             foodIdsCsv = "banana,mango-lassi", reaction = "LOVED_IT", createdBy = "local",
             updatedAt = t0 + 2, deleted = true,
         ),
+        // A dose is two columns that must travel together; a backup that lost the unit would restore
+        // "2.5" of nothing.
+        EventEntity(
+            id = "e4", childId = "first-twin", type = "HEALTH", startedAt = t0 + 3, temperatureC = 38.5,
+            medication = "Calpol", doseAmount = 2.5, doseUnit = "MILLILITRES", createdBy = "local",
+            updatedAt = t0 + 3,
+        ),
     )
 
     private val foods = listOf(

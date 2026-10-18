@@ -30,6 +30,16 @@ enum class EventType(
 enum class DiaperKind { WET, DIRTY, MIXED }
 
 /**
+ * The temperature at or above which a reading is shown as a fever.
+ *
+ * 38.0 °C is the usual threshold for a core temperature, and the word describes the NUMBER, not the
+ * child: an axillary (armpit) reading runs lower than a core one, so a flagged reading is a prompt to
+ * look, not a diagnosis. It lives here, once, because the card, the Both-mode columns and History must
+ * never disagree about which readings are flagged.
+ */
+const val FEVER_C = 38.0
+
+/**
  * The order activities are presented in. The dashboard cards and the History totals both read from
  * this, so the two screens can never disagree about where an activity lives.
  *
@@ -84,6 +94,15 @@ data class BabyEvent(
     // HEALTH
     val temperatureC: Double? = null,
     val medication: String? = null,
+    /**
+     * The dose given, as the parent recorded it: an amount and the measure it was given in.
+     *
+     * Both halves are stored because the app must never CONVERT a dose — 2.5 ml and 2.5 mg are the same
+     * number and not the same thing, and a future reader of this log needs to know which was written.
+     * Null on everything that is not a dose; the pair is always set or unset together.
+     */
+    val doseAmount: Double? = null,
+    val doseUnit: DoseUnit? = null,
     val vaccineName: String? = null,
     // any
     val note: String? = null,

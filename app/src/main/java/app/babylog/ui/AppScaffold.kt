@@ -75,8 +75,12 @@ import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
 import app.babylog.ui.home.EventListOverlay
 import app.babylog.ui.home.GrowthSheet
+import app.babylog.ui.home.HealthSheet
 import app.babylog.ui.home.HomeViewModel
+import app.babylog.ui.home.SheetTarget
 import app.babylog.ui.home.SolidsSheet
+import app.babylog.ui.home.VaccineSheet
+import app.babylog.ui.home.lastDoses as lastDosesFor
 import app.babylog.ui.history.HistoryScreen
 import app.babylog.ui.history.HistoryViewModel
 import app.babylog.ui.settings.SettingsScreen
@@ -172,6 +176,13 @@ fun AppScaffold(container: AppContainer) {
     val settingsTheme by settingsVm.theme.collectAsState()
     val settingsNight by settingsVm.nightWindow.collectAsState()
     val settingsPresets by settingsVm.bottlePresets.collectAsState()
+    val medicationPresets by settingsVm.medicationPresets.collectAsState()
+
+    // The bundled medicine names, read once from the asset. Small (~2 KB) and only needed by the health
+    // sheet, but parsed up front so the first tap on Medication is not the moment a file read happens.
+    val medicationNames by produceState(initialValue = emptyList<String>()) {
+        value = container.medications()
+    }
     val settingsMessage by settingsVm.message.collectAsState()
 
     // Which growth reference produced a percentile is shown in Settings too. Loaded on demand rather
@@ -301,6 +312,7 @@ fun AppScaffold(container: AppContainer) {
                     state = state,
                     onSelectChild = home::select,
                     onOpenSheet = home::openSheet,
+                    onOpenVaccine = home::openVaccineRecord,
                     onQuickDiaper = home::logDiaper,
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
@@ -334,6 +346,7 @@ fun AppScaffold(container: AppContainer) {
                     nightWindow = settingsNight,
                     theme = settingsTheme,
                     presets = settingsPresets,
+                    medicationPresets = medicationPresets,
                     growthReference = growthIdentity,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
@@ -344,6 +357,8 @@ fun AppScaffold(container: AppContainer) {
                     onNightEnd = settingsVm::setNightEndHour,
                     onAddPreset = settingsVm::addBottlePreset,
                     onRemovePreset = settingsVm::removeBottlePreset,
+                    onAddMedicationPreset = settingsVm::addMedicationPreset,
+                    onRemoveMedicationPreset = settingsVm::removeMedicationPreset,
                     onUpdateChild = settingsVm::updateChild,
                     onAddChild = settingsVm::addChild,
                     onArchiveChild = settingsVm::archiveChild,
@@ -405,10 +420,22 @@ fun AppScaffold(container: AppContainer) {
         // One sheet, two jobs: logging a new event (`openSheet`) or editing a row (`editing`, which wins,
         // because tapping a row while the list is open means that row). Keyed on the target so tapping a
         // SECOND row re-seeds the fields instead of showing the previous row's values.
+        //
+        // Health has two forms, so the target is a SheetTarget rather than a bare EventType: a new record
+        // uses the button that was tapped, and an EDIT decides from the row's own content — a row holding a
+        // vaccine and nothing else is a vaccine record, which is the only shape this app can write.
         val editingEvent = editing
-        val sheetType = editingEvent?.type ?: openSheet
-        if (sheetType != null) {
-            key(sheetType, editingEvent?.id) {
+        val target = editingEvent?.let {
+            SheetTarget(
+                type = it.type,
+                vaccine = it.vaccineName != null && it.temperatureC == null && it.medication == null,
+            )
+        } ?: openSheet
+        if (target != null) {
+            val sheetType = target.type
+            // `target.vaccine` is part of the key: without it, going from the health form to the vaccine
+            // form on the same HEALTH type would keep the previous form's remembered field values.
+            key(sheetType, editingEvent?.id, target.vaccine) {
                 val sheetNow = remember(sheetType) { System.currentTimeMillis() }
                 val zone = remember { ZoneId.systemDefault() }
                 val accent = colors.accentFor(sheetType)
@@ -463,11 +490,37 @@ fun AppScaffold(container: AppContainer) {
                         onSave = onSaveSheet,
                         initial = editingEvent,
                     )
+                    EventType.HEALTH -> if (target.vaccine) VaccineSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        zone = zone,
+                        now = sheetNow,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    ) else HealthSheet(
+                        accent = accent,
+                        childLabel = sheetChildLabel,
+                        medications = medicationNames,
+                        medicationPresets = medicationPresets,
+                        // The hint is the parent's OWN last dose for this medicine, named per child, and it
+                        // is only ever shown — the dose field stays empty until they type it.
+                        lastDoses = { name ->
+                            lastDosesFor(state.entriesOf(EventType.HEALTH), state.childIds, name)
+                                .map { (childId, dose) -> state.childName(childId) to dose }
+                        },
+                        zone = zone,
+                        now = sheetNow,
+                        onDismiss = onDismissSheet,
+                        onSave = onSaveSheet,
+                        initial = editingEvent,
+                    )
                     // Named rather than swallowed by an `else`, and this `when` has NO else on purpose: a new
                     // EventType must state what its sheet is, or the build fails. The bug this replaces was a
                     // private "types with a sheet" set that went stale, so Growth's button looked live and
-                    // did nothing. Sleep runs from the card as a timer; Health has no sheet until Phase 11.
-                    EventType.SLEEP, EventType.HEALTH -> Unit
+                    // did nothing. Sleep runs from the card as a timer; Health now names BOTH of its forms
+                    // above rather than being grouped with Sleep here.
+                    EventType.SLEEP -> Unit
                 }
             }
         }

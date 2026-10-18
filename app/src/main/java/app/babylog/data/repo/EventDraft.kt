@@ -2,6 +2,7 @@ package app.babylog.data.repo
 
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
@@ -29,6 +30,8 @@ data class EventDraft(
     val headMm: Int? = null,
     val temperatureC: Double? = null,
     val medication: String? = null,
+    val doseAmount: Double? = null,
+    val doseUnit: DoseUnit? = null,
     val vaccineName: String? = null,
     val note: String? = null,
 ) {
@@ -56,6 +59,8 @@ data class EventDraft(
         headMm = headMm,
         temperatureC = temperatureC,
         medication = medication,
+        doseAmount = doseAmount,
+        doseUnit = doseUnit,
         vaccineName = vaccineName,
         note = note,
         createdBy = createdBy,

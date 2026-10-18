@@ -3,6 +3,7 @@ package app.babylog.data.local
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
@@ -91,9 +92,25 @@ class MappersTest {
     }
 
     @Test
-    fun `health round trips celsius and medication`() {
-        val e = base(EventType.HEALTH).copy(temperatureC = 38.2, medication = "Calpol")
+    fun `health round trips celsius, medication and dose`() {
+        val e = base(EventType.HEALTH).copy(
+            temperatureC = 38.2,
+            medication = "Calpol",
+            doseAmount = 2.5,
+            doseUnit = DoseUnit.MILLILITRES,
+        )
         assertEquals(e, e.toEntity().toDomain())
+    }
+
+    @Test
+    fun `an unknown dose unit becomes no dose rather than a crash`() {
+        // Same cross-version rule as the other event enums: a newer build on the other phone must never
+        // take this one down, and "no dose" is honest about what this build can read.
+        val entity = base(EventType.HEALTH).toEntity().copy(doseAmount = 2.5, doseUnit = "TEASPOONS")
+        val back = entity.toDomain()!!
+
+        assertEquals(2.5, back.doseAmount!!, 0.0)
+        assertNull(back.doseUnit)
     }
 
     @Test

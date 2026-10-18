@@ -11,6 +11,56 @@
 > - An entry recorded after the fact **says so**, so a retrospective note cannot be
 >   mistaken for a same-day record.
 
+## [2026-10-18]
+
+**In short:**
+
+- Health is real, and it is the last card that was still a placeholder: a temperature, a medication with its dose, and vaccines — so all six activities now write data and the disabled `+ Add health … arrive in Phase 11` button is gone.
+- **A vaccine is not a field on the fever form.** It got its own sheet and its own button, because a vaccine is entered from a red book weeks after the event and a fever is what a parent reaches for at 3am.
+- The medication picker offers **names from a bundled list plus this family's own**, and it **never suggests a dose**. An infant dose depends on weight and age and changes as they grow, so the amount is always typed; the app only remembers the last one as a grey hint. The list is names only, and a test enforces that no entry in it contains a digit.
+- **The schema changed for the first time, v1 → v2**, because a dose became real data (amount + unit, so History can say *which medicines* without carrying the amounts). Additive nullable columns, a committed `2.json`, and a migration test built from the committed v1 schema. Then the real one: the S23's database went v1 → v2 with **all 69 rows intact** and the new columns `NULL` rather than `0`.
+- A fever is marked at ≥ 38.0 °C in a colour that had to be measured, not borrowed: `danger` fails AA on the 26% card tint (3.76:1 dark, 4.28:1 light), so `feverOnCard` was derived and clears **4.80:1 on all six tints**.
+- **306 tests green** (255 → 306). Found on the phone and by a new test: `1 drops` — a unit label that never pluralised.
+
+### Added
+
+- `ui/home/HealthSheet.kt` — `Health record` / `Edit health record`: date, time, temperature (°C), a medication picker, a dose (amount + unit), notes. Save stays disabled while the record has nothing in it, and says which field is missing.
+- `ui/home/VaccineSheet.kt` — `Vaccine` / `Edit vaccine`: date, time, the vaccine's name, notes. The name is required and is the whole record.
+- `ui/home/HealthEntry.kt` — everything that decides what a health form **stores**, as pure Kotlin: plausibility guards (30.0–45.0 °C, so a Fahrenheit reading typed into the Celsius box is refused), the at-least-one-field rules, the seed-equality rule that keeps a stored value when a prefill is untouched, and `lastDoses()`, which finds the parent's own last dose for a medicine per child.
+- `app/src/main/assets/medications/medications.json` — 14 commonly used infant medicines as **names only** (generic with a common brand in brackets), including the preemie supplements. The asset's own `note` records that it is not clinically reviewed and could not be checked against a live source in this session.
+- `data/medications/MedicationCatalogue.kt` — the `org.json` parser, with the reason a dose list must never exist written next to it.
+- `domain/Dose.kt` — `DoseUnit` (ml, mg, drops, sachet, tablet, other) with a picker label and a dose word per amount, and `formatDose`/`doseNumber`.
+- Medication presets in Settings (`health.medicationPresets`), a second editable list beside the bottle presets, with the same add/remove shape.
+- `feverOnCard` in the token set — `danger` lifted toward white 0.45 (dark) / black 0.30 (light) — used on the card headline, the Both-mode columns and History's Health total, with the measured ratios recorded in `design-tokens.md`.
+- `MigrationTest` — builds a **v1** database from the committed `schemas/…/1.json` (so the test cannot drift from the schema it upgrades), opens it with the current Room build, and asserts the old rows survive with empty dose columns.
+
+### Changed
+
+- `EventEntity`/`BabyEvent`/`EventDraft`/`Mappers`/`Backup` gained `doseAmount: Double?` and `doseUnit: String?`; the backup carries both, because a restore that lost the unit would restore `2.5` of nothing.
+- `AppDatabase` is **version 2** with `MIGRATION_1_2` (two `ALTER TABLE … ADD COLUMN`). No destructive migration, as ever.
+- The Health card's disabled pill became an accent-filled `+ Add health record for $childLabel` plus a neutral `+ Vaccine`.
+- Both mode now shows **one column per child** on the Health card too — that child's latest temperature/medication record and their latest vaccine, each the latest of its kind rather than the newest entry. The column renderer is shared with Growth rather than copied.
+- `recentRowLabel(HEALTH)` shows the reading: `38.2 °C · fever · Calpol 2.5 ml`, so a health row is self-describing and the entry behind the headline is one of the rows.
+- History's Health total reports `Records`, `Medication`, `Dose`, `Vaccine` and `Measured`, with the fever flag; a range holding only a medication is no longer reported as "Nothing logged".
+- `decimalInput()` moved into `SheetControls` — the growth sheet and the health sheet were carrying the same three lines of keypad filtering.
+
+### Fixed
+
+- **`1 drops`.** The unit label was used for both the picker and a formatted dose, so a dose of one read `1 drops` on a fever card. `DoseUnit` now carries a picker label plus singular/plural, and a fraction takes the singular (`0.5 sachet`) while anything above one takes the plural (`1.5 sachets`, `2 sachets`). A new `DoseTest` pins it.
+- An amount typed with **no unit** is an error rather than a silent drop: the parent typed 2.5, and saving the record without it would be the log changing under their hands. A unit with no amount is simply no dose, so a half-filled picker can never block a save.
+- The first build of this phase failed with 59 "unresolved reference" errors in files nobody had touched; the incremental Kotlin cache had gone stale, and clearing it reproduced a clean build. Recorded because the errors named `ActivitySheet`, `rememberNow`, `accentFor` and `ChildBadge` — i.e. they looked like a catastrophe and were a cache.
+
+### Verified
+
+- `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **306/306**, 0 failures, 0 errors.
+- On the S23 Ultra (Android 16, dark): Both-mode health and vaccine saves each wrote **two rows with an identical timestamp**; the fever marker renders as **3,762 pixels of exactly `#FFB6B6`** with no `textPrimary` pixels in that band; the medication dropdown lists the shipped names plus `Type another name…`; the last-dose hint reads `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml` while leaving the dose field **empty**; History shows the fever reading in `feverOnCard` with separate Medication and Dose rows; Trends' Health tab keeps its honest Phase 12 sentence; system back closes both sheets; `logcat -b crash` is empty.
+- The device's own database was read before and after the install: `user_version` 1 → 2, 22 → 24 columns, **69 rows before and after**, and the two legacy health rows still read `38.5 °C` / `Calpol 2.5 ml` with `doseAmount = NULL`.
+
+### Notes
+
+- For a *summary*, History's Health card shows the latest reading beside the latest medication and dose, which need not come from the same record. That matches what the phase was asked for ("the latest of each kind"), and the card's row list is where the actual records are read.
+- The bundled medicine list is the one thing here carrying a safety claim. It has no doses in it, a test enforces that, and the sheet says `Names only — this app does not suggest a dose` — but it is not clinically reviewed, and it should be checked against a pharmacist's list before it is trusted.
+
 ## [2026-10-15]
 
 **In short:**

@@ -1,0 +1,20 @@
+{
+  "version": "2026.10-1",
+  "note": "Names of medicines commonly given to babies, for the medication picker. NAMES ONLY: there are no doses, no frequencies and no schedules anywhere in this file, because this app never suggests a dose - a correct infant dose is weight- and age-dependent, changes as the child grows, and a wrong number on a screen is read as advice. Compiled from general knowledge of common infant medicines; NOT clinically reviewed, and not checked against a live source when it was written (the search tools returned HTTP 429 that session). Brands in brackets are examples of what a name is sold as and differ by country. Anything not listed can be typed in the sheet, and this family's own recurring names live in Settings, Medication presets.",
+  "medications": [
+    "Paracetamol (Calpol)",
+    "Ibuprofen (Nurofen for Children)",
+    "Simethicone (Infacol)",
+    "Gripe water (Woodward's)",
+    "Vitamin D drops",
+    "Iron drops",
+    "Probiotic drops",
+    "Oral rehydration salts",
+    "Saline nasal drops",
+    "Antihistamine (Piriton)",
+    "Nystatin oral drops",
+    "Lactulose",
+    "Teething gel (Bonjela)",
+    "Antibiotic (prescribed)"
+  ]
+}

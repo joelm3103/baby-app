@@ -80,6 +80,13 @@ fun SettingsScreen(
     nightWindow: NightWindow,
     theme: ThemeMode,
     presets: List<Int>,
+    /**
+     * The medications worth one tap in the health sheet, in the order they were added.
+     *
+     * Empty until configured, deliberately: the app does not suggest a medicine or a dose. See
+     * `SettingsRepository.medicationPresets`.
+     */
+    medicationPresets: List<String> = emptyList(),
     onTheme: (ThemeMode) -> Unit,
     onUnitSystem: (UnitSystem) -> Unit,
     onLengthUnit: (LengthUnit) -> Unit,
@@ -89,6 +96,8 @@ fun SettingsScreen(
     onNightEnd: (Int) -> Unit,
     onAddPreset: (Int) -> Unit,
     onRemovePreset: (Int) -> Unit,
+    onAddMedicationPreset: (String) -> Unit = {},
+    onRemoveMedicationPreset: (String) -> Unit = {},
     onUpdateChild: (Child) -> Unit,
     onAddChild: () -> Unit,
     onArchiveChild: (Child) -> Unit,
@@ -121,6 +130,7 @@ fun SettingsScreen(
     // The one destructive action is gated by a dialog that NAMES the child.
     var pendingDelete by remember { mutableStateOf<Child?>(null) }
     var presetInput by remember { mutableStateOf("") }
+    var medicationInput by remember { mutableStateOf("") }
 
     LazyColumn(
         state = listState,
@@ -267,7 +277,52 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard("Children") {
+            SectionCard("Medication presets") {
+                Text(
+                    text = "Medications worth one tap in the health sheet. Left empty on purpose: the " +
+                        "app does not suggest a medicine or a dose, so these are the ones you actually use.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+                if (medicationPresets.isEmpty()) {
+                    Text(
+                        text = "No presets yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+                medicationPresets.forEach { medication ->
+                    InputRow(
+                        label = medication,
+                        onClick = { onRemoveMedicationPreset(medication) },
+                    ) {
+                        InputValue("Remove")
+                    }
+                }
+                TextFieldRow(
+                    label = "Add medication",
+                    value = medicationInput,
+                    onValueChange = { typed -> medicationInput = typed },
+                    placeholder = "e.g. Calpol 2.5 ml",
+                )
+                SecondaryButton(
+                    label = "Add preset",
+                    onClick = {
+                        if (medicationInput.isNotBlank()) {
+                            onAddMedicationPreset(medicationInput.trim())
+                            medicationInput = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
+        }
+
+        item {
+            // Alternation follows the inserted section: Bottle presets is raised, so this one is not,
+            // and Children flips below to keep the shades strictly alternating.
+            SectionCard("Children", alternate = true) {
                 if (children.isEmpty()) {
                     Text(
                         text = "No children yet. Add one to start logging.",
@@ -294,7 +349,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard("Data", alternate = true) {
+            SectionCard("Data") {
                 InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
                 InputRow(label = "Import backup", onClick = onImport) { InputValue("Replaces everything") }
                 Text(

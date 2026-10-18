@@ -77,6 +77,11 @@ data class ActivityTotal(
     val perChild: List<TotalRow> = emptyList(),
     /** True when there is nothing to show at all (Growth/Health with no measurement in range). */
     val empty: Boolean = false,
+    /**
+     * A Health total whose latest reading is at or above [FEVER_C]. The total CARDS are tinted with the
+     * activity's own accent exactly like the dashboard, so the marker uses the same token there.
+     */
+    val fever: Boolean = false,
 )
 
 private val measuredOn = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
@@ -244,22 +249,36 @@ private fun growthTotal(
 }
 
 private fun healthTotal(events: List<BabyEvent>, children: List<Child>, zone: ZoneId): ActivityTotal {
-    val latest = events.filter { it.temperatureC != null }.maxByOrNull { it.startedAt }
+    val ordered = events.sortedByDescending { it.startedAt }
+    val latestReading = ordered.firstOrNull { it.temperatureC != null }
+    val latestMedication = ordered.firstOrNull { it.medication != null }
+    val latestDose = ordered.firstOrNull { it.doseAmount != null && it.doseUnit != null }
+    val latestVaccine = ordered.firstOrNull { it.vaccineName != null }
     val rows = buildList {
         add(TotalRow("Records", events.size.toString()))
-        latest?.let {
+        // The latest of EACH KIND, not the newest record: a vaccine logged this morning must not vanish
+        // from the totals because a temperature was logged at noon. Same rule as the card's columns.
+        // Medication and dose are separate rows on purpose - "which medicines" and "how much of this one"
+        // are different questions, and they need not come from the same record.
+        latestMedication?.let { add(TotalRow("Medication", it.medication!!)) }
+        latestDose?.let { add(TotalRow("Dose", formatDose(it.doseAmount, it.doseUnit)!!)) }
+        latestVaccine?.let { add(TotalRow("Vaccine", it.vaccineName!!)) }
+        latestReading?.let {
             add(TotalRow("Measured", Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate().format(measuredOn)))
         }
     }
     return ActivityTotal(
         type = EventType.HEALTH,
-        headline = latest?.temperatureC?.let { formatTemperature(it).removeSuffix(" \u00b0C") } ?: DASH,
-        unit = if (latest != null) "\u00b0C" else null,
+        headline = latestReading?.temperatureC?.let { formatTemperature(it).removeSuffix(" \u00b0C") } ?: DASH,
+        unit = if (latestReading != null) "\u00b0C" else null,
         rows = rows,
         perChild = children.map { child ->
             TotalRow(child.name, events.count { it.childId == child.id }.toString())
         },
-        empty = latest == null,
+        // A range holding only a medication or a vaccine is NOT empty - it holds one record, and saying
+        // "nothing logged in this range" beside a count of 1 is a contradiction a parent would not trust.
+        empty = events.isEmpty(),
+        fever = latestReading?.temperatureC?.let { it >= FEVER_C } ?: false,
     )
 }
 

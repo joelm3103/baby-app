@@ -3,6 +3,7 @@ package app.babylog.data.local
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
@@ -71,6 +72,8 @@ fun EventEntity.toDomain(): BabyEvent? {
         headMm = headMm,
         temperatureC = temperatureC,
         medication = medication,
+        doseAmount = doseAmount,
+        doseUnit = enumOrNull<DoseUnit>(doseUnit),
         vaccineName = vaccineName,
         note = note,
         createdBy = createdBy,
@@ -99,6 +102,8 @@ fun BabyEvent.toEntity(): EventEntity = EventEntity(
     headMm = headMm,
     temperatureC = temperatureC,
     medication = medication,
+    doseAmount = doseAmount,
+    doseUnit = doseUnit?.name,
     vaccineName = vaccineName,
     note = note,
     createdBy = createdBy,

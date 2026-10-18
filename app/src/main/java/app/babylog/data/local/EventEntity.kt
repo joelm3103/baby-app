@@ -28,6 +28,9 @@ data class EventEntity(
     val headMm: Int? = null,
     val temperatureC: Double? = null,
     val medication: String? = null,
+    /** The dose given with [medication], as entered. See [app.babylog.domain.DoseUnit]. */
+    val doseAmount: Double? = null,
+    val doseUnit: String? = null,
     val vaccineName: String? = null,
     val note: String? = null,
     val createdBy: String,

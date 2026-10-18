@@ -90,6 +90,36 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     /**
+     * The medications worth one tap in the health sheet, in the order they were added.
+     *
+     * EMPTY by default, deliberately. The bottle presets default to common sizes because a size is a
+     * fact about bottles; a medicine and its dose are facts about a child, and an app that suggests
+     * either would be putting a plausible-looking tap in front of a parent at 3am. The presets are for
+     * what they already use.
+     */
+    val medicationPresets: Flow<List<String>> =
+        dataStore.data.map { decodeMedicationPresets(it[KEY_MEDICATION_PRESETS]) }
+
+    /** Adds a preset unless it is blank, already there, or differs only by case. Order is insertion order. */
+    suspend fun addMedicationPreset(name: String) {
+        val trimmed = sanitiseMedicationPreset(name)
+        if (trimmed.isEmpty()) return
+        dataStore.edit { prefs ->
+            val current = decodeMedicationPresets(prefs[KEY_MEDICATION_PRESETS])
+            if (current.none { it.equals(trimmed, ignoreCase = true) }) {
+                prefs[KEY_MEDICATION_PRESETS] = encodeMedicationPresets(current + trimmed)
+            }
+        }
+    }
+
+    suspend fun removeMedicationPreset(name: String) {
+        dataStore.edit { prefs ->
+            val current = decodeMedicationPresets(prefs[KEY_MEDICATION_PRESETS])
+            prefs[KEY_MEDICATION_PRESETS] = encodeMedicationPresets(current - name)
+        }
+    }
+
+    /**
      * Runs [seed] at most once in the app's lifetime, and reports whether it ran.
      *
      * The old guard was "is the children table empty", which a parent makes true again simply by
@@ -142,6 +172,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
         val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
         val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
+        val KEY_MEDICATION_PRESETS = stringPreferencesKey("health.medicationPresets")
 
         const val DEFAULT_NIGHT_START_HOUR = 18
         const val DEFAULT_NIGHT_END_HOUR = 6
@@ -164,6 +195,25 @@ private fun decodePresets(raw: String?): List<Int> =
         ?: DEFAULT_BOTTLE_PRESETS
 
 private fun encodePresets(values: List<Int>): String = values.joinToString(",")
+
+/**
+ * Medication presets are free text, so they are separated by a NEWLINE rather than the comma the bottle
+ * sizes use: "Calpol, 2.5 ml" is a dose a parent may well type, and a comma-separated encoding would
+ * silently split it into two presets. Newlines cannot be typed — the field is single-line — so the
+ * separator is the one character that cannot appear in the data.
+ */
+private fun decodeMedicationPresets(raw: String?): List<String> = raw
+    ?.split('\n')
+    ?.map(::sanitiseMedicationPreset)
+    ?.filter { it.isNotEmpty() }
+    ?.distinct()
+    ?: emptyList()
+
+private fun encodeMedicationPresets(values: List<String>): String = values.joinToString("\n")
+
+/** Also the guard at the door: a newline in a preset would forge a second entry on the next read. */
+private fun sanitiseMedicationPreset(value: String): String =
+    value.replace('\n', ' ').trim()
 
 /** Common bottle sizes, so the chips are useful before anything has been configured. */
 private val DEFAULT_BOTTLE_PRESETS = listOf(60, 90, 120, 150)

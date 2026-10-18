@@ -79,6 +79,43 @@ class SettingsRepositoryTest {
         assertTrue(settings.nightWindow.first().isEmpty)
     }
 
+    // ---- medication presets ------------------------------------------------
+
+    @Test
+    fun `medication presets start empty rather than suggesting a medicine`() = runBlocking {
+        assertEquals(emptyList<String>(), settings.medicationPresets.first())
+    }
+
+    @Test
+    fun `medication presets keep insertion order and do not duplicate`() = runBlocking {
+        settings.addMedicationPreset("Calpol 2.5 ml")
+        settings.addMedicationPreset("Vitamin D")
+        // Same name, different case: still one preset, because the chips would otherwise be twins.
+        settings.addMedicationPreset("  calpol 2.5 ML ")
+
+        assertEquals(listOf("Calpol 2.5 ml", "Vitamin D"), settings.medicationPresets.first())
+
+        settings.removeMedicationPreset("Calpol 2.5 ml")
+        assertEquals(listOf("Vitamin D"), settings.medicationPresets.first())
+    }
+
+    @Test
+    fun `a comma in a medication name survives the round trip`() = runBlocking {
+        // The reason the encoding uses a newline separator: "Calpol, 2.5 ml" is a dose a parent types.
+        settings.addMedicationPreset("Calpol, 2.5 ml")
+        settings.addMedicationPreset("Vitamin D")
+
+        assertEquals(listOf("Calpol, 2.5 ml", "Vitamin D"), settings.medicationPresets.first())
+    }
+
+    @Test
+    fun `a blank medication preset is refused, and a newline cannot forge a second one`() = runBlocking {
+        settings.addMedicationPreset("   ")
+        settings.addMedicationPreset("Calpol\nVitamin D")
+
+        assertEquals(listOf("Calpol Vitamin D"), settings.medicationPresets.first())
+    }
+
     // ---- bottle presets ----------------------------------------------------
 
     @Test

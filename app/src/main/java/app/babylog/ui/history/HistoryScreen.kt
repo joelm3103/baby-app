@@ -181,13 +181,23 @@ private fun TotalCard(total: ActivityTotal, showPerChild: Boolean) {
                 Text(
                     text = total.headline,
                     style = MaterialTheme.typography.displayLarge,
-                    color = colors.textPrimary,
+                    // A fever reading leaves textPrimary here for the same reason it does on the dashboard,
+                    // and with the same token: these cards are tinted with the accent at 26%, so `danger`
+                    // is not legible on them (it measures 3.76:1 dark / 4.28:1 light).
+                    color = if (total.fever) colors.feverOnCard else colors.textPrimary,
                 )
                 total.unit?.let { unit ->
                     Text(
                         text = " $unit",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textPrimary,
+                        color = if (total.fever) colors.feverOnCard else colors.textPrimary,
+                    )
+                }
+                if (total.fever) {
+                    Text(
+                        text = " \u00b7 fever",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.feverOnCard,
                     )
                 }
             }

@@ -38,14 +38,14 @@ everything after it is additive.**
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
-| 11 — Health | not started |
+| 11 — Health | **DONE, device-verified** — temperature, medication + dose, vaccines as their own form, fever marker, schema v2 additive migration, 306 tests green |
 | 12 — Trends | not started |
 | 13 — Two accounts, one shared log | not started |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **255/255** with 0 failures. The
-Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1 and 10 screens were all confirmed on a
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **306/306** with 0 failures. The
+Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10 and 11 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
@@ -393,7 +393,53 @@ callout card with date, value, percentile and **age (adjusted when the toggle is
 **Verify:** a seeded measurement lands on the correct curve; a preemie's adjusted age changes its
 percentile. **Commit:** `feat(growth): who percentiles and charts`
 
-## Phase 11 — Health
+## Phase 11 — Health — DONE, device-verified
+
+As built. The original one-line scope ("temperature, medication, vaccine — the same sheet pattern") grew
+in two places, both requested after the first sheet worked:
+
+- **A vaccine is its own sheet and its own button.** A vaccine is entered from a red book, weeks after
+the event; a fever is what a parent reaches for at 3am. Putting the vaccine field on the fever form put
+an irrelevant question in front of them at the worst moment. `SheetTarget(type, vaccine)` carries the
+distinction into the shell, whose sheet `when` still has no `else`.
+- **Medication became a picker with a dose**, and the dose became schema. See below.
+
+Built: `ui/home/HealthSheet.kt` (date, time, temperature, medication picker, dose amount + unit, notes),
+`ui/home/VaccineSheet.kt` (date, time, name, notes), and `ui/home/HealthEntry.kt` — the pure half that
+decides what is stored, mirroring `GrowthEntry.kt`: 30.0–45.0 °C plausibility, the at-least-one-field
+rules, the untouched-prefill rule, and `lastDoses()`. `domain/Dose.kt` holds `DoseUnit` and the
+dose formatter; `app/src/main/assets/medications/medications.json` holds 14 common infant medicine
+**names**; `data/medications/MedicationCatalogue.kt` parses them; Settings grew a `Medication presets`
+section beside the bottle presets.
+
+**The dose is real data, so this is the first schema change: v1 → v2.** `EventEntity` gained nullable
+`doseAmount`/`doseUnit`, `MIGRATION_1_2` adds both columns, `app/schemas/…/2.json` is committed, and
+`MigrationTest` builds a v1 database from the committed `1.json` rather than from a hand-copied CREATE
+TABLE, so the test cannot drift from what it upgrades. Additive-only, as the rule requires: no column
+was repurposed, nothing is defaulted to zero, and a legacy row's dose is NULL because no dose was
+recorded — which is not the same claim as a dose of nothing.
+
+**The medication list never suggests a dose.** That is a safety decision, not a scoping one: an infant
+dose depends on weight and age, changes as the children grow, and differs between formulations of the
+same drug, so a number this app proposed would be plausible, confident and possibly wrong. The list
+offers names; the sheet says `Names only — this app does not suggest a dose`; `MedicationCatalogueTest`
+enforces that no entry contains a digit; and the last dose given is shown as grey text from the parent's
+own record, never pre-filled. A test is not a clinical review, and the asset says so in its own `note`.
+
+Deviation worth recording: the plan's verification said to read rows back through Settings → Export. A
+stronger path existed on this build — `run-as` can read the device database directly — so the stored
+dose and unit were read from the DB itself, and the export round trip is covered by `BackupTest`.
+
+### Fixed in this phase
+
+- **`1 drops`.** `DoseUnit` had one label doing two jobs, so a dose of one rendered `1 drops` on a fever
+  card. It now carries a picker label plus singular/plural, a fraction takes the singular (`0.5 sachet`)
+  and anything above one the plural (`1.5 sachets`). Caught by a new test, not by the phone.
+- An amount with no unit is an error rather than a silent drop; a unit with no amount is simply no dose.
+- The growth sheet and the health sheet were carrying the same keypad filter; `decimalInput()` now lives
+  in `SheetControls`.
+
+### Original scope, for the record
 
 Temperature, medication, vaccine — the same sheet pattern, reusing `InputRow`. Small once Phase 6
 exists. **Commit:** `feat(health): records`
@@ -822,3 +868,64 @@ Three of the six defects below are layout, which is exactly what a green build c
 - **`adb` was unauthorized for part of the pass** and the device dropped off once mid-run. Both were
   environment, not app: the first needed the RSA prompt accepted on the phone, the second a re-plug. Worth
   recording because the pass cannot distinguish "no device" from "no crash".
+
+---
+
+## Phase 11 device verification — 2026-10-18
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots:
+`docs/timeline/2026-10-18-phase11/` (five captures). Every tap coordinate came from `uiautomator dump`,
+never from a guess, and the stored values were read from the device's own database — this debug build
+allows `run-as`, which is a stronger check than the export path the plan named.
+
+### The migration, on the real database
+
+The phone was carrying a v1 database from Phase 10 with 69 event rows on it, including two health rows
+whose `medication` text was `Calpol 2.5 ml` — written before a dose had a column. It was copied off the
+device, the new build installed over it, the app launched, and it was copied back.
+
+| Check | Result |
+| --- | --- |
+| `PRAGMA user_version` before / after | 1 → **2** |
+| `events` columns before / after | 22 → **24** (`doseAmount`, `doseUnit` added) |
+| Event rows before / after | **69 before, 69 after** (64 live, 5 tombstones) |
+| Legacy health rows after the upgrade | pass — still `38.5 °C` and `Calpol 2.5 ml`, with `doseAmount = NULL` and `doseUnit = NULL`, not `0` |
+| App launches after the upgrade; `logcat -b crash` | pass — empty, and `grep -c "FATAL EXCEPTION"` = 0 |
+
+### The screens
+
+| Check | Result |
+| --- | --- |
+| Health card, Both mode, no data | pass — `Child 1` / `Child 2` columns each reading `No records yet` |
+| The two actions | pass — accent-filled `+ Add health record for both` and a neutral `+ Vaccine` beneath it |
+| Health sheet, empty | pass — `Health record` / `for both`, Date, Time, Temperature (°C), Medication `Choose or type`, Dose, Dose unit `Choose`, `Names only — this app does not suggest a dose.`, Save disabled with `Enter a temperature or a medication.` |
+| Medication dropdown | pass — `COMMON` header + all 14 shipped names + `Type another name…`; no `YOURS` group while no presets exist |
+| Picking a medicine | pass — the row reads `Paracetamol (Calpol)`, the free-text field hides, and Save becomes enabled |
+| Dose unit dropdown | pass — exactly `ml`, `mg`, `drops`, `sachet`, `tablet`, `other` |
+| **Both mode writes two rows with one timestamp** | pass — `K ... 12:27` and `L ... 12:27`, and the DB shows two rows sharing `startedAt` per save |
+| Stored dose, read from the DB | pass — `medication = Paracetamol (Calpol)`, `doseAmount = 2.5`, `doseUnit = MILLILITRES` |
+| **The last-dose hint** | pass — `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml`, with the dose field still **empty** and the unit still `Choose` |
+| Vaccine sheet | pass — `Vaccine` / `for both`, Date, Time, Vaccine, `Enter the vaccine's name.`; saved row reads `6-in-1 vaccine` and the DB row carries `vaccineName = 6-in-1` with no dose |
+| The card after both kinds | pass — each child's column shows `Paracetamol (Calpol) 2.5 ml` and `6-in-1 vaccine` on separate lines |
+| Legacy rows still display | pass — `38.5 °C · fever · Calpol 2.5 ml`, the free-text medicine from before the migration |
+| History | pass — headline `38.5` `°C` `· fever` in `feverOnCard`, rows `Records 4`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Measured 18 Oct`, per-child `Child 1 2` / `Child 2 2` |
+| Fever colour, in pixels | pass — **3,762 pixels of exactly `#FFB6B6`** in the detail band, and **zero** `textPrimary` pixels there |
+| Trends' Health tab | pass — still `Charts for health arrive in Phase 12…`; the chip is only reachable after scrolling the chip row (see below) |
+| System back closes the sheet, app stays foreground | pass |
+| No crash at any point | pass |
+
+### Found on the phone, and in its own tests
+
+- **`1 drops`.** The unit label was doing two jobs — picker word and dose word — so a dose of one read
+  `1 drops` where the card shows it. A new `DoseTest` caught it before the phone did. `DoseUnit` now has
+  a picker label plus singular and plural.
+- **The Health chip needed a horizontal scroll to reach.** Six activity chips do not fit the Trends tab
+  row — the same clipping Phase 10 recorded, now with a sixth chip. The row already scrolls, so nothing
+  is unreachable; recorded rather than redesigned, because shrinking the labels would be worse.
+- **History's summary mixes the latest of each kind.** The headline reading is 12:08 while the medication
+  and dose rows are from 12:27, because each line is the latest of its own kind. That is what the phase
+  asked for, and the card's row list is where actual records are read — noted here so the juxtaposition
+  is not mistaken for a single event.
+- **Legacy rows carry their dose inside the medication text** (`Calpol 2.5 ml`), because they predate the
+  column. They render honestly and were left alone: rewriting a parent's historical rows is not a call to
+  make inside a phase, and the data is not wrong, only unseparated.

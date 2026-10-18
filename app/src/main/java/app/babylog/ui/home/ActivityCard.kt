@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DiaperKind
@@ -63,6 +64,8 @@ fun ActivityCard(
     now: Long,
     zone: ZoneId,
     onOpenSheet: (EventType) -> Unit,
+    /** The Health card's second form. A separate callback because the type alone cannot say which. */
+    onOpenVaccine: () -> Unit,
     onQuickDiaper: (DiaperKind) -> Unit,
     onStartSleep: () -> Unit,
     onStop: () -> Unit,
@@ -115,12 +118,15 @@ fun ActivityCard(
                 PillButton(label = "Stop", fill = accent, textColor = colors.onAccent, onClick = onStop)
             }
         } else {
-            // Growth in Both mode: one column per child, each holding that child's own latest weight,
-            // length and head. A single combined number has no owner — "6 kg" was one child's weight read
-            // as the twins'. With one child selected the big-number card below is unchanged.
-            val twoColumns = card.type == EventType.GROWTH && childIds.size > 1
-            if (twoColumns) {
-                val columns = growthByChild(card.entries, childIds, units)
+            // Growth and Health split into one column per child in Both mode. A single combined value has
+            // no owner — "6 kg" was one child's weight read as the twins', and a temperature has exactly
+            // the same problem. With one child selected the big-number card below is unchanged.
+            val columns = if (childIds.size > 1) {
+                cardColumns(card.type, card.entries, childIds, units)
+            } else {
+                null
+            }
+            if (columns != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -141,20 +147,26 @@ fun ActivityCard(
                                     color = colors.labelFor(accent),
                                 )
                             }
-                            // One measurement per line. Wrapped into a single line, three values plus their
+                            // One item per line. Wrapped into a single line, three measurements plus their
                             // codes were unreadable at half a card's width.
                             if (column.hasData) {
                                 column.lines.forEach { line ->
                                     Text(
-                                        text = line,
+                                        text = line.text,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = colors.textPrimary,
+                                        // A fever is the one reading that leaves its neutral colour, and only
+                                        // the line that carries it: `danger` is not legible on this tint.
+                                        color = if (line.fever) colors.feverOnCard else colors.textPrimary,
                                         modifier = Modifier.padding(top = 2.dp),
                                     )
                                 }
                             } else {
                                 Text(
-                                    text = "No measurements yet",
+                                    text = if (card.type == EventType.GROWTH) {
+                                        "No measurements yet"
+                                    } else {
+                                        "No records yet"
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = colors.textSecondary,
                                     modifier = Modifier.padding(top = 2.dp),
@@ -171,13 +183,24 @@ fun ActivityCard(
             // and reading only the newest entry made the older one vanish from the card.
             val growth = if (card.type == EventType.GROWTH) growthLatest(card.entries) else null
             val headline = growth?.headline ?: last
-            if (headline != null && !twoColumns) {
+            if (headline != null && columns == null) {
                 val value = growth?.let { growthBigValue(it, units) } ?: bigValue(headline, units)
+                val fever = card.type == EventType.HEALTH && isFever(headline.temperatureC)
                 if (value != null) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                        Text(value.first, style = MaterialTheme.typography.displayLarge, color = colors.textPrimary)
+                        // A reading at or above 38.0 °C is the one value that leaves `textPrimary` — the
+                        // number itself is the marker, the word for it is on the detail line below.
+                        Text(
+                            value.first,
+                            style = MaterialTheme.typography.displayLarge,
+                            color = if (fever) colors.feverOnCard else colors.textPrimary,
+                        )
                         if (value.second.isNotBlank()) {
-                            Text(" ${value.second}", style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary)
+                            Text(
+                                " ${value.second}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (fever) colors.feverOnCard else colors.textPrimary,
+                            )
                         }
                         Spacer(Modifier.weight(1f))
                         // In Both mode the newest event is ONE child's, and the card used to say which
@@ -265,23 +288,31 @@ fun ActivityCard(
                     fullWidth = true,
                 )
 
-                // Health is still waiting for its sheets. The Phase-5 stub logged a health event with no
-                // values at all, which would put meaningless rows in the log the moment real data arrives
-                // — a disabled button is the honest placeholder.
+                // Health has TWO forms — a temperature/medication record and a vaccine — and they are
+                // separate records, so they get separate actions. The primary action is the one a parent
+                // reaches for at 3am; the vaccine is a neutral secondary beside it, not a second loud
+                // button competing for the same tap.
                 EventType.HEALTH -> Column {
                     PillButton(
-                        label = "+ Add health",
-                        fill = colors.surfaceRaised,
-                        textColor = colors.textSecondary,
-                        enabled = false,
-                        onClick = {},
+                        label = "+ Add health record for $childLabel",
+                        fill = accent,
+                        textColor = colors.onAccent,
+                        onClick = { onOpenSheet(EventType.HEALTH) },
                         fullWidth = true,
                     )
                     Text(
-                        text = "Health records arrive in Phase 11",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textOnCard,
-                        modifier = Modifier.padding(top = 6.dp),
+                        text = "+ Vaccine",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .clip(RoundedCornerShape(Radius.pill))
+                            .background(colors.surfaceRaised)
+                            .clickable(onClick = onOpenVaccine)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                     )
                 }
             }

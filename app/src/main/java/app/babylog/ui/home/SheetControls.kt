@@ -145,6 +145,19 @@ fun TextFieldRow(
 }
 
 /**
+ * Digits and at most one decimal point, so a keypad cannot produce "6.3.5" or "38.2.1".
+ *
+ * Shared by every sheet that takes a typed number — growth and health both had their own copy of these
+ * three lines, which is how two fields end up disagreeing about what a valid number looks like.
+ */
+internal fun decimalInput(typed: String): String {
+    val cleaned = typed.filter { it.isDigit() || it == '.' }
+    val firstDot = cleaned.indexOf('.')
+    if (firstDot < 0) return cleaned
+    return cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).filter { it.isDigit() }
+}
+
+/**
  * Editable time, defaulting to now. Opens a compact dial-free picker: `TimeInput` (two fields) rather
  * than the clock dial, because the dial does not fit a phone dialog at small widths and this needs to
  * be right the first time without a device iteration to discover a clip.

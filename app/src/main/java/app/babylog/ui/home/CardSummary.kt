@@ -10,6 +10,7 @@ import app.babylog.domain.formatVolume
 import app.babylog.domain.formatWeight
 import app.babylog.domain.poundsOunces
 import app.babylog.domain.WeightUnit
+import app.babylog.domain.formatDose
 
 /**
  * The two strings every card needs: the big number and its unit, and the one-line detail under it.
@@ -57,9 +58,26 @@ fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.t
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
     EventType.SLEEP -> if (event.isRunning) "Asleep now" else "Slept ${elapsed(event.durationMs ?: 0)}"
     EventType.GROWTH -> growthValues(event, units)
-    EventType.HEALTH -> listOfNotNull(event.medication, event.vaccineName).joinToString(" \u00b7 ")
-        .ifBlank { "Health" }
+    // The word `fever` sits here rather than on the headline so the number is not repeated: the card
+    // reads `38.2 °C` big, with `Calpol 2.5 ml · fever` underneath it.
+    EventType.HEALTH -> listOfNotNull(
+        medicationWithDose(event),
+        if (isFever(event.temperatureC)) "fever" else null,
+        event.vaccineName?.let(::vaccineLabel),
+    ).joinToString(" \u00b7 ").ifBlank { "Health" }
 }
+
+/**
+ * `Calpol 2.5 ml` — the medicine and how much of it, as one phrase.
+ *
+ * Joined here rather than at each call site so the card, the entry list and the History rows cannot
+ * disagree about whether a dose is shown; History pulls the two apart again into its own rows, because
+ * "which medicines has she had" is a different question from "how much was that one".
+ */
+internal fun medicationWithDose(event: BabyEvent): String? =
+    listOfNotNull(event.medication, formatDose(event.doseAmount, event.doseUnit))
+        .joinToString(" ")
+        .ifEmpty { null }
 
 /**
  * The value(s) an entry recorded, each labelled: `W 6 kg \u00b7 L 66 cm \u00b7 H 42 cm`.
@@ -156,5 +174,109 @@ fun growthByChild(
  */
 fun recentRowLabel(event: BabyEvent, units: UnitPreferences): String = when (event.type) {
     EventType.BOTTLE -> event.amountMl?.let { formatVolume(it.toDouble(), units.volume) } ?: "Bottle"
+    // A health row has to say WHICH record it is. The old label showed only the medication, so a fever
+    // row read "Health" and looked identical to a vaccine - while the temperature itself was the card's
+    // headline and never appeared in the list. The rows and the headline now agree, which is the rule
+    // `PLAN.md`'s Phase 9.1 set for every other card.
+    EventType.HEALTH -> healthRecordLine(event)
+        .ifEmpty { event.vaccineName?.let(::vaccineLabel) ?: "Health" }
     else -> detailLine(event, units)
+}
+
+/**
+ * The Health card's per-child content in Both mode: that child's newest temperature/medication record
+ * and their newest vaccine.
+ *
+ * Latest of EACH KIND, not the newest entry — the same rule [GrowthLatest] follows, for the same
+ * reason. A vaccine logged this morning must not hide a fever logged last night, and reading only the
+ * newest entry would drop one of the two entirely.
+ */
+data class HealthLatest(val record: BabyEvent?, val vaccine: BabyEvent?) {
+    val isEmpty: Boolean get() = record == null && vaccine == null
+}
+
+/**
+ * Picks the newest entry that recorded a temperature or a medication, and the newest that named a
+ * vaccine. Expects the card's newest-first list but sorts defensively, so a caller cannot change the
+ * answer by reordering.
+ */
+fun healthLatest(entries: List<BabyEvent>): HealthLatest {
+    val health = entries
+        .filter { it.type == EventType.HEALTH }
+        .sortedByDescending { it.startedAt }
+    return HealthLatest(
+        record = health.firstOrNull { it.temperatureC != null || it.medication != null },
+        vaccine = health.firstOrNull { it.vaccineName != null },
+    )
+}
+
+/**
+ * `38.2 °C · fever · Calpol` — the reading, the word that interprets it, then what was given.
+ *
+ * A bare "Calpol" does not say when the temperature was taken, and a bare temperature does not say what
+ * it was for, so the row carries both while the card's detail line stays free of the number the headline
+ * already shows.
+ */
+fun healthRecordLine(event: BabyEvent): String = listOfNotNull(
+    event.temperatureC?.let { formatTemperature(it) + if (isFever(it)) " \u00b7 fever" else "" },
+    medicationWithDose(event),
+).joinToString(" \u00b7 ")
+
+/**
+ * `6-in-1 vaccine`, unless the parent already wrote the word — a record typed as "Vaccine 6-in-1" must
+ * not read "Vaccine 6-in-1 vaccine".
+ */
+fun vaccineLabel(name: String): String =
+    if (name.contains("vaccin", ignoreCase = true)) name else "$name vaccine"
+
+/** One child's lines for the Both-mode Health card. [hasData] false means show the empty line instead. */
+data class ChildHealth(val childId: String, val lines: List<ChildLine>, val hasData: Boolean)
+
+fun healthByChild(entries: List<BabyEvent>, childIds: List<String>): List<ChildHealth> =
+    childIds.map { childId ->
+        val latest = healthLatest(entries.filter { it.childId == childId })
+        ChildHealth(
+            childId = childId,
+            lines = listOfNotNull(
+                latest.record?.let { ChildLine(healthRecordLine(it), fever = isFever(it.temperatureC)) },
+                latest.vaccine?.vaccineName?.let { ChildLine(vaccineLabel(it)) },
+            ),
+            hasData = !latest.isEmpty,
+        )
+    }
+
+/**
+ * One child's column on a card that shows the children side by side.
+ *
+ * Growth and Health both split in Both mode, for the same reason: a single combined value has no owner,
+ * and "6 kg" or "38.2 °C" in Both mode is one child's reading dressed up as the twins'. The two are
+ * unified here so the card has ONE renderer, and a third activity that ever needs columns adds a branch
+ * instead of a second copy of the layout.
+ */
+data class ChildColumn(val childId: String, val lines: List<ChildLine>, val hasData: Boolean)
+
+/**
+ * One line inside a column. [fever] marks a reading at or above [FEVER_C] so the card can colour it
+ * without re-deriving the rule — the column and the headline must flag the same readings.
+ */
+data class ChildLine(val text: String, val fever: Boolean = false)
+
+/** The columns for an activity that splits per child, or null for one that does not. */
+fun cardColumns(
+    type: EventType,
+    entries: List<BabyEvent>,
+    childIds: List<String>,
+    units: UnitPreferences,
+): List<ChildColumn>? = when (type) {
+    EventType.GROWTH -> growthByChild(entries, childIds, units)
+        .map { column -> ChildColumn(column.childId, column.lines.map { ChildLine(it) }, column.hasData) }
+    EventType.HEALTH -> healthByChild(entries, childIds)
+        .map { column ->
+            ChildColumn(
+                childId = column.childId,
+                lines = column.lines.map { ChildLine(it.text, fever = it.fever) },
+                hasData = column.hasData,
+            )
+        }
+    else -> null
 }

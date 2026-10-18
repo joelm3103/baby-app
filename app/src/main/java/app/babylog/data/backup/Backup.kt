@@ -110,6 +110,8 @@ object Backup {
         putNullable("headMm", e.headMm)
         putNullable("temperatureC", e.temperatureC)
         putNullable("medication", e.medication)
+        putNullable("doseAmount", e.doseAmount)
+        putNullable("doseUnit", e.doseUnit)
         putNullable("vaccineName", e.vaccineName)
         putNullable("note", e.note)
         put("createdBy", e.createdBy)
@@ -135,6 +137,8 @@ object Backup {
         headMm = o.intOrNull("headMm"),
         temperatureC = o.doubleOrNull("temperatureC"),
         medication = o.stringOrNull("medication"),
+        doseAmount = o.doubleOrNull("doseAmount"),
+        doseUnit = o.stringOrNull("doseUnit"),
         vaccineName = o.stringOrNull("vaccineName"),
         note = o.stringOrNull("note"),
         createdBy = o.getString("createdBy"),

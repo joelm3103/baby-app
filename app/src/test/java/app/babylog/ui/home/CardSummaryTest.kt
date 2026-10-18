@@ -2,6 +2,7 @@ package app.babylog.ui.home
 
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.MealSlot
@@ -10,6 +11,7 @@ import app.babylog.domain.VolumeUnit
 import app.babylog.domain.WeightUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -213,6 +215,117 @@ class CardSummaryTest {
 
         assertEquals("Mixed \u00b7 rash", recentRowLabel(diaper, metric))
         assertEquals(detailLine(diaper, metric), recentRowLabel(diaper, metric))
+    }
+
+    @Test
+    fun `a health row carries the reading, the word fever and what was given`() {
+        val fever = event(EventType.HEALTH).copy(temperatureC = 38.2, medication = "Calpol")
+        // The row is self-describing: the old label showed only the medication, so a fever row read
+        // "Calpol" and looked exactly like a normal one.
+        assertEquals("38.2 \u00b0C \u00b7 fever \u00b7 Calpol", recentRowLabel(fever, metric))
+
+        val normal = event(EventType.HEALTH).copy(temperatureC = 37.1, medication = "Calpol")
+        assertEquals("37.1 \u00b0C \u00b7 Calpol", recentRowLabel(normal, metric))
+
+        // Under the big value the number is not repeated: `38.2` is already the headline.
+        assertEquals("Calpol \u00b7 fever", detailLine(fever, metric))
+        assertEquals("Calpol", detailLine(normal, metric))
+    }
+
+    @Test
+    fun `a dose is shown with its medicine, wherever the medicine is shown`() {
+        val dosed = event(EventType.HEALTH).copy(
+            temperatureC = 38.5,
+            medication = "Calpol",
+            doseAmount = 2.5,
+            doseUnit = DoseUnit.MILLILITRES,
+        )
+
+        assertEquals("38.5 \u00b0C \u00b7 fever \u00b7 Calpol 2.5 ml", recentRowLabel(dosed, metric))
+        assertEquals("Calpol 2.5 ml \u00b7 fever", detailLine(dosed, metric))
+
+        // A medicine with no dose recorded says only the medicine - never a 0, and never a blank unit.
+        val undosed = event(EventType.HEALTH).copy(medication = "Vitamin D")
+        assertEquals("Vitamin D", recentRowLabel(undosed, metric))
+    }
+
+    @Test
+    fun `a medication-only row names the medication rather than saying Health`() {
+        val med = event(EventType.HEALTH).copy(medication = "Vitamin D")
+        assertEquals("Vitamin D", recentRowLabel(med, metric))
+        assertEquals("Health", recentRowLabel(event(EventType.HEALTH), metric))
+    }
+
+    @Test
+    fun `a vaccine row says it is a vaccine, exactly once`() {
+        val vaccine = event(EventType.HEALTH).copy(vaccineName = "6-in-1")
+        assertEquals("6-in-1 vaccine", recentRowLabel(vaccine, metric))
+
+        // A parent who typed the word themselves must not read "Vaccine 6-in-1 vaccine".
+        val typed = event(EventType.HEALTH).copy(vaccineName = "Vaccine 6-in-1")
+        assertEquals("Vaccine 6-in-1", recentRowLabel(typed, metric))
+    }
+
+    @Test
+    fun `the health summary is the latest of each kind, not the newest entry`() {
+        val entries = listOf(
+            event(EventType.HEALTH, at = t0 + 3_000).copy(temperatureC = 38.4),
+            event(EventType.HEALTH, at = t0 + 2_000).copy(temperatureC = 36.8, medication = "Calpol"),
+            event(EventType.HEALTH, at = t0 + 1_000).copy(vaccineName = "6-in-1"),
+        )
+        val latest = healthLatest(entries)
+
+        // The newest entry is the fever, but the vaccine must not vanish because of it.
+        assertEquals(38.4, latest.record?.temperatureC)
+        assertEquals("6-in-1", latest.vaccine?.vaccineName)
+        assertFalse(latest.isEmpty)
+    }
+
+    @Test
+    fun `a medication-only record is a summary record, so it is not lost`() {
+        val latest = healthLatest(listOf(event(EventType.HEALTH).copy(medication = "Calpol")))
+        assertEquals("Calpol", latest.record?.medication)
+        assertFalse(latest.isEmpty)
+    }
+
+    @Test
+    fun `a health summary with nothing recorded says so`() {
+        val latest = healthLatest(listOf(event(EventType.HEALTH)))
+        assertTrue(latest.isEmpty)
+    }
+
+    @Test
+    fun `both-mode health columns carry each child's own fever and vaccine`() {
+        val entries = listOf(
+            event(EventType.HEALTH, at = t0).copy(childId = "first-twin", temperatureC = 38.4),
+            event(EventType.HEALTH, at = t0).copy(childId = "first-twin", vaccineName = "6-in-1"),
+            event(EventType.HEALTH, at = t0).copy(childId = "second-twin", temperatureC = 36.9),
+        )
+        val columns = cardColumns(EventType.HEALTH, entries, listOf("first-twin", "second-twin"), metric)!!
+
+        assertEquals(listOf("first-twin", "second-twin"), columns.map { it.childId })
+        // First Twin's fever line is marked so the card can colour it, and his vaccine keeps its own line.
+        assertEquals("38.4 \u00b0C \u00b7 fever", columns[0].lines[0].text)
+        assertTrue(columns[0].lines[0].fever)
+        assertEquals("6-in-1 vaccine", columns[0].lines[1].text)
+        assertFalse(columns[0].lines[1].fever)
+        // Second Twin has a temperature and nothing else; his line is not a fever.
+        assertEquals("36.9 \u00b0C", columns[1].lines[0].text)
+        assertFalse(columns[1].lines[0].fever)
+    }
+
+    @Test
+    fun `a child with no health record has no lines`() {
+        val columns = cardColumns(EventType.HEALTH, emptyList(), listOf("first-twin"), metric)!!
+        assertTrue(columns.single().lines.isEmpty())
+        assertFalse(columns.single().hasData)
+    }
+
+    @Test
+    fun `only growth and health split per child`() {
+        val diaper = listOf(event(EventType.DIAPER).copy(diaperKind = DiaperKind.WET))
+        assertNull(cardColumns(EventType.DIAPER, diaper, listOf("first-twin", "second-twin"), metric))
+        assertNotNull(cardColumns(EventType.GROWTH, emptyList(), listOf("first-twin"), metric))
     }
 
     private fun event(type: EventType, at: Long = t0) = BabyEvent(

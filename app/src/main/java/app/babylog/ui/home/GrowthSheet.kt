@@ -98,7 +98,7 @@ fun GrowthSheet(
             WeightUnit.KILOGRAMS -> TextFieldRow(
                 label = "Weight (kg)",
                 value = fields.weight,
-                onValueChange = { typed -> fields = fields.copy(weight = decimal(typed)) },
+                onValueChange = { typed -> fields = fields.copy(weight = decimalInput(typed)) },
                 placeholder = "e.g. 6.35",
                 keyboardType = KeyboardType.Decimal,
             )
@@ -129,14 +129,14 @@ fun GrowthSheet(
         TextFieldRow(
             label = "Length ($lengthLabel)",
             value = fields.length,
-            onValueChange = { typed -> fields = fields.copy(length = decimal(typed)) },
+            onValueChange = { typed -> fields = fields.copy(length = decimalInput(typed)) },
             placeholder = "Optional",
             keyboardType = KeyboardType.Decimal,
         )
         TextFieldRow(
             label = "Head circumference ($lengthLabel)",
             value = fields.head,
-            onValueChange = { typed -> fields = fields.copy(head = decimal(typed)) },
+            onValueChange = { typed -> fields = fields.copy(head = decimalInput(typed)) },
             placeholder = "Optional",
             keyboardType = KeyboardType.Decimal,
         )
@@ -168,12 +168,5 @@ fun GrowthSheet(
     }
 }
 
-/** Digits and at most one decimal point, so the keypad cannot produce "6.3.5". */
-private fun decimal(typed: String): String {
-    val cleaned = typed.filter { it.isDigit() || it == '.' }
-    val firstDot = cleaned.indexOf('.')
-    if (firstDot < 0) return cleaned
-    return cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).filter { it.isDigit() }
-}
-
+/** Digits and at most one decimal point for the ounce field. */
 private fun digits(typed: String): String = typed.filter { it.isDigit() }

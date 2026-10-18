@@ -49,6 +49,10 @@ class SettingsViewModel(
     val bottlePresets: StateFlow<List<Int>> = settings.bottlePresets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** The medications worth one tap in the health sheet, in the order they were added. */
+    val medicationPresets: StateFlow<List<String>> = settings.medicationPresets
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -70,6 +74,11 @@ class SettingsViewModel(
     fun addBottlePreset(millilitres: Int) = viewModelScope.launch { settings.addBottlePreset(millilitres) }
 
     fun removeBottlePreset(millilitres: Int) = viewModelScope.launch { settings.removeBottlePreset(millilitres) }
+
+    fun addMedicationPreset(name: String) = viewModelScope.launch { settings.addMedicationPreset(name) }
+
+    fun removeMedicationPreset(name: String) =
+        viewModelScope.launch { settings.removeMedicationPreset(name) }
 
     fun updateChild(child: Child) = viewModelScope.launch { children.upsert(child) }
 

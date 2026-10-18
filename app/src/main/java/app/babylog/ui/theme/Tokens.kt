@@ -47,8 +47,26 @@ data class BabyLogColors(
      * the six activity accents: reusing an activity hue for "danger" would break the colour code, and a
      * seventh activity hue would be indistinguishable from the six that exist. Use it off tinted cards
      * (it is measured against `background` and `surface`), and [onAccent] for text on a danger fill.
+     *
+     * A fever reading is the one other thing that needs a red, and it does NOT use this: on a tinted
+     * card it measures 3.76:1 (dark) / 4.28:1 (light), below AA. See [feverOnCard].
      */
     val danger: Color,
+    /**
+     * A FEVER reading rendered ON a tinted card — the word `fever` beside a temperature at or above
+     * 38.0 °C. A reading is not a destructive action, so it is its own role rather than a second use of
+     * [danger].
+     *
+     * Derived the way [labelFor] derives a label — toward white on dark, toward black on light — but at
+     * 0.45 / 0.30 rather than 0.55: measured as the smallest fraction that clears 4.5:1 on ALL SIX card
+     * tints (worst 4.80:1 dark, 6.71:1 light) while keeping more of the red than 0.55 would. On the
+     * Health card specifically it measures 5.71:1 dark, 6.75:1 light.
+     *
+     * Needed on any TINTED surface: the dashboard card and its Both-mode columns, the entry-list rows,
+     * and History's total cards, which use the same 26% tint. `danger` stays what it was — destructive
+     * actions only.
+     */
+    val feverOnCard: Color,
     /** Whether this is the dark scheme. Drives [labelFor]'s direction. */
     val isDark: Boolean,
     // One hue per activity type. Hues are deliberately well separated: 40 / 11 / 143 / 255 / 329 / 201.
@@ -77,6 +95,8 @@ val DarkColors = BabyLogColors(
     textOnCard = Color(0xFFC2C6D6),
     // 6.85:1 on background, 6.02:1 on surface; #181A26 text on this fill is 6.85:1.
     danger = Color(0xFFFF7A7A),
+    // danger toward white 0.45: 5.71:1 on the Health tint, 4.80:1 worst of the six, 10.39:1 on background.
+    feverOnCard = Color(0xFFFFB6B6),
     isDark = true,
     // Feed keeps the reference app's gold family (measured ~#C29D36-#EEC864), raised to full chroma.
     accentBottle = Color(0xFFFFC857),
@@ -107,6 +127,8 @@ val LightColors = BabyLogColors(
     textOnCard = Color(0xFF41506B),
     // 6.19:1 on background, 6.54:1 on surface; white text on this fill is 6.54:1.
     danger = Color(0xFFB3261E),
+    // danger toward black 0.30: 6.75:1 on the Health tint, 6.71:1 worst of the six, 9.75:1 on background.
+    feverOnCard = Color(0xFF7D1B15),
     isDark = false,
     accentBottle = Color(0xFF9A6B00),
     accentSolids = Color(0xFFB93E17),

@@ -63,6 +63,15 @@ data class HomeUiState(
 }
 
 /**
+ * Which logging sheet to raise. Almost always just an [EventType], but Health has TWO forms — a
+ * temperature/medication record and a vaccine — and they are separate records with separate fields, so
+ * "open Health" alone would be ambiguous.
+ *
+ * [vaccine] is only meaningful for `EventType.HEALTH` and is ignored elsewhere.
+ */
+data class SheetTarget(val type: EventType, val vaccine: Boolean = false)
+
+/**
  * One screen's state. Built from a SINGLE events query over the selected children rather than six
  * queries (one per activity type): at two users the whole day is a few dozen rows, and deriving the
  * cards in Kotlin keeps the ordering and the "latest per type" rules in one readable place.
@@ -83,8 +92,8 @@ class HomeViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Which logging sheet is open, if any. A separate flow from [state] so an event emission cannot reset it. */
-    private val _openSheet = MutableStateFlow<EventType?>(null)
-    val openSheet: StateFlow<EventType?> = _openSheet.asStateFlow()
+    private val _openSheet = MutableStateFlow<SheetTarget?>(null)
+    val openSheet: StateFlow<SheetTarget?> = _openSheet.asStateFlow()
 
     /**
      * Which activity's full entry list is open, if any — the "See all" overlay.
@@ -190,7 +199,12 @@ class HomeViewModel(
      * dead control. Found on the S23, not by the build.
      */
     fun openSheet(type: EventType) {
-        _openSheet.value = type
+        _openSheet.value = SheetTarget(type)
+    }
+
+    /** The Health card's second action: the vaccine form, not the temperature one. */
+    fun openVaccineRecord() {
+        _openSheet.value = SheetTarget(EventType.HEALTH, vaccine = true)
     }
 
     fun dismissSheet() {

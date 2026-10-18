@@ -14,6 +14,7 @@ import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
+import app.babylog.data.medications.MedicationCatalogueParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -81,5 +82,22 @@ class AppContainer(private val context: Context) {
                 .bufferedReader()
                 .use { it.readText() },
         ).also { cachedGrowth = it }
+    }
+
+    private var cachedMedications: List<String>? = null
+
+    /**
+     * The bundled medicine NAMES for the health sheet's picker. Parsed once and cached.
+     *
+     * Suspending rather than a `by lazy` val for the same reason as [growth]: the asset is read from
+     * disk, and a file read on the main thread is a stall the first time a sheet opens. Small enough
+     * (~2 KB) that it does not need the on-demand treatment the 490 KB growth reference gets.
+     */
+    suspend fun medications(): List<String> = cachedMedications ?: withContext(Dispatchers.IO) {
+        cachedMedications ?: MedicationCatalogueParser.parse(
+            context.assets.open(MedicationCatalogueParser.ASSET_PATH)
+                .bufferedReader()
+                .use { it.readText() },
+        ).also { cachedMedications = it }
     }
 }

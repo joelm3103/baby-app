@@ -186,6 +186,72 @@ class TotalsTest {
     private fun List<TotalRow>.value(label: String): String =
         first { it.label == label }.value
 
+    @Test
+    fun `a fever reading is flagged in the totals and a normal one is not`() {
+        fun healthTotal(vararg celsius: Double) = totalsFor(
+            celsius.mapIndexed { i, c -> health(at(9 + i, 0), c) },
+            listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone,
+        ).associateBy { it.type }.getValue(EventType.HEALTH)
+
+        val fevered = healthTotal(38.4)
+        assertTrue(fevered.fever)
+        assertEquals("38.4", fevered.headline)
+
+        assertFalse(healthTotal(37.2).fever)
+        // The newest reading wins, so a fever this morning still reads as recovered by the evening.
+        assertFalse(healthTotal(38.4, 37.0).fever)
+        assertEquals("37", healthTotal(38.4, 37.0).headline)
+    }
+
+    @Test
+    fun `health totals name the latest medication and vaccine, each of its own kind`() {
+        val events = listOf(
+            health(at(12, 0), 38.4),
+            health(at(11, 0), 36.9).copy(medication = "Calpol"),
+            health(at(8, 0), 36.8).copy(vaccineName = "6-in-1"),
+        )
+        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+            .associateBy { it.type }.getValue(EventType.HEALTH)
+
+        // A vaccine logged in the morning must not vanish because a temperature was logged at noon.
+        assertEquals("Calpol", health.rows.value("Medication"))
+        assertEquals("6-in-1", health.rows.value("Vaccine"))
+        assertEquals("3", health.rows.value("Records"))
+        assertEquals("38.4", health.headline)
+    }
+
+    @Test
+    fun `health totals give the dose its own row`() {
+        val events = listOf(
+            health(at(12, 0), 38.4),
+            health(at(11, 0), 36.9).copy(
+                medication = "Calpol",
+                doseAmount = 2.5,
+                doseUnit = DoseUnit.MILLILITRES,
+            ),
+        )
+        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+            .associateBy { it.type }.getValue(EventType.HEALTH)
+
+        // "Which medicines" and "how much of that one" are separate answers, and need not come from the
+        // same record.
+        assertEquals("Calpol", health.rows.value("Medication"))
+        assertEquals("2.5 ml", health.rows.value("Dose"))
+    }
+
+    @Test
+    fun `a range holding only a medication is not reported as empty`() {
+        val events = listOf(health(at(9, 0), 36.8).copy(temperatureC = null, medication = "Vitamin D"))
+        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+            .associateBy { it.type }.getValue(EventType.HEALTH)
+
+        // "Nothing logged in this range" beside a record count of 1 is a contradiction.
+        assertFalse(health.empty)
+        assertEquals("1", health.rows.value("Records"))
+        assertEquals("Vitamin D", health.rows.value("Medication"))
+        assertFalse(health.fever)
+    }
+
     /** A wall-clock instant on [today] (offset in days) in the test zone. */
     private fun at(hour: Int, minute: Int = 0, dayOffset: Long = 0): Long =
         today.plusDays(dayOffset).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
