@@ -49,7 +49,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - History's Health total reports `Records`, `Medication`, `Dose`, `Vaccine` and `Measured`, with the fever flag. A range holding only a medication is no longer reported as "Nothing logged".
   - Its rows are the latest of each kind too, so the reading and the dose shown can come from different records. That is the phase's own rule, and the card's row list is where the individual records are read.
 - `decimalInput()` moved into `SheetControls`. The growth sheet and the health sheet were carrying the same three lines of keypad filtering.
-- Docs updated in the same pass: `PLAN.md` (status row, as-built notes, device pass), `.hermes/skills/babylog-ui/references/design-tokens.md` and `components.md`, `docs/timeline/index.html` with eight captures, and `AGENTS.md`'s stale unit-test count.
+- Docs updated in the same pass: `PLAN.md` (status row, as-built notes, device pass), `.hermes/skills/babylog-ui/references/design-tokens.md` and `components.md`, `docs/timeline/index.html` and its `README.md` table with eight captures, and `AGENTS.md`'s stale unit-test count and two new rules.
 
 ### Fixed
 

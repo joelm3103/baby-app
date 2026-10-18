@@ -11,10 +11,12 @@ change under you, gate the useful parts, and put content feeds and upsells where
 actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
 years.
 
-**Status:** through Phase 6. Toolchain, theme, domain, Room, repository/settings and the Activity screen
-are built (the screen device-verified); Bottle, Diaper and Solids log through full-screen sheets with a
-seeded food catalogue. Settings is next (Phase 7), then History (Phase 8); Growth and Health are
-Phases 10-11. See `PLAN.md`.
+**Status:** through Phase 11. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+the logging sheets, Settings, History, Growth and Health are built, and every screen is device-verified.
+All six activities now log real data: Growth ships WHO's LMS reference for percentile charts, and Health
+records a temperature, a medication with its dose, and vaccines. Trends has its shell with Growth's chart
+on one tab, and its feed, diaper, solids and sleep charts are Phase 12; the shared log across two accounts
+is Phase 13. See `PLAN.md`.
 
 ---
 
@@ -31,7 +33,7 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 5 | **Diaper** | `Wet / Dirty / Mixed` as one-tap pills, plus a rash toggle |
 | 6 | **Sleep** | Present with a running timer even though it's rarely used — explicitly requested |
 | 7 | **Growth** | Weight / height / head size, WHO percentile charts |
-| 8 | **Health** | Temperature, medication, vaccine |
+| 8 | **Health** | Temperature, medication (from a bundled names-only list) with its dose, and vaccines |
 | 9 | **History** | 1d / 7d / 14d totals per activity |
 | 10 | **Trends** | Charts over time |
 | 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |

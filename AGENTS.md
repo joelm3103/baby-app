@@ -85,6 +85,11 @@ Rules learned the hard way:
   stronger tints) and never a `MaterialTheme.colorScheme.*` default.
 - Action buttons are filled with the **raw accent** and labelled in `onAccent` (5.9-11.2:1).
 - Verify any colour change numerically before shipping it. Do not eyeball.
+- **A fever is marked by a SHAPE, not a hue.** A reading at or above 38.0 °C (`FEVER_C` in
+  `domain/BabyEvent.kt`) gets the filled `FeverBadge` pill. `danger` is NOT usable there — it measures
+  3.76:1 on the 26% tint, below AA — so `feverOnCard` exists for tinted surfaces (5.71:1 on the Health
+  card, 4.80:1 worst of the six). A tinted number was measured legible at 5.20:1 and was still invisible
+  on the phone, which is why the marker has a shape and the word inside it.
 
 ## Domain rules that already cost us
 
@@ -107,6 +112,12 @@ Rules learned the hard way:
 - **Screen off if intended: outbox stores intent, not payload** — a stored JSON copy drifts as soon as
   the row is edited again; the drain re-reads by id.
 - Soft-delete only (`deleted` tombstone); sync must propagate deletions.
+- **A dose is two columns that must move together.** `doseAmount` and `doseUnit` are both set or both
+  null, added as nullable columns in the v1 → v2 migration — the app's first schema change. Half a dose
+  is not a dose, and a restore that lost the unit would restore "2.5" of nothing.
+- **The bundled medicine list is NAMES ONLY.** `MedicationCatalogueTest` fails the build if any entry
+  contains a digit, and the health sheet itself says `Names only — this app does not suggest a dose`. An
+  infant dose depends on weight and age, so the app must never propose one.
 
 ## Do not build
 
@@ -116,7 +127,7 @@ the incumbent's 3.58/5 rating is driven by a forced subscription; that is the fa
 
 ## Tests
 
-178 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+308 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Robolectric limit:** it cannot collect a Room-backed Flow — the paused main looper never pumps
 Room's invalidation callbacks, so a test like that hangs. Test ViewModels against fake DAOs, not Room.
