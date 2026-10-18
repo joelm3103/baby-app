@@ -53,8 +53,11 @@ before v1, not after. See the table in `PLAN.md`.
 ### Deliberately not built
 
 Guides, an Account tab, subscription/trial/paywall, the shop, Stop Tracking, nursing/pumping (not
-logged), the clinical diaper taxonomy, pregnancy/postpartum modes, customizable home buttons, export,
+logged), the clinical diaper taxonomy, pregnancy/postpartum modes, customizable home buttons,
 analytics. Full list with evidence in `.hermes/skills/babylog-ui/references/style-guide.md`.
+
+`Export` is no longer on this list: Settings → Data exports the whole log as readable JSON and imports
+it back, so a bad migration cannot lose the log and a replacement phone stays restorable.
 
 ### Staged on purpose
 
