@@ -44,7 +44,7 @@ everything after it is additive.**
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **308/308** with 0 failures. The
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **311/311** with 0 failures. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10 and 11 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
@@ -293,7 +293,7 @@ found in its own new code (the 4-second Undo window).
 
 # STAGE 2 — Growth and Health
 
-## Phase 10 — Growth (the heaviest single feature)
+## Phase 10 — Growth (the heaviest single feature) — DONE, device-verified
 
 ### As built — 2026-10-15. Read this before the tasks below.
 

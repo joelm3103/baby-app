@@ -145,7 +145,7 @@ the incumbent's 3.58/5 rating is driven by a forced subscription; that is the fa
 
 ## Tests
 
-308 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+311 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Robolectric limit:** it cannot collect a Room-backed Flow — the paused main looper never pumps
 Room's invalidation callbacks, so a test like that hangs. Test ViewModels against fake DAOs, not Room.
