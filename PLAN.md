@@ -44,11 +44,29 @@ everything after it is additive.**
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **311/311** with 0 failures. The
+Test counts in the table are the suite size **when that phase landed**, so they trail the live total
+below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
+
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **311/311** with 0 failures — the
+308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived with the Summary
+rename and its All/None filter chips (`89ae909`). The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10 and 11 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
+
+## Phases 0-2 — where the evidence is
+
+Their body sections were collapsed into the Status table during the twins rescope (`d13eb53`, then
+`454ae55`), which left the table as their only trace. So the trace, concretely — these three phases
+were never device-verified and do not claim to be; their evidence is artifacts, commits and tests:
+
+| Phase | What landed | Evidence |
+|---|---|---|
+| 0 — Toolchain | Studio, SDK and the environment, read off the machine on 2026-10-12 | `research/toolchain.md` — Studio 2026.2.1.8, JBR 25.0.3, platform-tools 37.0.1, `android-36`, and **no emulator, deliberately** (Task 0.5 dropped: test on the real phone). `scripts/android-env.ps1` and `scripts/sdkmanager.ps1` are its reusable output |
+| 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | `475bc42` — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (versionName is 0.1.1 today). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
+`app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in `d13eb53` |
+| 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | `ed8a2a2` (event model, relative-time/duration formatting, day grouping) and `d3aa8e6` (units, exact conversions, compound lb/oz). `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
 
 ---
 
