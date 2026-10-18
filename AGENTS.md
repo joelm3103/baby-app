@@ -47,6 +47,24 @@ grep -a -oE 'tests="[0-9]+" skipped="[0-9]+" failures="[0-9]+" errors="[0-9]+"' 
 Do not append `echo` after the build when running it in the background — the process status then
 reflects the echo and a FAILED build reports exit 0.
 
+## Git workflow
+
+**One branch per phase or task, cut from `main`, and `main` is never edited directly unless I say so for
+that task.** Creating the branch needs no approval — it publishes nothing — but commits, merges and
+pushes do.
+
+- **Name it `<type>/<slug>`**, with the type prefix from the commit convention this repo already uses:
+  `feat/phase12-trends`, `fix/fever-pill-legibility`, `docs/git-workflow-rule`, `chore/release-signing`,
+  `refactor/…`, `test/…`. Use the phase number when the work is a phase, a short slug otherwise.
+- **Land it with a fast-forward merge, only after I approve:** `git switch main && git merge --ff-only
+  <branch>`, then `git push origin main`. No merge commits — `main` stays linear, which is what makes
+  `git log --oneline` still readable as a history of phases.
+- **Delete the branch AFTER the push lands, never before** — `git branch -d <branch>`. Deleting first
+  drops the only reference to work that is not yet on the remote.
+- A phase's `CHANGELOG.md` entry and its `PLAN.md` update ride the same branch, in the same pass as the
+  phase commit (see the table under *Where things are*).
+- `origin/Timothys-Take` is a collaborator's branch. It is not mine to merge, rebase, or delete.
+
 ## Verify on the device
 
 The emulator was deliberately skipped. A real phone is the feedback loop (~2 min per cycle):
