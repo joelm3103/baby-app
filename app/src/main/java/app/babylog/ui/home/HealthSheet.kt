@@ -1,6 +1,7 @@
 package app.babylog.ui.home
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -8,11 +9,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +29,9 @@ import app.babylog.domain.dateOn
 import app.babylog.ui.theme.BabyLogTheme
 import java.time.Instant
 import java.time.ZoneId
+
+/** Five rows and their group headings: long enough to browse, short enough to leave the form visible. */
+private val MEDICATION_MENU_MAX_HEIGHT = 320.dp
 
 /**
  * Health record: date, time, temperature, medication, dose, notes.
@@ -81,6 +88,21 @@ fun HealthSheet(
     // Typing a name that is on no list is a first-class path, not a fallback: a local brand is a real
     // answer, and a picker with no way out of it is how a log gets a wrong medicine in it.
     var typingOwn by remember { mutableStateOf(false) }
+    // A COUNTER, not a boolean: choosing "Type another name…" twice in a row must re-open an empty field
+    // both times, and a boolean that is already true would not re-run the effect.
+    var ownNameRequests by remember { mutableStateOf(0) }
+    val ownNameFocus = remember { FocusRequester() }
+
+    // Choosing "Type another name…" gives an EMPTY field with the keyboard already up (the owner's
+    // report: the field appeared holding the previously selected name, and was not focused). The frame
+    // wait is because the field is composed in the same frame the flag flips, so asking for focus any
+    // earlier would target a node that is not placed yet.
+    LaunchedEffect(ownNameRequests) {
+        if (ownNameRequests > 0) {
+            withFrameNanos { }
+            runCatching { ownNameFocus.requestFocus() }
+        }
+    }
 
     val read = readHealth(fields, initialValues)
     val hints = lastDoses(fields.medication)
@@ -127,6 +149,11 @@ fun HealthSheet(
         DropdownMenu(
             expanded = medicationMenu,
             onDismissRequest = { medicationMenu = false },
+            // A bounded, SCROLLABLE menu rather than one that fills the phone. With 14 shipped names plus
+            // the parent's own, the list ran from the status bar to the navigation bar and hid the form it
+            // belongs to; capped at five rows it reads as a picker again. `DropdownMenu` scrolls its own
+            // content once it is bounded, so nothing becomes unreachable.
+            modifier = Modifier.heightIn(max = MEDICATION_MENU_MAX_HEIGHT),
         ) {
             if (medications.isNotEmpty()) {
                 GroupLabel("Common")
@@ -165,7 +192,11 @@ fun HealthSheet(
                     )
                 },
                 onClick = {
+                    // Blank, not the previous selection: this path exists to type a NEW name, and a field
+                    // pre-filled with the old one has to be cleared before it can be used.
+                    fields = fields.copy(medication = "")
                     typingOwn = true
+                    ownNameRequests++
                     medicationMenu = false
                 },
             )
@@ -176,6 +207,7 @@ fun HealthSheet(
                 value = fields.medication,
                 onValueChange = { typed -> fields = fields.copy(medication = typed) },
                 placeholder = "e.g. Calpol",
+                focusRequester = ownNameFocus,
             )
         }
 

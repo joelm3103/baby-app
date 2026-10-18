@@ -218,18 +218,21 @@ class CardSummaryTest {
     }
 
     @Test
-    fun `a health row carries the reading, the word fever and what was given`() {
+    fun `a health row carries the reading and what was given`() {
         val fever = event(EventType.HEALTH).copy(temperatureC = 38.2, medication = "Calpol")
         // The row is self-describing: the old label showed only the medication, so a fever row read
         // "Calpol" and looked exactly like a normal one.
-        assertEquals("38.2 \u00b0C \u00b7 fever \u00b7 Calpol", recentRowLabel(fever, metric))
+        assertEquals("38.2 \u00b0C \u00b7 Calpol", recentRowLabel(fever, metric))
 
         val normal = event(EventType.HEALTH).copy(temperatureC = 37.1, medication = "Calpol")
         assertEquals("37.1 \u00b0C \u00b7 Calpol", recentRowLabel(normal, metric))
 
-        // Under the big value the number is not repeated: `38.2` is already the headline.
-        assertEquals("Calpol \u00b7 fever", detailLine(fever, metric))
+        // Under the big value the number is not repeated: `38.2` is already the headline. The word
+        // "fever" is not in either string - it travels as the pill, so it cannot be lost to an ellipsis.
+        assertEquals("Calpol", detailLine(fever, metric))
         assertEquals("Calpol", detailLine(normal, metric))
+        assertTrue(isFever(fever.temperatureC))
+        assertFalse(isFever(normal.temperatureC))
     }
 
     @Test
@@ -241,8 +244,8 @@ class CardSummaryTest {
             doseUnit = DoseUnit.MILLILITRES,
         )
 
-        assertEquals("38.5 \u00b0C \u00b7 fever \u00b7 Calpol 2.5 ml", recentRowLabel(dosed, metric))
-        assertEquals("Calpol 2.5 ml \u00b7 fever", detailLine(dosed, metric))
+        assertEquals("38.5 \u00b0C \u00b7 Calpol 2.5 ml", recentRowLabel(dosed, metric))
+        assertEquals("Calpol 2.5 ml", detailLine(dosed, metric))
 
         // A medicine with no dose recorded says only the medicine - never a 0, and never a blank unit.
         val undosed = event(EventType.HEALTH).copy(medication = "Vitamin D")
@@ -269,22 +272,59 @@ class CardSummaryTest {
     @Test
     fun `the health summary is the latest of each kind, not the newest entry`() {
         val entries = listOf(
-            event(EventType.HEALTH, at = t0 + 3_000).copy(temperatureC = 38.4),
-            event(EventType.HEALTH, at = t0 + 2_000).copy(temperatureC = 36.8, medication = "Calpol"),
-            event(EventType.HEALTH, at = t0 + 1_000).copy(vaccineName = "6-in-1"),
+            event(EventType.HEALTH, at = t0 + 3_000, id = "newest").copy(temperatureC = 38.4),
+            event(EventType.HEALTH, at = t0 + 2_000, id = "earlier").copy(temperatureC = 36.8, medication = "Calpol"),
+            event(EventType.HEALTH, at = t0 + 1_000, id = "vaccine").copy(vaccineName = "6-in-1"),
         )
         val latest = healthLatest(entries)
 
         // The newest entry is the fever, but the vaccine must not vanish because of it.
-        assertEquals(38.4, latest.record?.temperatureC)
+        assertEquals(38.4, latest.temperature?.temperatureC)
         assertEquals("6-in-1", latest.vaccine?.vaccineName)
         assertFalse(latest.isEmpty)
     }
 
     @Test
+    fun `a later medication does not hide an earlier fever`() {
+        // The defect the owner found on the phone: "Fever isn't highlighted in any way." The reading was
+        // not dim, it was ABSENT - the card held one "record" slot (temperature OR medication) and the
+        // 12:27 paracetamol had taken it from the 12:08 fever. Latest of each kind is the fix.
+        val entries = listOf(
+            event(EventType.HEALTH, at = t0 + 2_000, id = "paracetamol").copy(
+                medication = "Paracetamol (Calpol)",
+                doseAmount = 2.5,
+                doseUnit = DoseUnit.MILLILITRES,
+            ),
+            event(EventType.HEALTH, at = t0, id = "fever").copy(temperatureC = 38.5),
+        )
+        val latest = healthLatest(entries)
+
+        assertEquals(38.5, latest.temperature?.temperatureC!!, 0.0)
+        val lines = healthLines(latest)
+        assertEquals(listOf("38.5 \u00b0C", "Paracetamol (Calpol) 2.5 ml"), lines.map { it.text })
+        assertTrue("the reading's line must carry the fever flag", lines[0].fever)
+        assertFalse(lines[1].fever)
+    }
+
+    @Test
+    fun `a reading and its dose logged together are one line`() {
+        val both = event(EventType.HEALTH).copy(
+            temperatureC = 38.2,
+            medication = "Calpol",
+            doseAmount = 2.5,
+            doseUnit = DoseUnit.MILLILITRES,
+        )
+        val lines = healthLines(healthLatest(listOf(both)))
+
+        assertEquals(1, lines.size)
+        assertEquals("38.2 \u00b0C \u00b7 Calpol 2.5 ml", lines[0].text)
+        assertTrue(lines[0].fever)
+    }
+
+    @Test
     fun `a medication-only record is a summary record, so it is not lost`() {
         val latest = healthLatest(listOf(event(EventType.HEALTH).copy(medication = "Calpol")))
-        assertEquals("Calpol", latest.record?.medication)
+        assertEquals("Calpol", latest.medication?.medication)
         assertFalse(latest.isEmpty)
     }
 
@@ -297,15 +337,16 @@ class CardSummaryTest {
     @Test
     fun `both-mode health columns carry each child's own fever and vaccine`() {
         val entries = listOf(
-            event(EventType.HEALTH, at = t0).copy(childId = "first-twin", temperatureC = 38.4),
-            event(EventType.HEALTH, at = t0).copy(childId = "first-twin", vaccineName = "6-in-1"),
-            event(EventType.HEALTH, at = t0).copy(childId = "second-twin", temperatureC = 36.9),
+            event(EventType.HEALTH, at = t0, id = "k-temp").copy(childId = "first-twin", temperatureC = 38.4),
+            event(EventType.HEALTH, at = t0, id = "k-vac").copy(childId = "first-twin", vaccineName = "6-in-1"),
+            event(EventType.HEALTH, at = t0, id = "l-temp").copy(childId = "second-twin", temperatureC = 36.9),
         )
         val columns = cardColumns(EventType.HEALTH, entries, listOf("first-twin", "second-twin"), metric)!!
 
         assertEquals(listOf("first-twin", "second-twin"), columns.map { it.childId })
-        // First Twin's fever line is marked so the card can colour it, and his vaccine keeps its own line.
-        assertEquals("38.4 \u00b0C \u00b7 fever", columns[0].lines[0].text)
+        // First Twin's fever line is flagged so the card can put the pill beside it, and his vaccine keeps its
+        // own line. The word is NOT in the text: the pill carries it.
+        assertEquals("38.4 \u00b0C", columns[0].lines[0].text)
         assertTrue(columns[0].lines[0].fever)
         assertEquals("6-in-1 vaccine", columns[0].lines[1].text)
         assertFalse(columns[0].lines[1].fever)
@@ -328,8 +369,8 @@ class CardSummaryTest {
         assertNotNull(cardColumns(EventType.GROWTH, emptyList(), listOf("first-twin"), metric))
     }
 
-    private fun event(type: EventType, at: Long = t0) = BabyEvent(
-        id = "e", childId = "first-twin", type = type, startedAt = at,
+    private fun event(type: EventType, at: Long = t0, id: String = "e") = BabyEvent(
+        id = id, childId = "first-twin", type = type, startedAt = at,
         createdBy = "u1", updatedAt = at,
     )
 

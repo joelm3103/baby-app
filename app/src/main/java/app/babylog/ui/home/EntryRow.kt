@@ -34,6 +34,10 @@ import java.time.ZoneId
  * [onCard] picks the meta-text token for the surface it is drawn on: `textOnCard` on a tinted card,
  * `textSecondary` on the plain background of the full-entry list. They are not interchangeable — the
  * card tint is exactly why the two exist.
+ *
+ * [fever] adds the `Fever` pill for a reading at or above 38.0 °C. It is a marker on the row rather than
+ * a word in the label, because the label is the first thing to be ellipsised when a row is narrow — and
+ * losing "fever" to an ellipsis is exactly how a fever gets read past.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -47,6 +51,7 @@ internal fun EntryRow(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     onCard: Boolean = true,
+    fever: Boolean = false,
 ) {
     val colors = BabyLogTheme.colors
     Row(
@@ -73,7 +78,10 @@ internal fun EntryRow(
                 color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                // The label gives way first, so the pill and the time both survive a narrow row.
+                modifier = Modifier.weight(1f, fill = false),
             )
+            if (fever) FeverBadge()
         }
         Text(
             text = clockTime(event.startedAt, zone),

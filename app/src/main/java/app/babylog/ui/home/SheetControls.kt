@@ -38,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -127,6 +129,11 @@ fun TextFieldRow(
     singleLine: Boolean = true,
     /** `Decimal` for a numeric field, so the keypad shows digits rather than a full keyboard. */
     keyboardType: KeyboardType = KeyboardType.Text,
+    /**
+     * Where to send focus when this field appears, e.g. a name the parent just asked to type. Without
+     * it the field is on screen but the keyboard is still down, which is a second tap for no reason.
+     */
+    focusRequester: FocusRequester? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -138,7 +145,10 @@ fun TextFieldRow(
             },
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
         )
         HorizontalDivider(color = BabyLogTheme.colors.divider, modifier = Modifier.padding(top = 12.dp))
     }

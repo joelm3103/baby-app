@@ -146,6 +146,8 @@ fun EventListOverlay(
                             units = units,
                             initials = childInitials[event.childId],
                             showChild = showChildBadge,
+                            // Same marker as the card: the list and the card must flag the same readings.
+                            fever = isFever(event.temperatureC),
                             zone = zone,
                             onTap = { onEditEntry(event) },
                             onLongPress = { onDeleteEntry(event) },

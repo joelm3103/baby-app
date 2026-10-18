@@ -151,14 +151,29 @@ fun ActivityCard(
                             // codes were unreadable at half a card's width.
                             if (column.hasData) {
                                 column.lines.forEach { line ->
-                                    Text(
-                                        text = line.text,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        // A fever is the one reading that leaves its neutral colour, and only
-                                        // the line that carries it: `danger` is not legible on this tint.
-                                        color = if (line.fever) colors.feverOnCard else colors.textPrimary,
-                                        modifier = Modifier.padding(top = 2.dp),
-                                    )
+                                    if (line.fever) {
+                                        // A shape, not just a hue: the tinted number alone was invisible on
+                                        // a magenta card (the owner's report), so the word rides in a pill.
+                                        Row(
+                                            modifier = Modifier.padding(top = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Text(
+                                                text = line.text,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = colors.feverOnCard,
+                                            )
+                                            FeverBadge()
+                                        }
+                                    } else {
+                                        Text(
+                                            text = line.text,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = colors.textPrimary,
+                                            modifier = Modifier.padding(top = 2.dp),
+                                        )
+                                    }
                                 }
                             } else {
                                 Text(
@@ -182,14 +197,18 @@ fun ActivityCard(
             // weight logged today and a head circumference logged last week are both the current answer,
             // and reading only the newest entry made the older one vanish from the card.
             val growth = if (card.type == EventType.GROWTH) growthLatest(card.entries) else null
-            val headline = growth?.headline ?: last
+            // Health's headline is the newest TEMPERATURE, not the newest event: a medication logged after
+            // a fever would otherwise become the card and take the fever off it entirely. `last` is only
+            // the fallback, for a card whose newest record is a medication with no reading.
+            val health = if (card.type == EventType.HEALTH) healthLatest(card.entries) else null
+            val headline = growth?.headline ?: health?.temperature ?: health?.medication ?: last
             if (headline != null && columns == null) {
                 val value = growth?.let { growthBigValue(it, units) } ?: bigValue(headline, units)
                 val fever = card.type == EventType.HEALTH && isFever(headline.temperatureC)
                 if (value != null) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                        // A reading at or above 38.0 °C is the one value that leaves `textPrimary` — the
-                        // number itself is the marker, the word for it is on the detail line below.
+                        // A reading at or above 38.0 °C leaves `textPrimary` — the pill beside it is the
+                        // marker, and the colour is the second cue rather than the only one.
                         Text(
                             value.first,
                             style = MaterialTheme.typography.displayLarge,
@@ -200,6 +219,13 @@ fun ActivityCard(
                                 " ${value.second}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (fever) colors.feverOnCard else colors.textPrimary,
+                            )
+                        }
+                        if (fever) {
+                            FeverBadge(
+                                Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .padding(start = 8.dp, bottom = 4.dp),
                             )
                         }
                         Spacer(Modifier.weight(1f))
@@ -329,6 +355,8 @@ fun ActivityCard(
                     units = units,
                     initials = childInitials[event.childId],
                     showChild = showChildBadge,
+                    // The row says `Fever` in a pill, so a fever cannot be read past in a list either.
+                    fever = isFever(event.temperatureC),
                     zone = zone,
                     onTap = { onEditEntry(event) },
                     onLongPress = { onDeleteEntry(event) },

@@ -30,6 +30,7 @@ import app.babylog.domain.EventType
 import app.babylog.domain.HistoryRange
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.home.ScreenHeader
+import app.babylog.ui.home.FeverBadge
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
@@ -194,11 +195,9 @@ private fun TotalCard(total: ActivityTotal, showPerChild: Boolean) {
                     )
                 }
                 if (total.fever) {
-                    Text(
-                        text = " \u00b7 fever",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.feverOnCard,
-                    )
+                    // A filled pill, not a tinted word: the colour alone was invisible on the tinted
+                    // card, which is the owner's report from the first device pass.
+                    FeverBadge(Modifier.padding(start = 8.dp, bottom = 4.dp))
                 }
             }
         }

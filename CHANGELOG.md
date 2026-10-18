@@ -19,8 +19,8 @@
 - **A vaccine is not a field on the fever form.** It got its own sheet and its own button, because a vaccine is entered from a red book weeks after the event and a fever is what a parent reaches for at 3am.
 - The medication picker offers **names from a bundled list plus this family's own**, and it **never suggests a dose**. An infant dose depends on weight and age and changes as they grow, so the amount is always typed; the app only remembers the last one as a grey hint. The list is names only, and a test enforces that no entry in it contains a digit.
 - **The schema changed for the first time, v1 → v2**, because a dose became real data (amount + unit, so History can say *which medicines* without carrying the amounts). Additive nullable columns, a committed `2.json`, and a migration test built from the committed v1 schema. Then the real one: the S23's database went v1 → v2 with **all 69 rows intact** and the new columns `NULL` rather than `0`.
-- A fever is marked at ≥ 38.0 °C in a colour that had to be measured, not borrowed: `danger` fails AA on the 26% card tint (3.76:1 dark, 4.28:1 light), so `feverOnCard` was derived and clears **4.80:1 on all six tints**.
-- **306 tests green** (255 → 306). Found on the phone and by a new test: `1 drops` — a unit label that never pluralised.
+- A fever is marked at ≥ 38.0 °C, and the marker had to be **measured and then corrected**: `danger` fails AA on the 26% card tint (3.76:1 dark, 4.28:1 light), so `feverOnCard` was derived and clears **4.80:1 on all six tints** — and when the owner still could not see it, the tinted number became a filled **`Fever` pill** (10.39:1 for the word on the fill, 5.71:1 for the fill against the card).
+- **308 tests green** (255 → 308). Found by a test, not the phone: `1 drops`, a unit label that never pluralised. Found by the phone, not a test: the card was **hiding the fever altogether**, and the medication menu filled the whole screen.
 
 ### Added
 
@@ -31,7 +31,7 @@
 - `data/medications/MedicationCatalogue.kt` — the `org.json` parser, with the reason a dose list must never exist written next to it.
 - `domain/Dose.kt` — `DoseUnit` (ml, mg, drops, sachet, tablet, other) with a picker label and a dose word per amount, and `formatDose`/`doseNumber`.
 - Medication presets in Settings (`health.medicationPresets`), a second editable list beside the bottle presets, with the same add/remove shape.
-- `feverOnCard` in the token set — `danger` lifted toward white 0.45 (dark) / black 0.30 (light) — used on the card headline, the Both-mode columns and History's Health total, with the measured ratios recorded in `design-tokens.md`.
+- `feverOnCard` in the token set — `danger` lifted toward white 0.45 (dark) / black 0.30 (light) — and `FeverBadge`, the filled pill that carries the word, used on the card headline, the Both-mode columns, the entry-list rows and History's Health total. Measured ratios are recorded in `design-tokens.md`.
 - `MigrationTest` — builds a **v1** database from the committed `schemas/…/1.json` (so the test cannot drift from the schema it upgrades), opens it with the current Room build, and asserts the old rows survive with empty dose columns.
 
 ### Changed
@@ -39,7 +39,7 @@
 - `EventEntity`/`BabyEvent`/`EventDraft`/`Mappers`/`Backup` gained `doseAmount: Double?` and `doseUnit: String?`; the backup carries both, because a restore that lost the unit would restore `2.5` of nothing.
 - `AppDatabase` is **version 2** with `MIGRATION_1_2` (two `ALTER TABLE … ADD COLUMN`). No destructive migration, as ever.
 - The Health card's disabled pill became an accent-filled `+ Add health record for $childLabel` plus a neutral `+ Vaccine`.
-- Both mode now shows **one column per child** on the Health card too — that child's latest temperature/medication record and their latest vaccine, each the latest of its kind rather than the newest entry. The column renderer is shared with Growth rather than copied.
+- Both mode now shows **one column per child** on the Health card too — that child's newest temperature, their newest medication and their newest vaccine: the **latest of each kind**, with the reading and the medication combined into one line when they came from the same record. The column renderer is shared with Growth rather than copied.
 - `recentRowLabel(HEALTH)` shows the reading: `38.2 °C · fever · Calpol 2.5 ml`, so a health row is self-describing and the entry behind the headline is one of the rows.
 - History's Health total reports `Records`, `Medication`, `Dose`, `Vaccine` and `Measured`, with the fever flag; a range holding only a medication is no longer reported as "Nothing logged".
 - `decimalInput()` moved into `SheetControls` — the growth sheet and the health sheet were carrying the same three lines of keypad filtering.
@@ -50,9 +50,31 @@
 - An amount typed with **no unit** is an error rather than a silent drop: the parent typed 2.5, and saving the record without it would be the log changing under their hands. A unit with no amount is simply no dose, so a half-filled picker can never block a save.
 - The first build of this phase failed with 59 "unresolved reference" errors in files nobody had touched; the incremental Kotlin cache had gone stale, and clearing it reproduced a clean build. Recorded because the errors named `ActivitySheet`, `rememberNow`, `accentFor` and `ChildBadge` — i.e. they looked like a catastrophe and were a cache.
 
+### Fixed after the owner's review — "Fever isn't highlighted in any way"
+
+Amended into this entry rather than given its own date, because it is the same day's work. The report was
+accurate and the cause was worse than styling:
+
+- **The card was hiding the fever.** Its summary held ONE "record" slot (temperature OR medication), so a
+  medication logged at 12:27 took it from the fever logged at 12:08 — the fever was not dim on the card,
+  it was absent from it, and only History still showed it. It is now the latest of **three** kinds
+  (temperature, medication, vaccine), pinned by `a later medication does not hide an earlier fever`.
+- **The marker is a filled pill, not a tinted number.** A pastel red on a magenta card, beside a label that
+  is itself a lifted magenta, is not a signal. `FeverBadge` puts the word in a `feverOnCard`-filled pill —
+  10.39:1 dark / 10.30:1 light for the word on the fill, 5.71:1 / 6.75:1 for the fill against the card — and
+  the word is no longer part of any label string, so a narrow row cannot ellipsise it away. On the phone
+  the same band went from 3,762 pixels of tinted text to **10,800 pixels of `#FFB6B6`** plus 928 of
+  `onAccent` for the word inside it.
+- **`Type another name…` gives an empty, focused field.** It used to keep the previously selected name and
+  leave the cursor nowhere, so it had to be cleared before use. Verified by typing with no tap: the field's
+  own `EditText` node reports `focused=true` and the text lands in it.
+- **The medication menu no longer fills the screen.** Fourteen names plus the family's own ran from the
+  status bar to the navigation bar and hid the form it belonged to; it is capped at 320dp (about five rows)
+  and scrolls inside that — two swipes still reach the last name and `Type another name…`.
+
 ### Verified
 
-- `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **306/306**, 0 failures, 0 errors.
+- `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **308/308**, 0 failures, 0 errors.
 - On the S23 Ultra (Android 16, dark): Both-mode health and vaccine saves each wrote **two rows with an identical timestamp**; the fever marker renders as **3,762 pixels of exactly `#FFB6B6`** with no `textPrimary` pixels in that band; the medication dropdown lists the shipped names plus `Type another name…`; the last-dose hint reads `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml` while leaving the dose field **empty**; History shows the fever reading in `feverOnCard` with separate Medication and Dose rows; Trends' Health tab keeps its honest Phase 12 sentence; system back closes both sheets; `logcat -b crash` is empty.
 - The device's own database was read before and after the install: `user_version` 1 → 2, 22 → 24 columns, **69 rows before and after**, and the two legacy health rows still read `38.5 °C` / `Calpol 2.5 ml` with `doseAmount = NULL`.
 

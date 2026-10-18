@@ -58,11 +58,11 @@ fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.t
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
     EventType.SLEEP -> if (event.isRunning) "Asleep now" else "Slept ${elapsed(event.durationMs ?: 0)}"
     EventType.GROWTH -> growthValues(event, units)
-    // The word `fever` sits here rather than on the headline so the number is not repeated: the card
-    // reads `38.2 °C` big, with `Calpol 2.5 ml · fever` underneath it.
+    // The word `fever` is deliberately NOT in this string: wherever a temperature is shown the marker is
+    // the `Fever` pill, so a text copy would say it twice. The card reads `38.2 °C` big, with
+    // `Calpol 2.5 ml` underneath and a pill beside the number.
     EventType.HEALTH -> listOfNotNull(
         medicationWithDose(event),
-        if (isFever(event.temperatureC)) "fever" else null,
         event.vaccineName?.let(::vaccineLabel),
     ).joinToString(" \u00b7 ").ifBlank { "Health" }
 }
@@ -184,29 +184,60 @@ fun recentRowLabel(event: BabyEvent, units: UnitPreferences): String = when (eve
 }
 
 /**
- * The Health card's per-child content in Both mode: that child's newest temperature/medication record
- * and their newest vaccine.
+ * The Health card's three kinds of record for one child.
  *
- * Latest of EACH KIND, not the newest entry — the same rule [GrowthLatest] follows, for the same
- * reason. A vaccine logged this morning must not hide a fever logged last night, and reading only the
- * newest entry would drop one of the two entirely.
+ * Latest of EACH KIND, not the newest entry — the rule [GrowthLatest] follows, and this card needs it for
+ * a sharper reason. The first version held "record" (temperature OR medication) and "vaccine", so a
+ * medication logged at 12:27 hid a 38.5 °C fever logged at 12:08: the fever was not merely dimmed on the
+ * card, it was ABSENT from it. Found by the owner looking at the phone, not by a test.
  */
-data class HealthLatest(val record: BabyEvent?, val vaccine: BabyEvent?) {
-    val isEmpty: Boolean get() = record == null && vaccine == null
+data class HealthLatest(
+    val temperature: BabyEvent?,
+    val medication: BabyEvent?,
+    val vaccine: BabyEvent?,
+) {
+    val isEmpty: Boolean get() = temperature == null && medication == null && vaccine == null
 }
 
 /**
- * Picks the newest entry that recorded a temperature or a medication, and the newest that named a
- * vaccine. Expects the card's newest-first list but sorts defensively, so a caller cannot change the
- * answer by reordering.
+ * Picks the newest entry of each kind. Expects the card's newest-first list but sorts defensively, so a
+ * caller cannot change the answer by reordering.
  */
 fun healthLatest(entries: List<BabyEvent>): HealthLatest {
     val health = entries
         .filter { it.type == EventType.HEALTH }
         .sortedByDescending { it.startedAt }
     return HealthLatest(
-        record = health.firstOrNull { it.temperatureC != null || it.medication != null },
+        temperature = health.firstOrNull { it.temperatureC != null },
+        medication = health.firstOrNull { it.medication != null || it.doseAmount != null },
         vaccine = health.firstOrNull { it.vaccineName != null },
+    )
+}
+
+/**
+ * The lines the Both-mode Health card shows for one child: the reading, then what was given, then the
+ * vaccine — with the reading and the medication combined into ONE line when they came from the same
+ * record, which is how a fever and its dose are normally logged.
+ *
+ * [fever] on a line is what the card turns into the `Fever` pill, so the marker travels with the reading
+ * rather than being re-derived by the renderer.
+ */
+fun healthLines(latest: HealthLatest): List<ChildLine> {
+    val temperature = latest.temperature
+    val medication = latest.medication
+    val sameRecord = temperature != null && medication != null && temperature.id == medication.id
+    return listOfNotNull(
+        when {
+            sameRecord -> ChildLine(healthRecordLine(temperature!!), fever = isFever(temperature.temperatureC))
+            temperature != null -> ChildLine(
+                formatTemperature(temperature.temperatureC!!),
+                fever = isFever(temperature.temperatureC),
+            )
+            else -> null
+        },
+        // The medication gets its own line only when it is not already on the reading's line.
+        if (sameRecord) null else medication?.let { ChildLine(medicationWithDose(it)!!) },
+        latest.vaccine?.vaccineName?.let { ChildLine(vaccineLabel(it)) },
     )
 }
 
@@ -218,7 +249,7 @@ fun healthLatest(entries: List<BabyEvent>): HealthLatest {
  * already shows.
  */
 fun healthRecordLine(event: BabyEvent): String = listOfNotNull(
-    event.temperatureC?.let { formatTemperature(it) + if (isFever(it)) " \u00b7 fever" else "" },
+    event.temperatureC?.let { formatTemperature(it) },
     medicationWithDose(event),
 ).joinToString(" \u00b7 ")
 
@@ -237,10 +268,7 @@ fun healthByChild(entries: List<BabyEvent>, childIds: List<String>): List<ChildH
         val latest = healthLatest(entries.filter { it.childId == childId })
         ChildHealth(
             childId = childId,
-            lines = listOfNotNull(
-                latest.record?.let { ChildLine(healthRecordLine(it), fever = isFever(it.temperatureC)) },
-                latest.vaccine?.vaccineName?.let { ChildLine(vaccineLabel(it)) },
-            ),
+            lines = healthLines(latest),
             hasData = !latest.isEmpty,
         )
     }

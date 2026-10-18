@@ -38,13 +38,13 @@ everything after it is additive.**
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
-| 11 — Health | **DONE, device-verified** — temperature, medication + dose, vaccines as their own form, fever marker, schema v2 additive migration, 306 tests green |
+| 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | not started |
 | 13 — Two accounts, one shared log | not started |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **306/306** with 0 failures. The
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **308/308** with 0 failures. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10 and 11 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
@@ -438,6 +438,33 @@ dose and unit were read from the DB itself, and the export round trip is covered
 - An amount with no unit is an error rather than a silent drop; a unit with no amount is simply no dose.
 - The growth sheet and the health sheet were carrying the same keypad filter; `decimalInput()` now lives
   in `SheetControls`.
+
+### Found by the owner after the first pass — "Fever isn't highlighted in any way"
+
+He was right, and the reason was worse than styling. The card's summary held ONE "record" slot
+(temperature OR medication), so the 12:27 paracetamol had taken it from the 12:08 fever: the fever was
+not dimmed on the card, it was **absent from it**. Only History still showed it. Three fixes, all
+re-verified on the phone:
+
+- **Latest of each kind means three kinds.** `healthLatest` now tracks the newest temperature, the newest
+  medication and the newest vaccine (it held two slots, one of which conflated the first two). Each
+  child's column shows the reading, then what was given, then the vaccine, with the reading and the
+  medication combined into one line when they came from the same record. Pinned by
+  `a later medication does not hide an earlier fever`.
+- **The marker is now a filled pill, not a tinted number.** A pastel red on a magenta card, beside a label
+  that is itself a lifted magenta, is not a signal. `FeverBadge` puts the word in a `feverOnCard`-filled
+  pill, measured at **10.39:1 dark / 10.30:1 light** for the label on the fill and **5.71:1 / 6.75:1** for
+  the fill against the card tint; the word is no longer part of any label string, so a narrow row cannot
+  ellipsise it away. Measured on the phone: **10,800 pixels of `#FFB6B6`** where the tinted-text version had
+  3,762.
+- **`Type another name…` now gives an empty, focused field.** It used to keep the previously selected name
+  and leave the cursor nowhere, so the parent had to clear it and tap again. It clears the field and
+  requests focus; verified by typing with no tap landing in that field (its own `EditText` node reads
+  `focused=true`).
+- **The medication menu no longer fills the screen.** Fourteen names plus the family's own ran from the
+  status bar to the navigation bar and hid the form it belonged to; it is capped at
+  `MEDICATION_MENU_MAX_HEIGHT` (320dp, ~5 rows) and scrolls inside that — two swipes reach
+  `Antibiotic (prescribed)` and `Type another name…`, so nothing became unreachable.
 
 ### Original scope, for the record
 
@@ -907,9 +934,9 @@ device, the new build installed over it, the app launched, and it was copied bac
 | **The last-dose hint** | pass — `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml`, with the dose field still **empty** and the unit still `Choose` |
 | Vaccine sheet | pass — `Vaccine` / `for both`, Date, Time, Vaccine, `Enter the vaccine's name.`; saved row reads `6-in-1 vaccine` and the DB row carries `vaccineName = 6-in-1` with no dose |
 | The card after both kinds | pass — each child's column shows `Paracetamol (Calpol) 2.5 ml` and `6-in-1 vaccine` on separate lines |
-| Legacy rows still display | pass — `38.5 °C · fever · Calpol 2.5 ml`, the free-text medicine from before the migration |
-| History | pass — headline `38.5` `°C` `· fever` in `feverOnCard`, rows `Records 4`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Measured 18 Oct`, per-child `Child 1 2` / `Child 2 2` |
-| Fever colour, in pixels | pass — **3,762 pixels of exactly `#FFB6B6`** in the detail band, and **zero** `textPrimary` pixels there |
+| Legacy rows still display | pass — `38.5 °C · Calpol 2.5 ml`, the free-text medicine from before the migration |
+| History | pass — headline `38.5` `°C` with the `Fever` pill, rows `Records 6`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Vaccine 6-in-1`, `Measured 18 Oct`, per-child `Child 1 3` / `Child 2 3` |
+| Fever marker, in pixels | pass — **10,800 pixels of exactly `#FFB6B6`** (the pill fills) with **928 pixels of `onAccent`** for the word inside them. Before the pill, the same band held 3,762 pixels of tinted text and the owner could not see it. |
 | Trends' Health tab | pass — still `Charts for health arrive in Phase 12…`; the chip is only reachable after scrolling the chip row (see below) |
 | System back closes the sheet, app stays foreground | pass |
 | No crash at any point | pass |
