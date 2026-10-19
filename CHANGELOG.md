@@ -20,6 +20,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **The schema changed for the first time, v1 → v2** — additive `doseAmount`/`doseUnit` columns, so History can name the medicines without carrying the amounts. The device's own database migrated with all 69 rows intact.
 - **The app never suggests a dose.** The bundled list is names only, enforced by a test; the amount is always typed, and the last one is offered as a grey hint. A fever at ≥ 38.0 °C gets a filled `Fever` pill.
 - **308 tests green** (255 → 308). The owner's own pass found the card **hiding a fever behind a newer medication** and the medication menu filling the whole screen; a new test caught `1 drops`. The pass is recorded in `PLAN.md`.
+- **Trends is real too, the same day.** Five tabs now chart a per-day number over a `7d · 14d · 30d` window — bottle volume, solids, diapers and sleep, plus Growth's percentiles, which keep their own pane because they are plotted against age rather than against the last N days. Health gets a dated list of fever readings and a count of fever *days* instead of a chart. Both children share one chart: **solid for the first, dashed for the second**.
+- **`0` beside a total of 13** was the first thing the phone found, and the screen was wrong: a count average kept no decimal. Now `0.4`, `0.1`, or `< 0.1` when the average genuinely rounds away. A count axis also ticked in fractions (`0.2` meals), and two shades of one hue did not tell the twins apart.
+- **339 tests green** (308 → 339). The axis maths is shared with Growth in one file rather than copied, and every figure on the Trends screens was recomputed from the phone's own `events` table.
 
 ### Added
 
@@ -35,6 +38,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - `feverOnCard` in the token set — `danger` lifted toward white 0.45 (dark) / black 0.30 (light) — and `FeverBadge`, the filled pill that carries the word. Both are used on the card headline, the Both-mode columns, the entry-list rows and History's Health total, with the measured ratios recorded in `design-tokens.md`.
 - `MigrationTest` — builds a **v1** database from the committed `schemas/…/1.json`, so the test cannot drift from the schema it upgrades. It opens that database with the current Room build and asserts the old rows survive with empty dose columns.
 - 53 tests, all green: `HealthEntryTest` (20), `DoseTest` (6), `MedicationCatalogueTest` (3) and `MigrationTest` (3) are new, and `CardSummaryTest`, `TotalsTest`, `SettingsRepositoryTest`, `MappersTest` and `BackupTest` were extended. The suite is 308.
+
+#### Phase 12 — Trends
+
+- `domain/Trends.kt` — `TrendRange` (`7d`/`14d`/`30d`, default 14), `TrendMetric` (volume, count, duration), `TrendPoint`/`TrendLine`/`TrendSeries`, `trendSeries()`, and `healthTrend()` for the fever table. Pure Kotlin taking `zone` and `now` explicitly, for the same reason `Totals.kt` does: a day boundary is the **local** calendar day and SQLite cannot resolve one, so bucketing in SQL would file an evening feed under tomorrow and draw a confidently wrong chart.
+- `ui/trends/TrendChart.kt` — the per-day chart, drawn by hand like `PercentileChart`: one line per child, a dot per day, sparse date labels anchored to the newest day, and a zero floor.
+- `ui/trends/TrendPanes.kt`, `ui/trends/HealthTrendPane.kt`, `ui/trends/TrendsViewModel.kt` — the chart pane with its range chips, legend and summary card; the Health table; and the state that observes the same stored child selection Activity and Summary use.
+- `ui/charts/ChartAxis.kt` — `yRangeFor` and `yTicks` **moved** out of `ui/growth/PercentileChart.kt`, joined by `X_AXIS_GUTTER`/`Y_AXIS_GUTTER`. Two charts asking the same two questions now have one answer — the point `PercentileChart`'s own comment made when it predicted this phase.
+- 28 new JVM tests: `TrendsTest` (23) and `TrendChartAxisTest` (5). The suite is 339.
 
 ### Changed
 
@@ -54,6 +65,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - The Summary filter row gained **one bulk chip**, first in the row, and `ui/history/HistoryFilter.kt` holds the rule for it: it reads `None` while every activity is shown and `All` once anything is hidden, so a **partial** selection reads `All` — reading `None` there would leave "show every activity" unreachable from a mixed row and the three states would stop cycling. Emptying the screen is now one tap, and the totals area answers with a plain card (`No activities selected` / `Pick at least one above.`) rather than a bare line that read as a section that failed to load. Session-only, like the six activity chips, and pinned by `HistoryFilterTest` (3 tests).
 - The entry-delete confirmation's second sentence is now `You can undo it from the next message.` The wording asked for was "This action cannot be undone.", which would have been **false** while the 10-second Undo snackbar exists — the dialog names the Undo instead, and the Undo stays. The one dialog where that sentence is already true, Settings' `Delete <child> permanently`, was left alone.
 
+#### Phase 12 — Trends
+
+- `ui/trends/TrendsScreen.kt` is now the six-tab row over five chart panes and one table. The `Charts for … arrive in Phase 12` placeholder is **gone**, which supersedes the sentence in the Phase-11 verification bullet above: that was the state of the app when that pass was run, and this is the state now. The tab row, the scroll-state reset on a tab change and the insets are unchanged.
+- `yRangeFor` gained `floorAtZero`: a per-day chart must start at zero, because eight nappies on a Tuesday and none on a Wednesday is a shape, while a weight curve starting at zero would flatten every curve into a line. Growth passes the default and behaves exactly as before — the two tests covering the axis maths now import it from `ui/charts/`.
+- Count metrics take `integerTicks` rather than `yTicks`; see the fix below.
+- Docs updated in the same pass: `PLAN.md` (Phase-12 as-built section and status row), `README.md`'s status line and scope row, `.hermes/skills/babylog-ui/references/components.md` (`TrendChart` and the Health table) and `layout.md` (the Trends screen), and `docs/timeline/README.md` and `index.html` with nine captures.
+- `versionCode`/`versionName` deliberately stay at `2` / `0.1.1`. A per-phase bump is not this repo's habit — the value last changed at `d161b82` — and the version belongs to the release work in Phase 14.
+
 ### Fixed
 
 - **`1 drops`.** The unit label was doing two jobs, the picker's and the dose's, so a dose of one read `1 drops` on a fever card.
@@ -68,6 +87,16 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Verified on the S23 Ultra (Android 16, dark), and the pass is recorded in `PLAN.md`:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **308/308** with 0 failures and 0 errors. Both-mode health and vaccine saves each wrote **two rows with an identical timestamp**. The medication dropdown lists the shipped names plus `Type another name…`. The last-dose hint reads `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml` while leaving the dose field **empty**. History shows the fever reading in `feverOnCard` with separate Medication and Dose rows. Trends' Health tab keeps its honest Phase 12 sentence. System back closes both sheets, and `logcat -b crash` is empty.
 - The device's own database was read before and after the install: `user_version` 1 → 2, 22 → 24 columns, **69 rows before and after**, and the two legacy health rows still read `38.5 °C` / `Calpol 2.5 ml` with `doseAmount = NULL` rather than `0`.
 - **`PLAN.md` read two ways at once.** The Status table's Phase-11 row said **308 tests green** while the Verified line under the same table said **311/311**, and Phases 0-2 had carried no evidence at all since their body sections were collapsed into that table. The table's counts are now named for what they are — the suite size when each phase landed, with the three `HistoryFilterTest` cases named as the delta — and a **Phases 0-2 evidence** section points at `research/toolchain.md`, the scaffold and domain commits (`475bc42`, `ed8a2a2`, `d3aa8e6`) and the theme files, so those three phases are traceable again without un-collapsing the table.
+
+#### Phase 12 — Trends, found on the phone after 338 tests were green
+
+- **`0` printed beside a non-zero total.** Thirteen nappies across thirty days averaged to `0 per day`; two solids over thirty days read the same way. A summary card contradicting its own total is how a parent stops trusting the screen, and it was one line of formatting: a count was rounded to a whole number in the average as well as on the axis.
+  - The average now keeps one decimal (`0.4`, `0.1`), and a non-zero average that still rounds away prints `< 0.1` instead of claiming nothing happened. A count of exactly zero still prints `0`.
+  - Pinned by `a count keeps a decimal in the average, so a real number never prints as zero`.
+- **A count axis ticked in fractions.** With one meal in a 14-day window `yTicks` chose a 0.2 step, so the axis read `0.2`, `0.4`, `0.6` meals — numbers that cannot exist. `integerTicks` keeps whole gridlines and falls back to `0` and the rounded maximum when the whole ticks collapse below two lines.
+- **Two shades of one hue did not tell the twins apart.** Both lines are the activity's own accent, one lifted, and on the phone the difference was not readable at a glance. A second hue is not available — an accent means one activity and nothing else — so the distinction is carried by **shape**: the first child's line is solid, the second's is dashed, and the legend draws a sample of the line rather than a dot so the swatch cannot hide half the cue. Same reasoning as the fever pill.
+- **A label-spacing bug the unit test caught before the phone did.** Appending the newest day on top of a 2-day step put two labels one day apart on a 14-day window — 21dp apart for a label that measures ~33dp — so `11 Oct` and `12 Oct` would have overlapped. Labels are now counted **back from the newest day**, which keeps them evenly spaced and always names today.
+- **Every figure was then checked against the device's own database**, not just the screen: `run-as` read the phone's `events` table and recomputed the totals, the days logged, the best days and the fever days, and all of them matched. Two earlier attempts to read that file were misled by the tooling and both are worth recording: a copy taken without its `-wal` file replays as `malformed database schema`, and `adb shell cat` corrupts a binary with CRLF translation — `adb exec-out` is the binary-safe path.
 
 ## [2026-10-15]
 

@@ -11,12 +11,13 @@ change under you, gate the useful parts, and put content feeds and upsells where
 actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
 years.
 
-**Status:** through Phase 11. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
-the logging sheets, Settings, Summary, Growth and Health are built, and every screen is device-verified.
-All six activities now log real data: Growth ships WHO's LMS reference for percentile charts, and Health
-records a temperature, a medication with its dose, and vaccines. Trends has its shell with Growth's chart
-on one tab, and its feed, diaper, solids and sleep charts are Phase 12; the shared log across two accounts
-is Phase 13. See `PLAN.md`.
+**Status:** through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+the logging sheets, Settings, Summary, Growth, Health and Trends are built, and every screen is
+device-verified. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
+Health records a temperature, a medication with its dose and vaccines, and Trends charts bottle volume,
+solids, diapers and sleep per day over a 7/14/30-day window (Health is a dated fever table rather than a
+chart, because a temperature is a reading and not a daily amount). The shared log across two accounts is
+Phase 13. See `PLAN.md`.
 
 ---
 
@@ -35,7 +36,7 @@ Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner
 | 7 | **Growth** | Weight / height / head size, WHO percentile charts |
 | 8 | **Health** | Temperature, medication (from a bundled names-only list) with its dose, and vaccines |
 | 9 | **Summary** | 1d / 7d / 14d totals per activity, with activity filter chips and one `All` / `None` bulk chip |
-| 10 | **Trends** | Charts over time |
+| 10 | **Trends** | Charts over time: bottle volume, solids, diapers and sleep per day (7d / 14d / 30d), one line per child; Growth's percentiles keep their own tab, and Health is a dated fever table |
 | 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |
 | 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature is **always °C** |
 | 12 | **Three tabs** | Activity · Summary · Trends. Settings is a header icon |
@@ -69,7 +70,7 @@ The full set is a real project, not a weekend. Staging so it becomes useful earl
   system theme, correct insets and back handling.
 - **Stage 2 — Growth and Health.** WHO percentile curves (a real reference dataset) and the medical
   records. Growth is the single heaviest item; it lands after the app is already in daily use.
-- **Stage 3 — Trends**, then Firebase sync across the two phones.
+- **Stage 3 — Firebase sync** across the two phones, then over-the-air update delivery.
 
 ---
 

@@ -39,7 +39,7 @@ everything after it is additive.**
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
-| 12 — Trends | not started |
+| 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
 | 13 — Two accounts, one shared log | not started |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
@@ -47,10 +47,11 @@ everything after it is additive.**
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **311/311** with 0 failures — the
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **339/339** with 0 failures — the
 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived with the Summary
-rename and its All/None filter chips (`89ae909`). The
-Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10 and 11 screens were all confirmed on a
+rename and its All/None filter chips (`89ae909`), plus the 28 `TrendsTest` and `TrendChartAxisTest`
+cases that arrived with Phase 12. The
+Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
 `research/toolchain.md`.
@@ -500,9 +501,78 @@ exists. **Commit:** `feat(health): records`
 
 # STAGE 3 — Trends, sync, ship
 
-## Phase 12 — Trends
-Charts over time for feed amount, diaper count, sleep duration, growth. Built last on purpose: it needs
-real data in the database before the design can be judged.
+## Phase 12 — Trends — DONE, device-verified
+
+As built. The plan's one line ("charts over time for feed amount, diaper count, sleep duration, growth")
+became five charts and one table, with two scope decisions taken up front rather than assumed:
+
+- **Five tabs chart a per-day number; Health is a table.** Bottle (volume), Solids (meals), Diaper
+  (count) and Sleep (duration) join Growth's percentiles, which keep their own pane because they are
+  plotted against AGE and not against the last N days. Health is a dated list of fever readings plus a
+  count of fever DAYS: a temperature is a reading at a point in time, and averaging two readings is a
+  number nobody should act on. A line drawn between two readings three days apart is a line through
+  nothing.
+- **A 7 / 14 / 30-day window, default 14.** One chip row, the same idiom Summary's range chips use. 14
+  days gives twins' feeding and sleep rhythm a visible shape without a wall of thirty thin bars; 30 is
+  there for the longer view.
+
+Built: `domain/Trends.kt` (the whole calculation, pure), `ui/trends/TrendsViewModel.kt`,
+`ui/trends/TrendChart.kt`, `ui/trends/TrendPanes.kt`, `ui/trends/HealthTrendPane.kt`, and the rewritten
+`ui/trends/TrendsScreen.kt` (the six-tab row is unchanged; the "arrive in Phase 12" placeholder is gone).
+
+**Bucketing rules, all of them day-boundary rules.** A day is the LOCAL calendar day, which is why this
+is Kotlin and not SQL — the same reason `Totals.kt` exists. A day with no records is **zero and drawn as
+zero**, and every pane says so in words under the chart: the app cannot tell "no nappies" apart from
+"nobody logged one", so it must not draw a hole and imply it knows the difference, and it must not claim
+a zero it did not observe without saying which it is. A running sleep contributes no duration yet —
+counting it as "until now" would make the newest bar grow while nobody is looking, exactly as History
+refuses to guess. A bottle logged with no amount is a day RECORDED with a volume of zero, because
+"was anything logged" and "how much" are different questions.
+
+**Every chart is per child.** Both is the default mode and therefore the default chart: one line per
+child, so a merged average can never be presented as if it spoke for both — the rule the Health card's
+columns and Growth's callouts already follow. The two lines are **solid for the first child and dashed
+for the second**: two shades of one hue turned out not to be enough to tell the twins apart on the phone,
+and a second hue is not available, so the distinction is carried by shape — the same reasoning that gave
+the fever marker a pill instead of a colour.
+
+**The axis maths is now shared.** `yRangeFor` and `yTicks` moved out of `PercentileChart.kt` into
+`ui/charts/ChartAxis.kt`, and the two growth tests import them from there. Behaviour is unchanged (the
+same functions, moved), and Growth's chart was re-verified on the phone afterwards. `yRangeFor` gained a
+`floorAtZero` flag: a per-day chart must start at zero — eight nappies on a Tuesday and none on a
+Wednesday is a shape — while a weight curve starting at zero would flatten every curve into a line.
+
+**What the phone caught, after all 338 tests were green** — the reason this phase is not done on a build:
+
+| Found | Fix |
+|---|---|
+| **`0` beside a non-zero total.** 13 nappies over 30 days averaged to `0 per day`; 2 solids read the same. A summary card contradicting its own total is how a parent stops trusting the screen | The average keeps one decimal (`0.4`, `0.1`), and a non-zero average that still rounds away says `< 0.1` rather than claiming nothing happened |
+| **A count axis ticked in fractions** — `0.2`, `0.4` meals, which is a category error rather than precision | `integerTicks` for count metrics: whole numbers only, falling back to `0` and the rounded maximum when the whole ticks collapse below two lines |
+| **Two lines that were only shades of each other** | Solid vs dashed, carried into the legend as a line sample rather than a dot, so the swatch cannot hide half the cue |
+
+A fourth defect never reached the phone: the new unit test on the x-axis labels found that appending the
+newest day on top of a 2-day step put two labels one day apart on a 14-day window — 21dp apart for a
+label that measures ~33dp — so they would have overlapped. The labels are now counted back from the
+newest day, which keeps them evenly spaced and always names today.
+
+**Verified against the device's own database, not just the screen.** Every figure was recomputed from the
+phone's `events` table with `run-as` (a stronger check than reading the screen, and the same path Phase 11
+used): the first twin's bottle total 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
+Child 2 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct; 13 diapers each on 2 of 30 days with 9 on 12 Oct;
+2 solids each; one 13m 5s sleep on 15 Oct; 2 temperatures, both 38.5 °C, 1 fever day. All match the screen
+exactly. Note the 30-day window carries no more data than the 14-day one on this install — every logged
+row falls inside the last 14 days — so the 30-day range was exercised for its bucketing and its labels,
+not for extra events.
+
+**Also exercised on the phone:** the light scheme (the charts are the first thing drawn from tokens that
+had never been seen in light mode), and a 1.3× font scale, where the summary card grows past the viewport,
+the list scrolls, and the last row clears the navigation bar. Not exercised: the empty state for a type
+with no records in the window, because every activity has data inside the last 7 days on this device. That
+branch is covered by `TrendsTest` instead, and by the empty states Summary and Growth already ship.
+
+**Tests:** 28 new on the JVM — `TrendsTest` (23), which pins the local-day buckets, the zero-fill, the
+per-child split, the running-sleep rule and the fever boundary at exactly 38.0, and `TrendChartAxisTest`
+(5) for the x-axis labels, the count ticks and the dashed second child. The suite is **339, 0 failures**.
 
 ## Phase 13 — Two accounts, one shared log
 
@@ -983,3 +1053,67 @@ device, the new build installed over it, the app launched, and it was copied bac
 - **Legacy rows carry their dose inside the medication text** (`Calpol 2.5 ml`), because they predate the
   column. They render honestly and were left alone: rewriting a parent's historical rows is not a call to
   make inside a phase, and the data is not wrong, only unseparated.
+
+## Phase 12 device verification — 2026-10-18
+
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode unless stated. Screenshots:
+`docs/timeline/2026-10-18-phase12/` (nine captures, listed in the timeline's README). Every tap
+coordinate came from `uiautomator dump`, never from a guess, and the foreground was checked before the
+first input — the app resumed a stale task with the Growth entry list open and a delete snackbar on
+screen, which was closed without acting on it.
+
+The device carried **73 event rows** (68 live, 5 tombstones) at `user_version` 2 — the 69 Phase 11 left
+plus four growth measurements logged at 11:41 the same day. No phase-12 work touched the schema: this
+phase reads and derives, it stores nothing new.
+
+### The charts, against the phone's own numbers
+
+Every figure below was recomputed from the device's `events` table with `run-as`, then compared with what
+the screen showed. The window is the **local** day (`America/Port_of_Spain` on this phone).
+
+| Check | On screen | Re-read from the DB | Result |
+| --- | --- | --- | --- |
+| Bottle, Both, 14d | Child 1 `27.7 oz`, `3 of 14 days logged`, best `24.7 oz · 14 Oct` | 819 ml = 27.7 oz, 3 days, best 730 ml = 24.7 oz on 14 Oct | pass |
+| Bottle, Both, 14d | Child 2 `19.1 oz`, best `16.1 oz · 14 Oct` | 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct | pass |
+| The 7d chip | `Bottle feed · 7 days`, averages `4` and `2.7` oz/day | 27.7/7 = 3.96, 19.1/7 = 2.73 | pass |
+| Diaper, Both, 30d | `0.4 per day`, `Total 13`, best `9 · 12 Oct`, `2 of 30 days` | 13 each on 2 days, 9 of them on 12 Oct | pass |
+| Solids, Both, 30d | `0.1 per day`, `Total 2`, best `1 · 12 Oct` | 2 meals each on 2 days | pass |
+| Sleep, Both, 30d | `< 0.1 hours / day`, `Total 13m 5s · 15 Oct` | one 13m 5s session on 15 Oct | pass |
+| Health, Both, 30d | `Fever days 1`, `Temperatures 2`, `Fever readings 2`, `38.5 °C` + pill, `18 Oct 12:08` | 2 temperatures, both 38.5, 1 distinct fever day | pass |
+| Growth tab | Percentile chart, curves, `K` markers, callouts, dataset line | unchanged from Phase 10 (behaviour-identical move of the axis maths) | pass |
+
+Note honestly: on this install every logged row falls inside the last 14 days, so the 30-day window was
+exercised for its bucketing, its labels and its averages, **not** for extra events — 14d and 30d show the
+same totals.
+
+### The screens
+
+| Check | Result |
+| --- | --- |
+| Six activity tabs, the row still scrolls to reach Sleep and Health | pass — `Bottle feed · Diaper · Solids · Growth`, then `Solids · Growth · Health · Sleep` after one swipe |
+| Range chips `7d · 14d · 30d`, default 14, on every pane | pass |
+| Both mode legend names both children and samples the line style | pass — `— Child 1` solid, `- - - Child 2` dashed |
+| A count axis ticks in whole numbers | pass — Solids shows `0` and `1`, not the `0.2` steps the first build drew |
+| The light scheme (the charts are the first token-drawn surfaces seen in light mode) | pass — Bottle pane in light: dashed line, legend, `labelFor` headline and `textOnCard` rows all legible |
+| System back from Trends returns to Activity; back from Activity exits | pass, unchanged from earlier phases |
+| 1.3× font scale | pass — the summary card grows past the viewport, the pane scrolls, and the last row (`Best day`, bottom 1874) clears the app's navigation bar (top 2090) |
+| Bottom inset at the default scale | pass — content bottom at 1850-1897, nav bar at 2095; the trend panes fit the viewport on this data, so they do not scroll |
+| `logcat -b crash` / `FATAL EXCEPTION` | pass — empty, and `grep -c` = 0 after the whole sweep |
+| Light mode restored to the owner's setting | pass — the theme was set to Light for the check and put back to `SYSTEM` (verified by reading `settings.preferences_pb`), and the system `font_scale` was restored to `1.0` after the accessibility test |
+
+### Found on the phone
+
+- **`0` beside a non-zero total.** 13 diapers over 30 days read `0 per day`, and 2 solids over 30 days
+  read the same. Fixed in the average's formatting: one decimal, and `< 0.1` where a non-zero average
+  genuinely rounds away.
+- **A count axis ticked in fractions** — `0.2`, `0.4` meals. `integerTicks` now keeps whole gridlines.
+- **Two lines that were only shades of each other.** Now solid and dashed, with the legend drawing a line
+  sample.
+
+And one the phone never saw, because the unit test did: appending the newest day to a 2-day step put two
+date labels 21dp apart on a 14-day window, for labels that measure ~33dp. The labels are now counted back
+from the newest day.
+
+**Not exercised on the device:** the empty state for an activity with no records inside the window —
+every activity has data within the last 7 days on this phone. The branch is covered by `TrendsTest`
+(`hasData` false) and mirrors the empty states Summary and Growth already ship.

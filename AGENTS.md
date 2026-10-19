@@ -124,6 +124,14 @@ Rules learned the hard way:
 - **Totals are NOT computed in SQL.** Day boundaries and the day/night diaper split depend on the
   local timezone, which SQLite cannot resolve; aggregating in SQL would silently file 8pm diapers under
   the wrong day. Totals belong in pure Kotlin.
+- **A day with no records is a zero, and the screen says so.** Trends draws a missing day as 0 and
+  captions it `Days with no records count as zero.` The app cannot tell "no nappies" from "nobody logged
+  one", so it must not draw a gap and imply it knows. The same rule forbids guessing a running sleep's
+  duration or an unrecorded bottle's volume: an average that is real but rounds away reads `< 0.1`, never
+  `0`.
+- **Two children on one chart are told apart by shape as well as shade** — the first line solid, the
+  second dashed. Two shades of one accent were not enough to tell the twins apart on a phone, and a
+  second hue is reserved for a second activity.
 - **Adjusted age is a named function on purpose** (`ageDaysForCharts()`). the twins were born at 30
   weeks (premature); using chronological age for a percentile chart yields a confident wrong
   answer with no error.
@@ -145,7 +153,7 @@ the incumbent's 3.58/5 rating is driven by a forced subscription; that is the fa
 
 ## Tests
 
-311 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+339 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Robolectric limit:** it cannot collect a Room-backed Flow — the paused main looper never pumps
 Room's invalidation callbacks, so a test like that hangs. Test ViewModels against fake DAOs, not Room.
