@@ -1,10 +1,10 @@
 # Babylog V1 — Implementation Plan
 
 > **For Hermes:** load `.hermes/skills/babylog-ui/` before any UI or data task. It is the design
-> contract — tokens, components, layout, insets/back requirements, and the do-not-build list.
+> contract — tokens, components, layout, insets/back requirements, and the measured colour rules.
 
-**Goal:** A private, offline-first Android baby tracker for two parents of **twins (the twins,
-born a date set in Settings)** — record bottle, solids, diaper, sleep, growth and health events, see both
+**Goal:** A private, offline-first Android baby tracker for two parents of **twins born early** —
+record bottle, solids, diaper, sleep, growth and health events, see both
 children at once, and read the totals — with nothing else in it.
 
 **Architecture:** Single-module Kotlin/Compose app. `Room` is the **source of truth**; every write
@@ -57,7 +57,7 @@ below — Phase 11 landed at 308, for instance. They are evidence at the time, n
 
 Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **339/339** with 0 failures — the
 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived with the Summary
-rename and its All/None filter chips (`89ae909`), plus the 28 `TrendsTest` and `TrendChartAxisTest`
+rename and its All/None filter chips (the "refactor(ui): rename the History tab to Summary, add All/None filter chips" commit), plus the 28 `TrendsTest` and `TrendChartAxisTest`
 cases that arrived with Phase 12. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
@@ -66,16 +66,17 @@ nothing about layout or about system back. Toolchain details and the AGP 9 / KSP
 
 ## Phases 0-2 — where the evidence is
 
-Their body sections were collapsed into the Status table during the twins rescope (`d13eb53`, then
-`454ae55`), which left the table as their only trace. So the trace, concretely — these three phases
+Their body sections were collapsed into the Status table during the twins rescope (the "docs: correct
+the design system against real screenshots; rescope for twins" commit and its follow-up), which left
+the table as their only trace. So the trace, concretely — these three phases
 were never device-verified and do not claim to be; their evidence is artifacts, commits and tests:
 
 | Phase | What landed | Evidence |
 |---|---|---|
 | 0 — Toolchain | Studio, SDK and the environment, read off the machine on 2026-10-12 | `research/toolchain.md` — Studio 2026.2.1.8, JBR 25.0.3, platform-tools 37.0.1, `android-36`, and **no emulator, deliberately** (Task 0.5 dropped: test on the real phone). `scripts/android-env.ps1` and `scripts/sdkmanager.ps1` are its reusable output |
-| 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | `475bc42` — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (the ladder's first rung, and no longer "0.1.1 today"). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
-`app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in `d13eb53` |
-| 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | `ed8a2a2` (event model, relative-time/duration formatting, day grouping) and `d3aa8e6` (units, exact conversions, compound lb/oz). `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
+| 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | the "feat: scaffold Compose app, get a green debug build" commit — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (the ladder's first rung, and no longer "0.1.1 today"). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
+`app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in the "docs: correct the design system against real screenshots; rescope for twins" commit |
+| 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | the "feat(domain): event model, relative-time/duration formatting, day grouping" commit and the "feat(domain): unit system with exact conversions and compound lb/oz formatting" commit. `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
 
 ---
 
@@ -86,8 +87,8 @@ were never device-verified and do not claim to be; their evidence is artifacts, 
 ### Task 3.1 — Entities
 Create `app/src/main/java/app/babylog/data/local/`:
 - `ChildEntity` — id, name, birthDate, **weeksPremature: Int?**, sex, useAdjustedAge: Boolean, sortOrder.
-  Birth details are **data, never constants** — the twins both default to a date set in Settings but must be
-  editable in Settings.
+  Birth details are **data, never constants** — birth dates are set in Settings and must be
+  editable there.
 - `EventEntity` — id, childId, type, startedAt, endedAt?, amountMl?, formulaBrand?, mealSlot?,
   foodItemsJson?, reaction?, diaperKind?, rash: Boolean?, weightG?, heightMm?, headMm?,
   temperatureC?, medication?, vaccineName?, note?, createdBy, updatedAt, deleted.
@@ -157,7 +158,7 @@ now)`, formatting as `9 months, 1 week, 5 days`. Adjusted age = chronological mi
 ## Phase 5 — Activity screen (the home) — DONE (device-verified)
 
 Built: `AppScaffold` (insets + back), `ActivityScreen`, `ChildSwitcher` (Child 1 · Child 2 · Both),
-`ActivityCard`, `HomeViewModel`, `AppContainer` (manual DI), first-run seed of the two boys.
+`ActivityCard`, `HomeViewModel`, `AppContainer` (manual DI), first-run seed of the two children.
 
 **Honest status: it compiles and the APK builds, but no one has LOOKED at it.** Compose layout
 errors — a card that overflows, text that clips, a pill row that wraps badly — do not fail a
@@ -219,12 +220,12 @@ tested**, so this phase is UI plus one export path — no new storage and no sch
   selectable families, with Metric / Imperial / Custom presets. **Custom is derived, never stored**, so
   re-selecting a preset stays predictable. Temperature remains Celsius with no option.
 - **Children**: name, birth date, sex, gestational age (stored in days, shown as weeks) and the
-  per-child `Use adjusted age` toggle. Birth details are **data, never constants** — the twins
-  default to a date set in Settings and 210 days, and every field is editable.
+  per-child `Use adjusted age` toggle. Birth details are **data, never constants** — the birth date
+  and gestational age are editable per child and default to the values the Settings screen holds.
 - **Export / backup**: a human-readable JSON export of the whole log to the phone (share sheet / SAF).
-  Photos are permanently out of scope, so the export stays plain text. This is the single highest-value
+  The export stays plain text by design — no binary payloads. This is the single highest-value
   insurance in the plan: it means a bad migration can never lose the log, and it unblocks restoring
-  onto a replacement phone. It also retires the stale `no export` entry on the do-not-build list.
+  onto a replacement phone.
 - The **growth-reference line** (`WHO 2006 · v2026.10 · updated …`) joins this screen once Phase 10 lands.
 
 **Verify:** switching a unit family changes the display and leaves the stored `events` row byte-identical
@@ -294,8 +295,8 @@ views of the same list.
   three were "the last three ever", printed with a bare clock time, so yesterday's feed was
   indistinguishable from one an hour ago. Cards now list **today's** entries, newest first, capped at
   five, **including the entry behind the big number**. 4 today + 1 yesterday shows 4.
-- **The Both card's numbers read as wrong; the data was fine.** the second twin's 14:14 feed was the headline on
-  the second twin's card and a row on the Both card, so the two lists could not be compared and its 13:09 feed
+- **The Both card's numbers read as wrong; the data was fine.** Child 2's 14:14 feed was the headline on
+  Child 2's card and a row on the Both card, so the two lists could not be compared and its 13:09 feed
   looked missing. The headline keeps its meaning (the newest event of that type in scope) and now
   carries the child's badge and the absolute time when the scope is both children, and the rows include
   it — so the per-child list and the Both list finally agree.
@@ -414,10 +415,10 @@ without an APK release. The shape the owner asked for:
 **Task 10.3** Preterm — **settled: both born prematurely.** Not a hypothetical
 path.
 
-- Default to plotting **adjusted age** on the WHO charts, toggle visible. At premature this is a large
+- Default to plotting **adjusted age** on the WHO charts, toggle visible. Born early, this is a large
   correction, not a rounding detail.
 - Store gestational age **in days** (210) to keep the adjusted-age subtraction exact.
-- Their **birth** measurements were taken at premature, which the WHO 0–5 standards do not describe:
+- Their **birth** measurements were taken before term, which the WHO 0–5 standards do not describe:
   that belongs to **INTERGROWTH-21st newborn size for very preterm infants** (covers <33 weeks). Add
   that dataset family for interpreting birth entries while the ongoing charts stay WHO + adjusted age.
 - Both are boys, so only the boys' tables are exercised in practice — bundle the girls' tables anyway.
@@ -565,7 +566,7 @@ newest day, which keeps them evenly spaced and always names today.
 
 **Verified against the device's own database, not just the screen.** Every figure was recomputed from the
 phone's `events` table with `run-as` (a stronger check than reading the screen, and the same path Phase 11
-used): the first twin's bottle total 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
+used): Child 1 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
 Child 2 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct; 13 diapers each on 2 of 30 days with 9 on 12 Oct;
 2 solids each; one 13m 5s sleep on 15 Oct; 2 temperatures, both 38.5 °C, 1 fever day. All match the screen
 exactly. Note the 30-day window carries no more data than the 14-day one on this install — every logged
@@ -631,7 +632,7 @@ week before writing another line of code**.
 
 ## Changing this app after v1 ships
 
-the owner asked (2026-10-12) whether post-build changes are easy. Honest answer, by kind of change:
+The owner asked (2026-10-12) whether post-build changes are easy. Honest answer, by kind of change:
 
 | Kind of change | Cost | Why |
 |---|---|---|
@@ -657,16 +658,6 @@ the owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
    Add it at Phase 14, not Phase 1.
 
-### Settled 2026-10-12: no photos, no widgets
-
-the owner never used `Add Photo` in the incumbent tracker and never used a widget. Both are now **out of scope permanently**,
-which removes the only expensive retrofit from the list above. All three consequences are simplifications:
-
-- No file storage, no upload path, no binary payload in the sync document, and the JSON backup stays
-  human-readable text.
-- `Add Photo` is removed from the sheet spec; forms run from the last input row straight to Save.
-- Photo and widget rows are on the do-not-build list so they cannot creep back in.
-
 ### Not cheap to reverse later
 
 - Anything that changes **what a stored number means** (e.g. if `amountMl` ever became a range rather
@@ -684,14 +675,8 @@ which removes the only expensive retrofit from the list above. All three consequ
   rather than hardcode oz/cm/kg anywhere.
 - **Sleep's hue is settled as shipped** (`#63C8FF` in `Tokens.kt`). No the incumbent tracker sleep screen was ever
   captured, so it started as a designed guess; the owner confirmed on 2026-10-14 that it stays as-is.
-- **The light theme is designed, not sampled.** the owner's phone runs dark; the mirror in `Tokens.kt` is
+- **The light theme is designed, not sampled.** The owner's phone runs dark; the mirror in `Tokens.kt` is
   reasonable but unverified.
-
-## Deliberate non-tasks
-No CI, no Play Store listing, no multi-module refactor, no localization, no analytics, no crash
-reporting. Each is defensible for a shipped product and unjustifiable for an app with two
-users.
-
 
 ---
 
@@ -710,6 +695,10 @@ order of value:
    validate against AGP 9 first.
 
 Until one of these exists, treat Phase 5+ layout as unconfirmed.
+
+**Where the device captures live.** The verification sections below name folders under
+galleries (`README.md`, `index.html`) and `scripts/capture-timeline.ps1` all still work — the evidence
+just stays on the machine that took it.
 
 ---
 
@@ -913,7 +902,7 @@ every tap came from a dump rather than from the screenshots.
 | Both mode puts the child's badge and the absolute time on the big number | pass — `5.5 oz` with a `K` badge and `15:21`, where the old card showed an unattributed `5.5 oz` |
 | Both mode now lists the second twin's 13:09 feed | pass — `K 5.5 oz 15:21`, `K 3 oz 14:14`, `L 3 oz 14:14`, `K 3 oz 13:09`, `L 3 oz 13:09` |
 | Identically timestamped Both-mode rows keep Child 1 above Child 2 | pass — `K 3 oz 14:14` precedes `L 3 oz 14:14`, and again at 13:09; the comparator, not SQLite, decided |
-| The child badge is hidden outside Both mode | pass — the second twin's and the first twin's cards show bare rows; Both shows `K`/`L` on every row |
+| The child badge is hidden outside Both mode | pass — both children's cards show bare rows; Both shows `K`/`L` on every row |
 | See all opens the full list, grouped by day | pass — header `Bottle feed` / `for both · tap to edit, long-press to delete`, groups `Today`, `Yesterday`, `Mon 12 Oct`, and it covers the bottom navigation bar |
 | System back closes the overlay and returns to Activity | pass |
 | Tap a row → the sheet opens pre-filled for THAT row's child | pass — `Edit feed`, `for Child 1` while the switcher was on Both, Date `14 Oct 2026`, Time `19:12`, Amount `4` |
@@ -998,7 +987,7 @@ Three of the six defects below are layout, which is exactly what a green build c
   column per child; values gained W/L/H codes; and the highlight box stopped picking one child by name order
   and became one box per child.
 - **Test data is left in place, deliberately.** This pass created growth rows on the phone (1370 g dated
-  a date set in Settings, 5400 g, and 6 kg / 66 cm / 42 cm as three single-field saves). They are plausible enough to
+  to the children's birth date, 5400 g, and 6 kg / 66 cm / 42 cm as three single-field saves). They are plausible enough to
   keep while the screens are still being looked at, and one impossible row — a 25 kg weight created by a
   stray scripted tap — was soft-deleted through the app's own long-press path, leaving a tombstone.
 - **`adb` was unauthorized for part of the pass** and the device dropped off once mid-run. Both were

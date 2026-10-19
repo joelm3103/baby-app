@@ -5,8 +5,8 @@ Hermes). Read this before changing anything.
 
 ## What this is
 
-A private, offline-first Android baby tracker for **one family**: the owner, the second parent and their twins
-**the twins**. Two users, sideloaded release APK, no Play Store, no monetisation, no analytics.
+A private, offline-first Android baby tracker for **one family**: two parents and their twins.
+Two users, sideloaded release APK, no Play Store, no monetisation, no analytics.
 It is deliberately small: the model to copy is **the incumbent tracker**, and the whole point is that it does
 *less* than the apps it replaces.
 
@@ -85,7 +85,8 @@ Rules learned the hard way:
   `content-desc`, not `text` — matching on text alone silently misses every icon.
 - **`adb` is a native binary: `/c/Users/...` fails with `failed to stat`.** Pass `C:/Users/...`.
 - `logcat -b crash -d` still holds a crash trace **after the app is uninstalled**.
-- Screenshots are kept in `docs/timeline/` — see `scripts/capture-timeline.ps1`.
+- Screenshots are kept in `docs/timeline/` — see `scripts/capture-timeline.ps1`. That directory is
+  names in the app header.
 
 ## Design contract — measured, not taste
 
@@ -132,8 +133,8 @@ Rules learned the hard way:
 - **Two children on one chart are told apart by shape as well as shade** — the first line solid, the
   second dashed. Two shades of one accent were not enough to tell the twins apart on a phone, and a
   second hue is reserved for a second activity.
-- **Adjusted age is a named function on purpose** (`ageDaysForCharts()`). the twins were born at 30
-  weeks (premature); using chronological age for a percentile chart yields a confident wrong
+- **Adjusted age is a named function on purpose** (`ageDaysForCharts()`). The twins were born
+  prematurely; using chronological age for a percentile chart yields a confident wrong
   answer with no error.
 - **Screen off if intended: outbox stores intent, not payload** — a stored JSON copy drifts as soon as
   the row is edited again; the drain re-reads by id.
@@ -144,12 +145,6 @@ Rules learned the hard way:
 - **The bundled medicine list is NAMES ONLY.** `MedicationCatalogueTest` fails the build if any entry
   contains a digit, and the health sheet itself says `Names only — this app does not suggest a dose`. An
   infant dose depends on weight and age, so the app must never propose one.
-
-## Do not build
-
-Photos · homescreen widgets · nursing/pumping tracking · content feeds · a shop · any paywall or
-subscription · analytics · a clinical taxonomy of diaper or food types. All were explicitly rejected.
-the incumbent's 3.58/5 rating is driven by a forced subscription; that is the failure mode to avoid.
 
 ## Tests
 
@@ -188,7 +183,6 @@ only, and `1.0.0` is the first release.
 |---|---|
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
-| `docs/timeline/` | Screenshot history — open `docs/timeline/index.html` |
 | `research/` | the incumbent tracker/the free alternative teardown, WHO growth data, toolchain traps |
 | `.hermes/skills/babylog-ui/` | The design contract (tokens, components, layout, style guide) |
 | `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1` |

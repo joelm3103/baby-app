@@ -7,16 +7,18 @@
 ![Room](https://img.shields.io/badge/Room-source%20of%20truth-6DB33F)
 ![Two users](https://img.shields.io/badge/users-2-lightgrey)
 
-A private baby tracker for Android, for two parents and **twin boys, the twins** (born a date set in Settings).
+A private baby tracker for Android, for two parents and their **twin boys**.
 No store listing, no subscription, no account tiers.
 
-**Premature at birth.** Both born prematurely — so adjusted age is a
+**Born early.** Both arrived prematurely, so adjusted age is a
 first-class concept throughout, not a checkbox bolted on later.
 
-**Why this exists:** the free alternative and the incumbent tracker are both good at the core job and both hostile to it — they
-change under you, gate the useful parts, and put content feeds and upsells where the three actions we
-actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
-years.
+**Why this exists:** the two commercial trackers this app is measured against — **the incumbent tracker** and
+**the free alternative** — are both good at the core job and both hostile to it. They change under you, gate
+the useful parts, and put content feeds and upsells where the three actions we actually perform should
+be. Babylog is the part we use, owned by us, that will work the same in two years.
+
+the paid incumbent and "the free alternative" the free one; the mapping is deliberately not recorded here,
 
 **Status:** `0.8.0`, through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
 the logging sheets, Settings, Summary, Growth, Health and Trends are built, and every screen is
@@ -63,15 +65,8 @@ migration rule. The two things that are **not** cheap to retrofit are **photos/a
 sync + backup all change at once) and renaming what a stored value means — so those need deciding
 before v1, not after. See the table in `PLAN.md`.
 
-### Deliberately not built
-
-Guides, an Account tab, subscription/trial/paywall, the shop, Stop Tracking, nursing/pumping (not
-logged), the clinical diaper taxonomy, pregnancy/postpartum modes, customizable home buttons,
-analytics. Full list with evidence in `.hermes/skills/babylog-ui/references/style-guide.md`.
-
-`Export` is no longer on this list: it is row 15 above, built in Phase 7 and device-verified — the JSON
-comes back in through `Import`, so a bad migration cannot lose the log and a replacement phone stays
-restorable.
+`Export` (row 15) is built in Phase 7 and device-verified — the JSON comes back in through `Import`, so
+a bad migration cannot lose the log and a replacement phone stays restorable.
 
 ### Staged on purpose
 
@@ -87,7 +82,7 @@ The full set is a real project, not a weekend. Staging so it becomes useful earl
 
 ## The three bugs in the incumbent tracker we are designing against
 
-the owner reported these unprompted, so they are requirements, not polish:
+The owner reported these unprompted, so they are requirements, not polish:
 
 1. **Content clipped by the system navigation bar** (the incumbent's Child screen, screenshot #15) — "it cannot
    scroll down any more". We consume `WindowInsets.navigationBars` and pad the scrollable content.
@@ -107,7 +102,7 @@ the owner reported these unprompted, so they are requirements, not polish:
 | Firestore for sync, offline persistence on | Deletes a whole class of sync bugs. Free tier covers two users by three orders of magnitude |
 | Google sign-in | Two people, two phones, no password reset flow to build |
 | Sideload the release APK | Free. A Play listing costs $25 and adds review latency for zero benefit |
-| No server to run | An app the second parent depends on should not page me because a container is down |
+| No server to run | An app the second parent depends on should not page anyone because a container is down |
 
 **Rejected:** self-hosting on the work server (company machine, the family's health log, and the second parent's
 phone would need network reach into it) · Supabase (close call — free and self-hostable, but no
@@ -132,10 +127,13 @@ baby-app/
 └── research/
     ├── SOURCES.md             # marketing-frame provenance + fidelity caveat
     ├── toolchain.md           # exact versions + AGP 9 / KSP traps
-    ├── screenshots/           # raw Play Store frames + raw/ (15 real ones, gitignored)
+    ├── screenshots/           # raw store frames + raw/ (15 real ones, gitignored)
     ├── design-refs/           # the approved mockup
     └── findings/              # teardowns, shared design language, reference-app-a-palette.md
 ```
+
+committed, because the captures show the app with the real child names in its header. Open
+`docs/timeline/index.html` on the machine that captured them.
 
 **Note on which evidence wins:** the marketing frames produced two outright errors (light surfaces,
 yellow diaper) that 15 real screenshots corrected. When the two disagree, the screenshots win, and
