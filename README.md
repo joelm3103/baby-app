@@ -1,5 +1,12 @@
 # Babylog
 
+![Android](https://img.shields.io/badge/Android-26%2B%20(minSdk)-3DDC84?logo=android&logoColor=white)
+![targetSdk](https://img.shields.io/badge/targetSdk-36-blueviolet)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white)
+![Compose BOM](https://img.shields.io/badge/Compose%20BOM-2026.09.00-4285F4)
+![Room](https://img.shields.io/badge/Room-source%20of%20truth-6DB33F)
+![Two users](https://img.shields.io/badge/users-2-lightgrey)
+
 A private baby tracker for Android, for two parents and **twin boys, the twins** (born a date set in Settings).
 No store listing, no subscription, no account tiers.
 
@@ -11,13 +18,17 @@ change under you, gate the useful parts, and put content feeds and upsells where
 actually perform should be. Babylog is the part we use, owned by us, that will work the same in two
 years.
 
-**Status:** through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+**Status:** `0.8.0`, through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
 the logging sheets, Settings, Summary, Growth, Health and Trends are built, and every screen is
 device-verified. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
 Health records a temperature, a medication with its dose and vaccines, and Trends charts bottle volume,
 solids, diapers and sleep per day over a 7/14/30-day window (Health is a dated fever table rather than a
 chart, because a temperature is a reading and not a daily amount). The shared log across two accounts is
 Phase 13. See `PLAN.md`.
+
+**Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
+new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release. Every dated
+`CHANGELOG.md` section lists the versions that landed that day; nothing is tagged until that release.
 
 ---
 

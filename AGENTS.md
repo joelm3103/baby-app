@@ -158,6 +158,30 @@ the incumbent's 3.58/5 rating is driven by a forced subscription; that is the fa
 **Robolectric limit:** it cannot collect a Room-backed Flow — the paused main looper never pumps
 Room's invalidation callbacks, so a test like that hangs. Test ViewModels against fake DAOs, not Room.
 
+## Versioning
+
+**One version per phase, set at the first commit of that phase's work.** A phase is delivered as one
+branch, so every build made while it is under way then says which phase produced it — which is the only
+question this number has ever been asked. `0.MINOR` is a new capability, `0.PATCH` is fixes and polish
+only, and `1.0.0` is the first release.
+
+| Phase | Version | Phase | Version |
+|---|---|---|---|
+| 1 scaffold | `0.1.0` | 9.1 cards and edits | `0.5.0` |
+| 5 launch-crash fix | `0.1.1` | 10 Growth | `0.6.0` |
+| 6 logging sheets | `0.2.0` | 11 Health | `0.7.0` |
+| 7 Settings | `0.3.0` | 12 Trends | `0.8.0` |
+| 8 Summary | `0.4.0` | 13 two accounts | `0.9.0` |
+| 9 daily-use polish | `0.4.1` | 14/15 release | `1.0.0` |
+
+- **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever
+  goes up, because App Distribution decides "newer" from it.
+- **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
+  that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
+  in the README.
+- **Nothing is tagged until a release.** Tags are for released builds, so the first tag is `v1.0.0` when
+  the release APK is delivered in Phase 14. A phase ending is not a release.
+
 ## Where things are
 
 | Path | What |

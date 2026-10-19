@@ -11,6 +11,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 >   revised later; any later measurement or rewrite is named inside the entry.
 > - An entry recorded after the fact **says so**, so a retrospective note cannot be
 >   mistaken for a same-day record.
+>
+> Versions: each dated section lists the versions that landed that day under `### Versions`, directly
+> after `**In short:**`. The headings stay dated, so the ladder is read from those lists rather than from
+> version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
+> polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
 ## [2026-10-18]
 
@@ -23,6 +28,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Trends is real too, the same day.** Five tabs now chart a per-day number over a `7d · 14d · 30d` window — bottle volume, solids, diapers and sleep, plus Growth's percentiles, which keep their own pane because they are plotted against age rather than against the last N days. Health gets a dated list of fever readings and a count of fever *days* instead of a chart. Both children share one chart: **solid for the first, dashed for the second**.
 - **`0` beside a total of 13** was the first thing the phone found, and the screen was wrong: a count average kept no decimal. Now `0.4`, `0.1`, or `< 0.1` when the average genuinely rounds away. A count axis also ticked in fractions (`0.2` meals), and two shades of one hue did not tell the twins apart.
 - **339 tests green** (308 → 339). The axis maths is shared with Growth in one file rather than copied, and every figure on the Trends screens was recomputed from the phone's own `events` table.
+
+### Versions
+
+- `0.8.0` — Phase 12, Trends
+- `0.7.0` — Phase 11, Health
 
 ### Added
 
@@ -71,7 +81,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - `yRangeFor` gained `floorAtZero`: a per-day chart must start at zero, because eight nappies on a Tuesday and none on a Wednesday is a shape, while a weight curve starting at zero would flatten every curve into a line. Growth passes the default and behaves exactly as before — the two tests covering the axis maths now import it from `ui/charts/`.
 - Count metrics take `integerTicks` rather than `yTicks`; see the fix below.
 - Docs updated in the same pass: `PLAN.md` (Phase-12 as-built section and status row), `README.md`'s status line and scope row, `.hermes/skills/babylog-ui/references/components.md` (`TrendChart` and the Health table) and `layout.md` (the Trends screen), and `docs/timeline/README.md` and `index.html` with nine captures.
-- `versionCode`/`versionName` deliberately stay at `2` / `0.1.1`. A per-phase bump is not this repo's habit — the value last changed at `d161b82` — and the version belongs to the release work in Phase 14.
+- **The version ladder is now per phase.** `versionCode`/`versionName` had sat at `2` / `0.1.1` since the launch-crash fix, so eight phases of work reported one build identity and the number could not answer the only question it is ever asked — which build is on the phone. The history was rewritten so each phase's commits carry its own rung (`0.2.0` for Phase 6 through `0.8.0` for Phase 12, on sequential `versionCode` 3–10), leaving `0.1.0` and `0.1.1` alone because history already agreed with them. `versionCode` stays a sequential counter, so App Distribution will still see every build as newer. Nothing is tagged: tags are for releases, so the first will be `v1.0.0` when the release build is delivered, and until then the ladder lives in these `### Versions` lists.
 
 ### Fixed
 
@@ -108,6 +118,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - The dataset update channel moved to Phase 13, because the Firestore it assumed does not exist yet — nothing was stubbed or faked in its place.
 - Seeing it on the phone changed the design: the chart moved into **Trends** as a tab per activity, the Both-mode summary became **one column per child** instead of a combined headline, values gained `W`/`L`/`H` codes, and the highlight box became one per child rather than whichever child won a name-order tie.
 - Three layout defects were found only by looking at the screen — an untappable chip row under the status bar, a pane overlapping it whose end could not be scrolled to, and a button that silently did nothing. **255 tests green**, and the pass is recorded in `PLAN.md`.
+
+### Versions
+
+- `0.6.0` — Phase 10, Growth
 
 ### Added
 
@@ -153,6 +167,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - Settings is a real screen — units, children, backup/restore and bottle presets — laid out as distinct alternating cards.
 - The shell's fade follows the active tab and content no longer runs under the system navigation bar, while the sheets gained an editable date and now say who they log for.
 - **Later the same day:** the activity cards were corrected after use — a card now lists today's entries (up to five, and the feed behind the big number is one of them), `See all ›` opens every entry of that activity grouped by day, and any row can be edited in place or long-pressed to delete with an Undo. Verified on the S23 in the same pass; the capture is `docs/timeline/2026-10-14-phase9.1/`, including the three `before/` shots that reported the defects.
+
+### Versions
+
+- `0.5.0` — Phase 9.1, cards, See all and in-place edits
+- `0.4.1` — Phase 9, daily-use polish
+- `0.4.0` — Phase 8, Summary totals
+- `0.3.0` — Phase 7, Settings
+- `0.2.0` — Phase 6, the logging sheets
 
 ### Added
 
@@ -249,6 +271,11 @@ These were found on the device and are the reason this day has a second entry �
 - Two bugs that no JVM or Robolectric test could catch were found by putting the app on a phone, and both were fixed that afternoon.
 - The design contract was corrected against real screenshots, and the card tint was dropped then restored at a measured 26%.
 - The record became durable: `docs/timeline/` with the rejected accent treatments kept alongside the accepted one, and `AGENTS.md` so an outside agent can pick the repo up.
+
+### Versions
+
+- `0.1.1` — Phase 5, the launch-crash fix
+- `0.1.0` — Phase 1, the first scaffold
 
 ### Added
 

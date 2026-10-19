@@ -44,6 +44,14 @@ everything after it is additive.**
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
+**Versions: one rung per phase**, and the ladder is a fact of the history rather than a paragraph about
+it — `versionCode`/`versionName` were rewritten so each phase's commits carry that phase's rung, set at
+the **first commit of the phase's work** so a build on a phone says which phase produced it. `0.MINOR` is
+a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is the first release. The rungs are
+listed in every dated `CHANGELOG.md` section under `### Versions`, and the rule is in `AGENTS.md`.
+Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 14. The original scheme note
+that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
+
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
@@ -65,7 +73,7 @@ were never device-verified and do not claim to be; their evidence is artifacts, 
 | Phase | What landed | Evidence |
 |---|---|---|
 | 0 — Toolchain | Studio, SDK and the environment, read off the machine on 2026-10-12 | `research/toolchain.md` — Studio 2026.2.1.8, JBR 25.0.3, platform-tools 37.0.1, `android-36`, and **no emulator, deliberately** (Task 0.5 dropped: test on the real phone). `scripts/android-env.ps1` and `scripts/sdkmanager.ps1` are its reusable output |
-| 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | `475bc42` — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (versionName is 0.1.1 today). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
+| 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | `475bc42` — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (the ladder's first rung, and no longer "0.1.1 today"). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
 `app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in `d13eb53` |
 | 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | `ed8a2a2` (event model, relative-time/duration formatting, day grouping) and `d3aa8e6` (units, exact conversions, compound lb/oz). `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
 
@@ -607,6 +615,10 @@ release-signed APK is the thing being delivered.
 - **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 13,
   or a hosted APK link. Installing a new build becomes a tap on both phones instead of running
   `adb install -r` twice.
+- **The first tag lands here.** All phase rungs stay untagged on purpose — tags are for released builds,
+  and a phase ending is not a release. `v1.0.0` is cut when the signed build is delivered, which is also
+the point at which `versionCode` starts mattering to something other than a human: App Distribution
+compares it to decide whether a build is newer, which is why it has been a rising counter all along.
 
 **Verify:** a build reaches both phones over the air, without a cable.
 **Commit:** `chore(release): signed builds and over-the-air delivery`
