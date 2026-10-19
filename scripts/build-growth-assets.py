@@ -15,6 +15,7 @@ Nothing about the percentile maths happens here. This is transcription with a ch
 the LMS parameters are published data, and the z-score formula lives in `domain/Percentiles.kt`.
 
 WHO has not revised these standards since 2006, which is why the asset is bundled rather than fetched
+on first run. The checksums below were verified on 2026-10-12 by downloading and hashing the files.
 """
 
 from __future__ import annotations

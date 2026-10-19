@@ -63,7 +63,7 @@ data class PercentileCurve(val percentile: Int, val points: List<CurvePoint>)
 /**
  * A child's measurement.
  *
- * [percentile] is null when the reference does not cover that age — a birth measurement at 30 weeks
+ * [percentile] is null when the reference does not cover that age — a birth measurement at the premature range
  * has no WHO percentile, because the WHO 0–5 standards describe term babies. Null is rendered as a
  * value with a reason, never as a percentile.
  */
@@ -138,7 +138,7 @@ data class GrowthChartData(
 
 /** The one sentence a preterm birth measurement deserves, rather than a percentile it cannot have. */
 const val PRETERM_NOTE: String =
-    "Measured before term: the WHO 0-5 standards begin at birth at 40 weeks, so a baby born at 30 weeks " +
+    "Measured before term: the WHO 0-5 standards begin at birth at 40 weeks, so a baby born at the premature range " +
         "has no percentile on them yet. Later measurements use adjusted age."
 
 /** The other honest answer, for a child past the end of the tables. */

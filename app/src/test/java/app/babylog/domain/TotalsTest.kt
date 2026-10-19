@@ -22,8 +22,8 @@ class TotalsTest {
     private val today = LocalDate.of(2026, 10, 14)
     private val now = at(23, 0)
 
-    private val first-twin = Child(id = "first-twin", name = "First Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 0)
-    private val second-twin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
+    private val firstTwin = Child(id = "first-twin", name = "First Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 0)
+    private val secondTwin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
 
     // ---- ranges ------------------------------------------------------------
 
@@ -83,7 +83,7 @@ class TotalsTest {
             health(at(16, 0), celsius = 37.5),
         )
 
-        val totals = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(18, 6), zone)
+        val totals = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(18, 6), zone)
             .associateBy { it.type }
 
         val bottle = totals.getValue(EventType.BOTTLE)
@@ -122,7 +122,7 @@ class TotalsTest {
     fun `a single feed has no average gap`() {
         val totals = totalsFor(
             listOf(bottle(at(6, 0), 120)),
-            listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone,
+            listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone,
         ).associateBy { it.type }
 
         assertEquals("\u2014", totals.getValue(EventType.BOTTLE).rows.value("Time between feeds"))
@@ -135,7 +135,7 @@ class TotalsTest {
             bottle(at(7, 0), 60, childId = "second-twin"),
         )
 
-        val bottle = totalsFor(events, listOf(first-twin, second-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val bottle = totalsFor(events, listOf(firstTwin, secondTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.BOTTLE)
 
         assertEquals("180", bottle.headline)
@@ -144,7 +144,7 @@ class TotalsTest {
 
     @Test
     fun `growth and health are empty when nothing was measured in range`() {
-        val totals = totalsFor(emptyList(), listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val totals = totalsFor(emptyList(), listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }
 
         assertTrue(totals.getValue(EventType.GROWTH).empty)
@@ -158,9 +158,9 @@ class TotalsTest {
     fun `the same total renders in the chosen unit without changing the stored value`() {
         val events = listOf(bottle(at(6, 0), 120))
 
-        val metric = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val metric = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.BOTTLE)
-        val imperial = totalsFor(events, listOf(first-twin), UnitPreferences.Imperial, NightWindow(), zone)
+        val imperial = totalsFor(events, listOf(firstTwin), UnitPreferences.Imperial, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.BOTTLE)
 
         assertEquals("120" to "ml", metric.headline to metric.unit)
@@ -174,7 +174,7 @@ class TotalsTest {
             endedAt = null, createdBy = "t", updatedAt = at(22, 0),
         ))
 
-        val sleep = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val sleep = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.SLEEP)
 
         assertEquals("0s", sleep.headline)
@@ -190,7 +190,7 @@ class TotalsTest {
     fun `a fever reading is flagged in the totals and a normal one is not`() {
         fun healthTotal(vararg celsius: Double) = totalsFor(
             celsius.mapIndexed { i, c -> health(at(9 + i, 0), c) },
-            listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone,
+            listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone,
         ).associateBy { it.type }.getValue(EventType.HEALTH)
 
         val fevered = healthTotal(38.4)
@@ -210,7 +210,7 @@ class TotalsTest {
             health(at(11, 0), 36.9).copy(medication = "Calpol"),
             health(at(8, 0), 36.8).copy(vaccineName = "6-in-1"),
         )
-        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val health = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.HEALTH)
 
         // A vaccine logged in the morning must not vanish because a temperature was logged at noon.
@@ -230,7 +230,7 @@ class TotalsTest {
                 doseUnit = DoseUnit.MILLILITRES,
             ),
         )
-        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val health = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.HEALTH)
 
         // "Which medicines" and "how much of that one" are separate answers, and need not come from the
@@ -242,7 +242,7 @@ class TotalsTest {
     @Test
     fun `a range holding only a medication is not reported as empty`() {
         val events = listOf(health(at(9, 0), 36.8).copy(temperatureC = null, medication = "Vitamin D"))
-        val health = totalsFor(events, listOf(first-twin), UnitPreferences.Metric, NightWindow(), zone)
+        val health = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone)
             .associateBy { it.type }.getValue(EventType.HEALTH)
 
         // "Nothing logged in this range" beside a record count of 1 is a contradiction.

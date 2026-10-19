@@ -43,7 +43,7 @@ class AppStartupTest {
         val kids = container.children.observeAll().first()
         assertEquals(2, kids.size)
         assertEquals(listOf("First Twin", "Second Twin"), kids.map { it.name })
-        // 30 weeks, stored in days so the adjusted-age maths stays exact
+        // the premature range, stored in days so the adjusted-age maths stays exact
         assertTrue(kids.all { it.gestationalAgeDays == 210 })
         assertTrue(kids.all { it.prematureDays == 70 })
         assertTrue(kids.all { it.isPreterm })

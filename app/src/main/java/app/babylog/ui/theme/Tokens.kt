@@ -10,9 +10,9 @@ import androidx.compose.ui.unit.dp
  *
  * PROVENANCE — do not "tidy" these values without evidence:
  *
- *  - **Surfaces and text are SAMPLED from real the reference app screenshots** (15 images, 2026-10-12, in
- *    `research/screenshots/raw-captures/`). Derivation: `research/findings/palette.md`.
- *  - **Accents are BRIGHTENED, deliberately, on request** (2026-10-12). The sampled the reference app accents were
+ *  - **Surfaces and text are SAMPLED from real screenshots of an existing tracker** (15 images,
+ *    2026-10-12), by pixel clustering. The palette notes behind them live beside this repo.
+ *  - **Accents are BRIGHTENED, deliberately, on request** (2026-10-12). The sampled accents were
  *    muted *and* two pairs were nearly the same hue — Solids 35 deg vs Bottle 43 deg, and Growth 85 deg
  *    vs Diaper 76 deg, the latter two also washed out (chroma 0.10-0.16). the reference app's own palette is not
  *    legible enough to read at a glance, which is the entire point of a colour-coded dashboard. The

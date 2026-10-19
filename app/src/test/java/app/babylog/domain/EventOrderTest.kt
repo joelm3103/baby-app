@@ -24,11 +24,11 @@ class EventOrderTest {
     @Test
     fun `identically timestamped rows keep the configured child order, whichever way they arrive`() {
         // Exactly what one Both-mode save writes: same instant, two children.
-        val first-twin = bottle("first-twin-row", "first-twin", t0)
-        val second-twin = bottle("second-twin-row", "second-twin", t0)
+        val firstTwin = bottle("first-twin-row", "first-twin", t0)
+        val secondTwin = bottle("second-twin-row", "second-twin", t0)
 
-        val asDaoReturned = listOf(first-twin, second-twin)
-        val asInserted = listOf(second-twin, first-twin)
+        val asDaoReturned = listOf(firstTwin, secondTwin)
+        val asInserted = listOf(secondTwin, firstTwin)
 
         assertEquals(listOf("first-twin-row", "second-twin-row"), asDaoReturned.sortedNewestFirst(children).map { it.id })
         assertEquals(listOf("first-twin-row", "second-twin-row"), asInserted.sortedNewestFirst(children).map { it.id })
@@ -49,22 +49,22 @@ class EventOrderTest {
 
     @Test
     fun `a different child order is honoured`() {
-        val first-twin = bottle("first-twin-row", "first-twin", t0)
-        val second-twin = bottle("second-twin-row", "second-twin", t0)
+        val firstTwin = bottle("first-twin-row", "first-twin", t0)
+        val secondTwin = bottle("second-twin-row", "second-twin", t0)
 
         assertEquals(
             listOf("second-twin-row", "first-twin-row"),
-            listOf(first-twin, second-twin).sortedNewestFirst(listOf("second-twin", "first-twin")).map { it.id },
+            listOf(firstTwin, secondTwin).sortedNewestFirst(listOf("second-twin", "first-twin")).map { it.id },
         )
     }
 
     @Test
     fun `timestamps still win over the child order`() {
-        val laterSecond = bottle("later-second", "second-twin", t0 + 5000)
-        val earlierFirst = bottle("earlier-first", "first-twin", t0)
+        val laterSecond = bottle("later-second-twin", "second-twin", t0 + 5000)
+        val earlierFirst = bottle("earlier-first-twin", "first-twin", t0)
 
         assertEquals(
-            listOf("later-second", "earlier-first"),
+            listOf("later-second-twin", "earlier-first-twin"),
             listOf(earlierFirst, laterSecond).sortedNewestFirst(children).map { it.id },
         )
     }

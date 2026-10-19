@@ -26,9 +26,10 @@ out/
 Thumbs.db
 desktop.ini
 
-# Research: the teardowns, source provenance, design refs, toolchain record and growth-data notes,
-***REMOVED***
+# Local working folders: research notes and reference frames (regenerable), and the design
+# skill an agent loads while working in this repo. Not part of the app's build.
 research/
+.hermes/
 
 # Android / Gradle
 .gradle/
@@ -45,5 +46,5 @@ app/build/
 # Build/run logs — regenerable, and the full text of any run is in the terminal history anyway.
 logs/
 
-# real child names in the app's header. Regenerate with scripts/capture-timeline.ps1.
+# Device captures written by scripts/capture-timeline.ps1 — regenerable, kept off the repo.
 docs/timeline/

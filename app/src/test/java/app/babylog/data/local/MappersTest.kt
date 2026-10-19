@@ -24,11 +24,11 @@ class MappersTest {
     // ---- prematurity ------------------------------------------------------
 
     @Test
-    fun `30 weeks is 70 days premature`() {
-        val first-twin = child(gestationalAgeDays = 210)
-        assertTrue(first-twin.isPreterm)
-        assertEquals(70, first-twin.prematureDays)
-        assertEquals("30 weeks", first-twin.gestationalWeeksLabel)
+    fun `the premature range is 70 days of prematurity`() {
+        val firstTwin = child(gestationalAgeDays = 210)
+        assertTrue(firstTwin.isPreterm)
+        assertEquals(70, firstTwin.prematureDays)
+        assertEquals("30 weeks", firstTwin.gestationalWeeksLabel)
     }
 
     @Test

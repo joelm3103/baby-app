@@ -85,7 +85,7 @@ class ChildRepository(
         id = id,
         name = name,
         birthDateEpochDay = LocalDate.of(2025, 12, 31).toEpochDay(),
-        // 30 weeks = 210 days. 70 days premature, which is what the adjusted-age maths depends on.
+        // the premature range = 210 days. 70 days of prematurity, which is what the adjusted-age maths depends on.
         gestationalAgeDays = 30 * 7,
         sex = Sex.BOY.name,
         useAdjustedAge = true,

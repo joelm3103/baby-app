@@ -157,7 +157,7 @@ class GrowthReferenceTest {
     @Test
     fun `adjusted age moves the percentile, which is the point of the setting`() {
         val reference = reference()
-        // the children: 30 weeks at birth, so 70 days premature.
+        // the children: the premature range at birth, so 70 days of prematurity.
         val birth = LocalDate.of(2025, 12, 31)
         val preemie = Child(
             id = "first-twin",

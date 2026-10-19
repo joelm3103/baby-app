@@ -34,14 +34,14 @@ import kotlin.math.abs
  * axis means, what happens before term - and those must hold for any reference. The real asset's own
  * parameters are pinned in `GrowthReferenceTest`.
  *
- * The twins are the fixtures: a date set in Settings, 30 weeks, 70 days premature.
+ * The twins are the fixtures: a date set in Settings, the premature range, 70 days of prematurity.
  */
 class GrowthChartTest {
 
     private val birth = LocalDate.of(2025, 12, 31)
     private val zone = ZoneOffset.UTC
 
-    private val first-twin = Child(
+    private val firstTwin = Child(
         id = "first-twin",
         name = "First Twin",
         birthDate = birth,
@@ -49,7 +49,7 @@ class GrowthChartTest {
         gestationalAgeDays = 210,
         useAdjustedAge = true,
     )
-    private val second-twin = first-twin.copy(id = "second-twin", name = "Second Twin")
+    private val secondTwin = firstTwin.copy(id = "second-twin", name = "Second Twin")
 
     private val metric = UnitPreferences(length = LengthUnit.CENTIMETRES, weight = WeightUnit.KILOGRAMS)
     private val imperial = UnitPreferences(length = LengthUnit.INCHES, weight = WeightUnit.POUNDS_OUNCES)
@@ -99,7 +99,7 @@ class GrowthChartTest {
 
     @Test
     fun `the bundle is the seven published curves, drawn from the reference`() {
-        val chart = growthChart(listOf(first-twin), emptyList(), reference(), GrowthMetric.WEIGHT, metric, zone)
+        val chart = growthChart(listOf(firstTwin), emptyList(), reference(), GrowthMetric.WEIGHT, metric, zone)
         assertEquals(listOf(2, 10, 25, 50, 75, 90, 98), chart.curves.map { it.percentile })
         assertTrue(chart.curves.all { it.points.size > 5 })
         // The median curve IS the reference: at day 0 it must equal M exactly.
@@ -113,7 +113,7 @@ class GrowthChartTest {
         // Day 100 with adjusted age: born 70 days early, so 2026-04-10 is 100 chronological days and
         // 30 adjusted days. The fake's M at day 30 is 3.3 kg.
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("a", "first-twin", birth.plusDays(100), grams = 3300)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -130,11 +130,11 @@ class GrowthChartTest {
 
     @Test
     fun `a measurement before term has no percentile and says why`() {
-        // The birth measurement: taken at 30 weeks, which is 70 days before term. The WHO standards
+        // The birth measurement: taken at the premature range, which is 70 days before term. The WHO standards
         // describe babies born at term, so there is no percentile to read - and showing one would read
         // as a growth failure rather than as immaturity.
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("a", "first-twin", birth, grams = 1370)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -154,7 +154,7 @@ class GrowthChartTest {
         // Adjusted age 2200 - 70 = 2130 days, past the fake's 0..2000 rows. The synthetic reference is
         // deliberately longer than the real one so this case is reachable with a plausible date.
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("a", "first-twin", birth.plusDays(2200), grams = 20000)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -169,7 +169,7 @@ class GrowthChartTest {
     @Test
     fun `each measurement keeps its own child, badge and date`() {
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(
                 growth("a", "first-twin", birth.plusDays(100), grams = 3300),
                 growth("b", "second-twin", birth.plusDays(100), grams = 3300),
@@ -183,14 +183,14 @@ class GrowthChartTest {
         assertEquals(3, chart.markers.size)
         // Newest first, and a Both-mode pair of the same date stays stable by child name.
         assertEquals(listOf("second-twin", "first-twin", "second-twin"), chart.markers.map { it.childId })
-        assertEquals("K", chart.markers.first { it.childId == "first-twin" }.badge)
+        assertEquals("F", chart.markers.first { it.childId == "first-twin" }.badge)
         assertNotNull(chart.markers.first { it.childId == "first-twin" }.percentile)
     }
 
     @Test
     fun `both children of the same sex share one curve bundle`() {
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(growth("a", "first-twin", birth.plusDays(100), grams = 3300)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -205,7 +205,7 @@ class GrowthChartTest {
     fun `the axis converts for display while the percentile stays metric`() {
         val event = growth("a", "first-twin", birth.plusDays(100), grams = 3300)
         val imperialChart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(event),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -219,7 +219,7 @@ class GrowthChartTest {
         assertEquals(50.0, marker.percentile!!, 1e-6)
 
         val metricChart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(event),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -232,7 +232,7 @@ class GrowthChartTest {
     @Test
     fun `length and head read their own fields and units`() {
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("a", "first-twin", birth.plusDays(100), mm = 520)),
             reference = reference(),
             metric = GrowthMetric.LENGTH,
@@ -245,7 +245,7 @@ class GrowthChartTest {
         // A weight-only event contributes nothing to the length chart.
         assertTrue(
             growthChart(
-                children = listOf(first-twin),
+                children = listOf(firstTwin),
                 events = listOf(growth("a", "first-twin", birth.plusDays(100), grams = 3300)),
                 reference = reference(),
                 metric = GrowthMetric.HEAD,
@@ -257,7 +257,7 @@ class GrowthChartTest {
 
     @Test
     fun `an empty log produces curves but no markers and no callout`() {
-        val chart = growthChart(listOf(first-twin), emptyList(), reference(), GrowthMetric.WEIGHT, metric, zone)
+        val chart = growthChart(listOf(firstTwin), emptyList(), reference(), GrowthMetric.WEIGHT, metric, zone)
         assertTrue(chart.markers.isEmpty())
         assertTrue(chart.callouts.isEmpty())
         assertTrue(!chart.hasData)
@@ -269,7 +269,7 @@ class GrowthChartTest {
         // The owner's rule, matching the card's two columns: in Both mode a single highlight box
         // showed whichever child won a name-order tie on the same day. Each child now gets their own.
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(
                 // Second Twin's is the newer on the same date, and First Twin's the heavier: neither should decide the
                 // other's box.
@@ -292,7 +292,7 @@ class GrowthChartTest {
     @Test
     fun `one child in scope gets one callout`() {
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("k", "first-twin", birth.plusDays(100), grams = 3300)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -307,7 +307,7 @@ class GrowthChartTest {
     fun `a child with nothing for this metric gets no callout`() {
         // Second Twin has only a length measurement, so the WEIGHT chart must not invent a box for him.
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(
                 growth("k", "first-twin", birth.plusDays(200), grams = 7000),
                 growth("l", "second-twin", birth.plusDays(200), mm = 660),
@@ -382,7 +382,7 @@ class GrowthChartTest {
         val reference = reference()
         val lms = reference.lms(GrowthMeasure.WEIGHT_FOR_AGE, Sex.BOY, 30.0)!!
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("a", "first-twin", birth.plusDays(100), grams = 3300)),
             reference = reference,
             metric = GrowthMetric.WEIGHT,
@@ -401,7 +401,7 @@ class GrowthChartTest {
     @Test
     fun `a child's own line runs oldest to newest, unlike the marker list`() {
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(
                 growth("new", "first-twin", birth.plusDays(200), grams = 6000),
                 growth("old", "first-twin", birth.plusDays(100), grams = 3300),
@@ -425,7 +425,7 @@ class GrowthChartTest {
         // The birth measurement sits at x = 0, which is the DUE DATE. An unbroken line through it would
         // draw a slope that is not growth, so only that segment is dashed.
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(
                 growth("birth", "first-twin", birth, grams = 1370),
                 growth("three", "first-twin", birth.plusDays(100), grams = 3300),
@@ -447,7 +447,7 @@ class GrowthChartTest {
     @Test
     fun `one measurement is a dot, not a line`() {
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(growth("only", "first-twin", birth.plusDays(100), grams = 3300)),
             reference = reference(),
             metric = GrowthMetric.WEIGHT,
@@ -461,7 +461,7 @@ class GrowthChartTest {
     @Test
     fun `Both mode gives each child their own line from their own measurements`() {
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(
                 growth("k1", "first-twin", birth.plusDays(100), grams = 3300),
                 growth("k2", "first-twin", birth.plusDays(200), grams = 6000),
@@ -476,7 +476,7 @@ class GrowthChartTest {
         assertEquals(2, chart.trajectories.size)
         val firstLine = chart.trajectories.single { it.childId == "first-twin" }
         val secondLine = chart.trajectories.single { it.childId == "second-twin" }
-        assertEquals("K", firstLine.badge)
+        assertEquals("F", firstLine.badge)
         assertEquals(listOf(3300.0 / 1000, 6000.0 / 1000), firstLine.points.map { it.value })
         // Second Twin never borrowed one of First Twin's measurements.
         assertEquals(listOf(3.1, 5.6), secondLine.points.map { it.value })
@@ -485,7 +485,7 @@ class GrowthChartTest {
     @Test
     fun `a length measurement does not appear on the weight line`() {
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(
                 growth("w", "first-twin", birth.plusDays(100), grams = 3300),
                 growth("l", "first-twin", birth.plusDays(190), mm = 520),
@@ -521,12 +521,12 @@ class GrowthChartTest {
         )
         assertEquals(
             LocalDate.of(2026, 4, 10),
-            growthChart(listOf(first-twin), listOf(event), reference(), GrowthMetric.WEIGHT, metric, ZoneId.of("Pacific/Auckland"))
+            growthChart(listOf(firstTwin), listOf(event), reference(), GrowthMetric.WEIGHT, metric, ZoneId.of("Pacific/Auckland"))
                 .markers.single().measuredOn,
         )
         assertEquals(
             LocalDate.of(2026, 4, 9),
-            growthChart(listOf(first-twin), listOf(event), reference(), GrowthMetric.WEIGHT, metric, ZoneOffset.UTC)
+            growthChart(listOf(firstTwin), listOf(event), reference(), GrowthMetric.WEIGHT, metric, ZoneOffset.UTC)
                 .markers.single().measuredOn,
         )
         assertEquals(Instant.parse("2026-04-09T12:00:00Z").toEpochMilli(), instant.toEpochMilli())

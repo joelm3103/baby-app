@@ -39,15 +39,15 @@ class GrowthChartAssetTest {
     private val zone = ZoneOffset.UTC
     private val metric = UnitPreferences(length = LengthUnit.CENTIMETRES, weight = WeightUnit.KILOGRAMS)
 
-    // the children: 30 weeks at birth, so 70 days premature.
-    private val first-twin = Child(
+    // the children: the premature range at birth, so 70 days of prematurity.
+    private val firstTwin = Child(
         id = "first-twin",
         name = "First Twin",
         birthDate = birth,
         sex = Sex.BOY,
         gestationalAgeDays = 210,
     )
-    private val second-twin = first-twin.copy(id = "second-twin", name = "Second Twin")
+    private val secondTwin = firstTwin.copy(id = "second-twin", name = "Second Twin")
 
     private fun reference() = ApplicationProvider.getApplicationContext<Context>()
         .assets.open(GrowthReferenceParser.ASSET_PATH)
@@ -71,7 +71,7 @@ class GrowthChartAssetTest {
     fun `every metric draws seven real curves from the shipped asset`() {
         val reference = reference()
         for (metricChoice in GrowthMetric.entries) {
-            val chart = growthChart(listOf(first-twin), emptyList(), reference, metricChoice, metric, zone)
+            val chart = growthChart(listOf(firstTwin), emptyList(), reference, metricChoice, metric, zone)
             assertEquals("$metricChoice curves", listOf(2, 10, 25, 50, 75, 90, 98), chart.curves.map { it.percentile })
             assertTrue("$metricChoice has too few points", chart.curves.all { it.points.size > 20 })
             assertTrue(
@@ -95,7 +95,7 @@ class GrowthChartAssetTest {
         // 2026-10-14 is 287 days after birth, and 217 adjusted days for a 70-day preemie.
         val measured = LocalDate.of(2026, 10, 14)
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(measurement("a", "first-twin", measured, grams = 8600, mm = 720)),
             reference = reference,
             metric = GrowthMetric.WEIGHT,
@@ -115,7 +115,7 @@ class GrowthChartAssetTest {
     fun `both children are plotted on one bundle`() {
         val reference = reference()
         val chart = growthChart(
-            children = listOf(first-twin, second-twin),
+            children = listOf(firstTwin, secondTwin),
             events = listOf(
                 measurement("a", "first-twin", LocalDate.of(2026, 10, 14), grams = 8600),
                 measurement("b", "second-twin", LocalDate.of(2026, 10, 14), grams = 8300),
@@ -126,7 +126,7 @@ class GrowthChartAssetTest {
             zone = zone,
         )
         assertEquals(2, chart.markers.size)
-        assertEquals(setOf("K", "L"), chart.markers.map { it.badge }.toSet())
+        assertEquals(setOf("F", "S"), chart.markers.map { it.badge }.toSet())
         assertTrue(chart.markers.all { it.percentile != null })
         assertEquals("WHO boys", chart.referenceLabel)
         // Two markers share an age, so their values must be ordered by value on the chart, not by luck.
@@ -137,7 +137,7 @@ class GrowthChartAssetTest {
     fun `the birth measurement has a value and no percentile`() {
         val reference = reference()
         val chart = growthChart(
-            children = listOf(first-twin),
+            children = listOf(firstTwin),
             events = listOf(measurement("a", "first-twin", birth, grams = 1370, mm = 380)),
             reference = reference,
             metric = GrowthMetric.WEIGHT,
@@ -156,7 +156,7 @@ class GrowthChartAssetTest {
     @Test
     fun `the chart's y-range covers the curves it drew`() {
         val reference = reference()
-        val chart = growthChart(listOf(first-twin), emptyList(), reference, GrowthMetric.HEAD, metric, zone)
+        val chart = growthChart(listOf(firstTwin), emptyList(), reference, GrowthMetric.HEAD, metric, zone)
         val values = chart.curves.flatMap { curve -> curve.points.map { it.value } }
         val range = yRangeFor(values)
         assertTrue(range.start < values.min().toFloat())

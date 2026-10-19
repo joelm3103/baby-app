@@ -77,7 +77,7 @@ class MaintenanceRepositoryTest {
 
         val snap = repo.snapshot()
 
-        assertEquals(listOf("first-twin", "second-twin", "removed"), snap.children.map { it.id }.sorted())
+        assertEquals(listOf("first-twin", "removed", "second-twin"), snap.children.map { it.id }.sorted())
         assertTrue("a tombstoned child must be in the backup", snap.children.single { it.id == "removed" }.deleted)
         assertEquals(listOf("e1", "e2", "e3"), snap.events.map { it.id }.sorted())
         assertTrue(snap.events.single { it.id == "e2" }.deleted)
@@ -158,7 +158,7 @@ class MaintenanceRepositoryTest {
         assertNull(db.childDao().byId("first-twin"))
         assertEquals(listOf("second-twin"), db.childDao().allIncludingDeleted().map { it.id }.sorted())
         assertEquals(listOf("e3"), db.eventDao().allIncludingDeleted().map { it.id }.sorted())
-        // first-twin's queued write is gone; second-twin's survives.
+        // firstTwin's queued write is gone; secondTwin's survives.
         assertEquals(listOf("e3"), db.outboxDao().pending().map { it.entityId })
     }
 

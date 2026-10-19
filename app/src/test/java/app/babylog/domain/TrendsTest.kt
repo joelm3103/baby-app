@@ -23,8 +23,8 @@ class TrendsTest {
     private val today = LocalDate.of(2026, 10, 18)
     private val now = at(23, 0)
 
-    private val first-twin = Child(id = "first-twin", name = "First Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 0)
-    private val second-twin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
+    private val firstTwin = Child(id = "first-twin", name = "First Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 0)
+    private val secondTwin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
 
     // ---- the window ---------------------------------------------------------
 
@@ -49,7 +49,7 @@ class TrendsTest {
     fun `an event just before local midnight lands on its own local day`() {
         // 23:59 on the 17th is 14:59 UTC on the 17th. A UTC bucket keeps this on the 17th too, so the
         // assertion that matters is against the LOCAL day list, which is what the axis draws.
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin), listOf(bottle(at(23, 59, dayOffset = -1), 90)))
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), listOf(bottle(at(23, 59, dayOffset = -1), 90)))
 
         val line = series.lines.single()
         assertEquals(90.0, line.points[line.points.size - 2].value, 1e-9)
@@ -60,7 +60,7 @@ class TrendsTest {
     @Test
     fun `an early morning feed is not pushed onto the previous day`() {
         // 06:00 local on the 18th is 21:00 UTC on the 17th — the case that makes a UTC bucket wrong.
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin), listOf(bottle(at(6, 0), 120)))
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), listOf(bottle(at(6, 0), 120)))
 
         val line = series.lines.single()
         assertTrue("today, not yesterday", line.points.last().recorded)
@@ -77,7 +77,7 @@ class TrendsTest {
             bottle(at(11, 30), 120),
             bottle(at(19, 0, dayOffset = -2), 60),
         )
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin), events)
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), events)
 
         val line = series.lines.single()
         assertEquals(270.0, line.total, 1e-9)
@@ -91,7 +91,7 @@ class TrendsTest {
 
     @Test
     fun `a logged bottle with no amount counts as a day recorded with no volume`() {
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin), listOf(bottle(at(9, 0), null)))
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), listOf(bottle(at(9, 0), null)))
 
         val line = series.lines.single()
         assertEquals(1, line.daysRecorded)
@@ -102,7 +102,7 @@ class TrendsTest {
     @Test
     fun `diapers and solids are counted`() {
         val diapers = List(3) { index -> diaper(at(9 + index, 0)) }
-        val series = seriesOf(EventType.DIAPER, listOf(first-twin), diapers)
+        val series = seriesOf(EventType.DIAPER, listOf(firstTwin), diapers)
 
         assertEquals(3.0, series.lines.single().points.last().value, 1e-9)
         assertEquals(TrendMetric.COUNT, series.metric)
@@ -115,7 +115,7 @@ class TrendsTest {
             // Running: started at 13:00 and never stopped, so it is a day with a record and no duration.
             sleep(from = at(13, 0), to = null),
         )
-        val series = seriesOf(EventType.SLEEP, listOf(first-twin), events)
+        val series = seriesOf(EventType.SLEEP, listOf(firstTwin), events)
 
         val line = series.lines.single()
         // Two and a half hours from the finished session; guessing "until now" for the other one would
@@ -131,7 +131,7 @@ class TrendsTest {
     fun `a sleep that starts before midnight is counted on the day it started`() {
         val events = listOf(sleep(from = at(22, 0, dayOffset = -1), to = at(6, 0)))
 
-        val line = seriesOf(EventType.SLEEP, listOf(first-twin), events).lines.single()
+        val line = seriesOf(EventType.SLEEP, listOf(firstTwin), events).lines.single()
         assertEquals(480.0, line.total, 1e-9)
         // Yesterday's bucket, in full: 8 hours, none of it split onto today.
         assertEquals(480.0, line.points[line.points.size - 2].value, 1e-9)
@@ -147,7 +147,7 @@ class TrendsTest {
             bottle(at(8, 0), 60, childId = "second-twin"),
             bottle(at(20, 0), 40, childId = "second-twin"),
         )
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin, second-twin), events)
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin, secondTwin), events)
 
         assertEquals(listOf("First Twin", "Second Twin"), series.lines.map { it.childName })
         assertEquals(100.0, series.lines[0].total, 1e-9)
@@ -162,7 +162,7 @@ class TrendsTest {
             bottle(at(9, 0), 900, childId = "second-twin"),
         )
 
-        val line = seriesOf(EventType.BOTTLE, listOf(first-twin), events).lines.single()
+        val line = seriesOf(EventType.BOTTLE, listOf(firstTwin), events).lines.single()
         assertEquals(100.0, line.total, 1e-9)
     }
 
@@ -174,7 +174,7 @@ class TrendsTest {
             bottle(at(9, 0), 80),
         )
 
-        val line = seriesOf(EventType.BOTTLE, listOf(first-twin), events).lines.single()
+        val line = seriesOf(EventType.BOTTLE, listOf(firstTwin), events).lines.single()
         assertEquals(80.0, line.total, 1e-9)
     }
 
@@ -185,11 +185,11 @@ class TrendsTest {
             bottle(at(21, 0), 120),
             bottle(at(9, 0, dayOffset = -3), 30),
         )
-        val line = seriesOf(EventType.BOTTLE, listOf(first-twin), events).lines.single()
+        val line = seriesOf(EventType.BOTTLE, listOf(firstTwin), events).lines.single()
 
         assertEquals(180.0, line.bestDay?.value ?: 0.0, 1e-9)
-        assertNull(seriesOf(EventType.BOTTLE, listOf(first-twin), emptyList()).lines.single().bestDay)
-        assertFalse(seriesOf(EventType.BOTTLE, listOf(first-twin), emptyList()).hasData)
+        assertNull(seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList()).lines.single().bestDay)
+        assertFalse(seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList()).hasData)
     }
 
     @Test
@@ -197,7 +197,7 @@ class TrendsTest {
         // The DAO filters tombstones; this pins the domain's own behaviour if one ever reaches it live.
         val events = listOf(bottle(at(9, 0), 90).copy(deleted = true))
 
-        val series = seriesOf(EventType.BOTTLE, listOf(first-twin), events)
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), events)
         assertEquals(0, series.lines.single().daysRecorded)
         assertFalse(series.hasData)
     }
@@ -206,8 +206,8 @@ class TrendsTest {
     fun `the range chip changes the window, not the data`() {
         val events = listOf(bottle(at(9, 0, dayOffset = -10), 200), bottle(at(9, 0), 100))
 
-        val week = seriesOf(EventType.BOTTLE, listOf(first-twin), events, TrendRange.WEEK)
-        val month = seriesOf(EventType.BOTTLE, listOf(first-twin), events, TrendRange.MONTH)
+        val week = seriesOf(EventType.BOTTLE, listOf(firstTwin), events, TrendRange.WEEK)
+        val month = seriesOf(EventType.BOTTLE, listOf(firstTwin), events, TrendRange.MONTH)
 
         assertEquals(100.0, week.lines.single().total, 1e-9)
         assertEquals(300.0, month.lines.single().total, 1e-9)
@@ -224,7 +224,7 @@ class TrendsTest {
             health(at(9, 0), 38.0),
             health(at(10, 0), 38.6),
         )
-        val trend = healthTrend(listOf(first-twin), events, zone)
+        val trend = healthTrend(listOf(firstTwin), events, zone)
 
         assertEquals(3, trend.readings)
         assertEquals(listOf(38.6, 38.0), trend.feverReadings.map { it.temperatureC })
@@ -241,7 +241,7 @@ class TrendsTest {
             health(at(8, 0, dayOffset = -1), 38.2),
             health(at(8, 0, dayOffset = -2), 38.7),
         )
-        val trend = healthTrend(listOf(first-twin), events, zone)
+        val trend = healthTrend(listOf(firstTwin), events, zone)
 
         assertEquals(5, trend.readings)
         assertEquals("three evenings of fever, five readings", 3, trend.feverDays)
@@ -253,7 +253,7 @@ class TrendsTest {
         val events = listOf(
             health(at(9, 0), 36.8).copy(temperatureC = null, medication = "Vitamin D"),
         )
-        val trend = healthTrend(listOf(first-twin), events, zone)
+        val trend = healthTrend(listOf(firstTwin), events, zone)
 
         // No temperature is no reading: the table counts thermometers, not rows.
         assertEquals(0, trend.readings)
@@ -267,7 +267,7 @@ class TrendsTest {
             health(at(9, 0), 38.5, childId = "first-twin"),
             health(at(10, 0), 39.1, childId = "second-twin"),
         )
-        val trend = healthTrend(listOf(first-twin, second-twin), events, zone)
+        val trend = healthTrend(listOf(firstTwin, secondTwin), events, zone)
 
         assertEquals(listOf("Second Twin", "First Twin"), trend.feverReadings.map { it.childName })
     }

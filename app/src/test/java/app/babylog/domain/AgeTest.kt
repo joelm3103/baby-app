@@ -8,7 +8,7 @@ import org.junit.Test
 
 class AgeTest {
 
-    private val birth = LocalDate.of(2025, 12, 31) // the children, 30 weeks
+    private val birth = LocalDate.of(2025, 12, 31) // the children, the premature range
     private val today = LocalDate.of(2026, 10, 12)
 
     // ---- the number the reference app itself displayed ---------------------------------
@@ -31,17 +31,17 @@ class AgeTest {
     // ---- adjusted age, the reason this file exists ------------------------
 
     @Test
-    fun `30 weeks shifts the adjusted birth date by 70 days`() {
-        val first-twin = child(gestationalAgeDays = 210)
-        assertEquals(70, first-twin.prematureDays)
-        assertEquals(LocalDate.of(2026, 3, 11), adjustedBirthDate(first-twin))
+    fun `the premature range shifts the adjusted birth date by 70 days`() {
+        val firstTwin = child(gestationalAgeDays = 210)
+        assertEquals(70, firstTwin.prematureDays)
+        assertEquals(LocalDate.of(2026, 3, 11), adjustedBirthDate(firstTwin))
     }
 
     @Test
     fun `adjusted age is 70 days behind chronological for a 30-week preemie`() {
-        val first-twin = child(gestationalAgeDays = 210)
-        val chronological = ageDaysForCharts(first-twin, today, useAdjustedAge = false)
-        val adjusted = ageDaysForCharts(first-twin, today, useAdjustedAge = true)
+        val firstTwin = child(gestationalAgeDays = 210)
+        val chronological = ageDaysForCharts(firstTwin, today, useAdjustedAge = false)
+        val adjusted = ageDaysForCharts(firstTwin, today, useAdjustedAge = true)
         assertEquals(285, chronological)
         assertEquals(215, adjusted)
         assertEquals(70, chronological - adjusted)
@@ -49,9 +49,9 @@ class AgeTest {
 
     @Test
     fun `adjusted age reads as a different age entirely, not a minor correction`() {
-        val first-twin = child(gestationalAgeDays = 210)
-        assertEquals("9 months, 1 week, 5 days", ageText(first-twin, today, useAdjustedAge = false))
-        assertEquals("7 months, 1 day", ageText(first-twin, today, useAdjustedAge = true))
+        val firstTwin = child(gestationalAgeDays = 210)
+        assertEquals("9 months, 1 week, 5 days", ageText(firstTwin, today, useAdjustedAge = false))
+        assertEquals("7 months, 1 day", ageText(firstTwin, today, useAdjustedAge = true))
     }
 
     @Test

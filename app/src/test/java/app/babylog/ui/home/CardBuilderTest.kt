@@ -87,12 +87,12 @@ class CardBuilderTest {
     fun `a Both-mode pair sharing a timestamp keeps the configured child order either way round`() {
         // One tap in Both mode writes two rows with an identical startedAt. Without the tie-break the
         // two rows can swap places, which looks like the app editing the log on its own.
-        val first-twin = event("first-twin-row", EventType.BOTTLE, at = t0, child = "first-twin")
-        val second-twin = event("second-twin-row", EventType.BOTTLE, at = t0, child = "second-twin")
+        val firstTwin = event("first-twin-row", EventType.BOTTLE, at = t0, child = "first-twin")
+        val secondTwin = event("second-twin-row", EventType.BOTTLE, at = t0, child = "second-twin")
         val children = listOf("first-twin", "second-twin")
 
-        val once = buildCards(listOf(first-twin, second-twin), children).first { it.type == EventType.BOTTLE }
-        val again = buildCards(listOf(second-twin, first-twin), children).first { it.type == EventType.BOTTLE }
+        val once = buildCards(listOf(firstTwin, secondTwin), children).first { it.type == EventType.BOTTLE }
+        val again = buildCards(listOf(secondTwin, firstTwin), children).first { it.type == EventType.BOTTLE }
 
         assertEquals(listOf("first-twin-row", "second-twin-row"), once.entries.map { it.id })
         assertEquals(once.entries.map { it.id }, again.entries.map { it.id })

@@ -10,7 +10,7 @@ data class ChildEntity(
     val name: String,
     /** `LocalDate.toEpochDay()` — a birth date has no time and no timezone, so store it that way. */
     val birthDateEpochDay: Long,
-    /** 280 = term, 210 = 30 weeks. See [app.babylog.domain.Child]. */
+    /** 280 = term, 210 = the premature range. See [app.babylog.domain.Child]. */
     val gestationalAgeDays: Int = TERM_GESTATION_DAYS,
     val sex: String,
     val useAdjustedAge: Boolean = true,

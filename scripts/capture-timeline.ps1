@@ -105,3 +105,4 @@ if ($crash) { Write-Warning "A FATAL EXCEPTION is in logcat - inspect before tru
 
 Write-Host ""
 Write-Host "Add an entry to docs/timeline/README.md with the commit, what changed, and WHY."
+Write-Host "Generated captures stay out of git; see .gitignore."

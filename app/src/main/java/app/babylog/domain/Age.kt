@@ -10,7 +10,7 @@ data class AgeParts(val months: Int, val weeks: Int, val days: Int)
  * Age arithmetic. Pure, and every function takes the `on` date explicitly rather than reading the
  * clock, so the tests are deterministic and cannot fail at midnight.
  *
- * The adjusted-age concept is the whole point of this file: the children were born at 30 weeks, so
+ * The adjusted-age concept is the whole point of this file: the children were born at the premature range, so
  * their chronological and adjusted ages differ by 70 days. At nine months that is a large percentile
  * difference, and reading their growth against chronological age would be simply wrong.
  */

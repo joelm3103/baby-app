@@ -103,10 +103,10 @@ class CardSummaryTest {
     fun `the Both-mode summary gives each child their own column`() {
         // The owner's rule: in Both mode a combined headline has no owner - "6 kg" was one child's weight
         // read as the twins' - so each child gets their own latest weight, length and head.
-        val first-twin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000, lengthMm = 660, headMm = 420)
-        val second-twin = event(EventType.GROWTH).copy(id = "l", childId = "second-twin", weightGrams = 5400, headMm = 410)
+        val firstTwin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000, lengthMm = 660, headMm = 420)
+        val secondTwin = event(EventType.GROWTH).copy(id = "l", childId = "second-twin", weightGrams = 5400, headMm = 410)
 
-        val columns = growthByChild(listOf(second-twin, first-twin), listOf("first-twin", "second-twin"), metric)
+        val columns = growthByChild(listOf(secondTwin, firstTwin), listOf("first-twin", "second-twin"), metric)
 
         assertEquals(listOf("first-twin", "second-twin"), columns.map { it.childId })
         // One line per measurement, in the sheet's field order — the shape the card draws.
@@ -118,9 +118,9 @@ class CardSummaryTest {
 
     @Test
     fun `a child with no measurements gets an empty column, not the other child's numbers`() {
-        val first-twin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000)
+        val firstTwin = event(EventType.GROWTH).copy(id = "k", childId = "first-twin", weightGrams = 6000)
 
-        val columns = growthByChild(listOf(first-twin), listOf("first-twin", "second-twin"), metric)
+        val columns = growthByChild(listOf(firstTwin), listOf("first-twin", "second-twin"), metric)
 
         assertEquals(listOf("W 6 kg"), columns[0].lines)
         assertTrue(columns[0].hasData)

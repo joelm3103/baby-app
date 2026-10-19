@@ -49,26 +49,26 @@ class ChildSelectionTest {
 
     @Test
     fun `fallbackFor is Both only at exactly two children`() {
-        val first-twin = child("first-twin", order = 0)
-        val second-twin = child("second-twin", order = 1)
+        val firstTwin = child("first-twin", order = 0)
+        val secondTwin = child("second-twin", order = 1)
         val noah = child("noah", order = 2)
 
-        assertEquals(ChildSelection.Both, ChildSelection.fallbackFor(listOf(first-twin, second-twin)))
-        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(first-twin)))
-        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(first-twin, second-twin, noah)))
+        assertEquals(ChildSelection.Both, ChildSelection.fallbackFor(listOf(firstTwin, secondTwin)))
+        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(firstTwin)))
+        assertEquals(ChildSelection.One("first-twin"), ChildSelection.fallbackFor(listOf(firstTwin, secondTwin, noah)))
     }
 
     @Test
     fun `isValidFor rejects Both unless there are exactly two children`() {
-        val first-twin = child("first-twin", order = 0)
-        val second-twin = child("second-twin", order = 1)
+        val firstTwin = child("first-twin", order = 0)
+        val secondTwin = child("second-twin", order = 1)
         val noah = child("noah", order = 2)
 
-        assertTrue(ChildSelection.Both.isValidFor(listOf(first-twin, second-twin)))
-        assertTrue(!ChildSelection.Both.isValidFor(listOf(first-twin)))
-        assertTrue(!ChildSelection.Both.isValidFor(listOf(first-twin, second-twin, noah)))
-        assertTrue(ChildSelection.One("second-twin").isValidFor(listOf(first-twin, second-twin)))
-        assertTrue(!ChildSelection.One("gone").isValidFor(listOf(first-twin, second-twin)))
+        assertTrue(ChildSelection.Both.isValidFor(listOf(firstTwin, secondTwin)))
+        assertTrue(!ChildSelection.Both.isValidFor(listOf(firstTwin)))
+        assertTrue(!ChildSelection.Both.isValidFor(listOf(firstTwin, secondTwin, noah)))
+        assertTrue(ChildSelection.One("second-twin").isValidFor(listOf(firstTwin, secondTwin)))
+        assertTrue(!ChildSelection.One("gone").isValidFor(listOf(firstTwin, secondTwin)))
     }
 
     @Test

@@ -8,11 +8,11 @@ const val TERM_GESTATION_DAYS = 280
 enum class Sex { BOY, GIRL }
 
 /**
- * A child. Birth details are DATA, never constants: both boys were born a date set in Settings at 30 weeks, but
+ * A child. Birth details are DATA, never constants: both boys were born a date set in Settings at the premature range, but
  * the app must not hardcode either fact.
  *
  * Gestational age is stored in DAYS rather than weeks so the adjusted-age subtraction stays exact:
- * 210 days = 30 weeks. Storing "30" for weeks would make `280 - 30 = 250` look plausible while being
+ * 210 days = the premature range. Storing "30" for weeks would make `280 - 30 = 250` look plausible while being
  * nonsense, which is exactly how a unit slip corrupts every percentile downstream.
  */
 data class Child(
