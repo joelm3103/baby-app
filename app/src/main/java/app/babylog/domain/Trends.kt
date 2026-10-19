@@ -177,6 +177,7 @@ private fun startOfDay(at: Long, zone: ZoneId): Long =
 /** One fever reading, as the table names it. */
 data class FeverReading(
     val childName: String,
+    val childBadge: String,
     val at: Long,
     val temperatureC: Double,
 )
@@ -199,12 +200,14 @@ data class HealthTrend(
 
 fun healthTrend(children: List<Child>, events: List<BabyEvent>, zone: ZoneId): HealthTrend {
     val names = children.associate { it.id to it.name }
+    val badges = badgesFor(children)
     val measured = events.filterNot { it.deleted }.filter { it.temperatureC != null && it.childId in names }
     val fever = measured.filter { (it.temperatureC ?: 0.0) >= FEVER_C }
         .sortedByDescending { it.startedAt }
         .map { event ->
             FeverReading(
                 childName = names.getValue(event.childId),
+                childBadge = badges.getValue(event.childId),
                 at = event.startedAt,
                 temperatureC = event.temperatureC!!,
             )

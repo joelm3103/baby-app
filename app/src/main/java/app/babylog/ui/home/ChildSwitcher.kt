@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.Child
 import app.babylog.domain.ChildSelection
+import app.babylog.domain.badgesFor
 import app.babylog.ui.theme.BabyLogTheme
 
 /**
@@ -33,11 +34,12 @@ fun ChildSwitcher(
     modifier: Modifier = Modifier,
 ) {
     val colors = BabyLogTheme.colors
+    val badges = badgesFor(children)
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         children.forEach { child ->
             SwitcherPill(
                 label = child.name,
-                initials = child.name.take(1).uppercase(),
+                initials = badges.getValue(child.id),
                 selected = selection is ChildSelection.One && selection.childId == child.id,
                 onClick = { onSelect(ChildSelection.One(child.id)) },
             )

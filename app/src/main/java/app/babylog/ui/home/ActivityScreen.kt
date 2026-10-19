@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.badgesFor
 import app.babylog.ui.common.rememberNow
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
@@ -72,7 +73,7 @@ fun ActivityScreen(
                 card = card,
                 units = state.units,
                 childLabel = state.childLabel,
-                childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
+                childInitials = badgesFor(state.children),
                 childNames = state.children.associate { it.id to it.name },
                 childIds = state.childIds,
                 // The initial is worth its space only when a row could belong to either child.

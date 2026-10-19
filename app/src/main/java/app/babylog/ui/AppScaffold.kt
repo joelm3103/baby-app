@@ -67,6 +67,7 @@ import app.babylog.data.repo.EventDraft
 import app.babylog.di.AppContainer
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
+import app.babylog.domain.badgesFor
 import app.babylog.ui.common.rememberNow
 import app.babylog.ui.growth.GrowthViewModel
 import app.babylog.ui.trends.TrendsScreen
@@ -425,7 +426,7 @@ fun AppScaffold(container: AppContainer) {
                 entries = state.entriesOf(listType),
                 units = state.units,
                 childLabel = state.childLabel,
-                childInitials = state.children.associate { it.id to it.name.take(1).uppercase() },
+                childInitials = badgesFor(state.children),
                 showChildBadge = state.childIds.size > 1,
                 zone = remember { ZoneId.systemDefault() },
                 now = listNow,

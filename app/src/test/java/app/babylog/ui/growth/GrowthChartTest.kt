@@ -483,6 +483,28 @@ class GrowthChartTest {
     }
 
     @Test
+    fun `two names sharing an initial get numbered badges, not the same one`() {
+        val kai = firstTwin.copy(id = "kai", name = "Kai")
+        val kim = firstTwin.copy(id = "kim", name = "Kim", sortOrder = 1)
+        val chart = growthChart(
+            children = listOf(kai, kim),
+            events = listOf(
+                growth("a", "kai", birth.plusDays(100), grams = 3300),
+                growth("b", "kai", birth.plusDays(200), grams = 6000),
+                growth("c", "kim", birth.plusDays(100), grams = 3100),
+                growth("d", "kim", birth.plusDays(200), grams = 5600),
+            ),
+            reference = reference(),
+            metric = GrowthMetric.WEIGHT,
+            units = metric,
+            zone = zone,
+        )
+
+        assertEquals(setOf("K1", "K2"), chart.markers.map { it.badge }.toSet())
+        assertEquals(listOf("K1", "K2"), chart.trajectories.map { it.badge })
+    }
+
+    @Test
     fun `a length measurement does not appear on the weight line`() {
         val chart = growthChart(
             children = listOf(firstTwin),

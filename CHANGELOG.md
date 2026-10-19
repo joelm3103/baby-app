@@ -21,12 +21,15 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 **In short:**
 
+- **A badge is numbered when two children share a first letter**, so `Kai` and `Kim` read `K1` and `K2` instead of both reading `K`. One function now feeds every badge in the app, and `ChildBadge` draws two glyphs as a pill of the same height so nothing shrinks and no row moves. **349 tests green** (339 → 349).
 - The app id is `app.babylog` for both `namespace` and `applicationId`, and the default children are **First Twin** and **Second Twin**, so a fresh install shows initials that can be told apart (`F` / `S`) instead of two the same.
 - The docs were tightened in the same pass: `PLAN.md`'s Phase 0 row states the toolchain it was read from rather than pointing elsewhere, the growth provenance cites `scripts/build-growth-assets.py` where the checksums actually live, and `README.md`'s layout block matches what is in the repo.
 
 ### Changed
 
-- `namespace` and `applicationId` moved together, with the Kotlin packages, imports, both source roots, the committed Room schema directory and the `MigrationTest` path that reads it. The launcher label is unchanged. **A build from here is a new install identity**: it installs beside any earlier one, so an existing log moves across with Settings → Data → Export, then Import.
+- `namespace` and `applicationId` moved together, with the Kotlin packages, imports, both source roots, the committed Room schema directory and the `MigrationTest` path that reads it.
+- **Two children whose names start with the same letter no longer wear the same badge.** `badgesFor()` in `domain/ChildBadges.kt` is the single source for the switcher pills, the card and recent-row marks, the event list, the Growth chart's markers and legend, and the fever table's child column; it numbers a collision group in list order (`Kai`, `Kim` -> `K1`, `K2`) and leaves a letter that occurs once alone. The Both pill keeps the two raw initials (`KL`) — its label already says Both — and the seeded children still render `F`/`S`. Numbers follow the switcher's order (`sortOrder, name`), accepted as it stands: a child inserted earlier in that order renumbers the group it lands in.
+- `ChildBadge` renders one glyph as the 20dp circle it always was, and two glyphs as a rounded pill of the same height with the type unchanged. Its doc comment claimed the children differ by `K` and `L`, which the numbering made false. The launcher label is unchanged. **A build from here is a new install identity**: it installs beside any earlier one, so an existing log moves across with Settings → Data → Export, then Import.
 - The seeded children are `first-twin` / `second-twin`, named *First Twin* and *Second Twin*. The Growth badge is the name's first letter, so two names sharing an initial would have made the Both-mode badges identical.
 - `Tokens.kt`'s palette provenance and `GrowthReference.kt`'s data citation now describe where the evidence sits without pointing at a path the app does not need.
 

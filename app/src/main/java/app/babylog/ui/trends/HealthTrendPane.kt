@@ -168,7 +168,7 @@ private fun ReadingRow(reading: FeverReading, zone: ZoneId, showChild: Boolean, 
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
                 Text(
-                    text = reading.childName.take(1),
+                    text = reading.childBadge,
                     style = MaterialTheme.typography.labelSmall,
                     color = colors.textPrimary,
                 )

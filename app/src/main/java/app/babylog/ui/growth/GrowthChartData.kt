@@ -4,6 +4,7 @@ import app.babylog.data.growth.GrowthMeasure
 import app.babylog.data.growth.GrowthReference
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
+import app.babylog.domain.badgesFor
 import app.babylog.domain.GRAMS_PER_POUND
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.MM_PER_INCH
@@ -167,9 +168,12 @@ fun growthChart(
 ): GrowthChartData {
     val unit = unitFor(metric, units)
     val curveSex = children.firstOrNull()?.sex ?: Sex.BOY
+    // One badge per child, numbered when two names share a first letter, so the marker text and the
+    // legend cannot disagree about which child is which.
+    val badges = badgesFor(children)
 
     val markers = children
-        .flatMap { child -> markersFor(child, events, reference, metric, unit, zone) }
+        .flatMap { child -> markersFor(child, badges.getValue(child.id), events, reference, metric, unit, zone) }
         .sortedWith(compareByDescending<GrowthMarker> { it.measuredOn }.thenBy { it.childName })
 
     val xMax = xAxisEndDays(markers.maxOfOrNull { it.axis } ?: 0.0)
@@ -196,7 +200,7 @@ fun growthChart(
             .map { TrajectoryPoint(axis = it.axis, value = it.value, preTerm = it.preTerm) }
         GrowthTrajectory(
             childId = child.id,
-            badge = child.name.take(1).uppercase(Locale.ENGLISH),
+            badge = badges.getValue(child.id),
             points = points,
         ).takeIf { it.drawable }
     }
@@ -216,6 +220,7 @@ fun growthChart(
 
 private fun markersFor(
     child: Child,
+    badge: String,
     events: List<BabyEvent>,
     reference: GrowthReference,
     metric: GrowthMetric,
@@ -248,7 +253,7 @@ private fun markersFor(
         GrowthMarker(
             childId = child.id,
             childName = child.name,
-            badge = child.name.take(1).uppercase(Locale.ENGLISH),
+            badge = badge,
             value = toDisplay(metricValue, metric, unit),
             axis = day,
             percentile = percentileValue,

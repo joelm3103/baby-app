@@ -272,6 +272,19 @@ class TrendsTest {
         assertEquals(listOf("Second Twin", "First Twin"), trend.feverReadings.map { it.childName })
     }
 
+    @Test
+    fun `a shared initial is numbered in the fever table too`() {
+        val kai = firstTwin.copy(id = "kai", name = "Kai")
+        val kim = firstTwin.copy(id = "kim", name = "Kim", sortOrder = 1)
+        val events = listOf(
+            health(at(9, 0), 38.5, childId = "kai"),
+            health(at(10, 0), 39.1, childId = "kim"),
+        )
+        val trend = healthTrend(listOf(kai, kim), events, zone)
+
+        assertEquals(listOf("K2", "K1"), trend.feverReadings.map { it.childBadge })
+    }
+
     // ---- display ------------------------------------------------------------
 
     @Test
