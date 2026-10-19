@@ -14,6 +14,8 @@ import app.babylog.domain.UnitPreferences
 import app.babylog.domain.WeightUnit
 import app.babylog.domain.percentile
 import app.babylog.domain.valueAtZ
+import app.babylog.ui.charts.yRangeFor
+import app.babylog.ui.charts.yTicks
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

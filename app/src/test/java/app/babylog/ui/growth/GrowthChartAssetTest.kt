@@ -10,6 +10,8 @@ import app.babylog.domain.LengthUnit
 import app.babylog.domain.Sex
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.WeightUnit
+import app.babylog.ui.charts.yRangeFor
+import app.babylog.ui.charts.yTicks
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue

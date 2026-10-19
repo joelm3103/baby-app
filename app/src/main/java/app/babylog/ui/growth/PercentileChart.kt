@@ -18,6 +18,10 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.babylog.ui.charts.X_AXIS_GUTTER
+import app.babylog.ui.charts.Y_AXIS_GUTTER
+import app.babylog.ui.charts.yRangeFor
+import app.babylog.ui.charts.yTicks
 import kotlin.math.abs
 
 /**
@@ -78,26 +82,12 @@ fun PercentileChart(
 
 private val CHART_HEIGHT = 260.dp
 
-/** Bottom gutter for the month labels, left gutter for the value labels. */
-private val X_AXIS_GUTTER = 22.dp
-private val Y_AXIS_GUTTER = 34.dp
-
 /**
  * A little headroom above and below the data, snapped to a round step so the axis reads as a scale.
  *
  * A marker exactly on the curve's edge is a real case (a newborn at the 2nd percentile) and clipping it
  * would look like the chart had lost the child.
  */
-internal fun yRangeFor(values: List<Double>): ClosedFloatingPointRange<Float> {
-    val finite = values.filter { it.isFinite() }
-    if (finite.isEmpty()) return 0f..1f
-    val low = finite.min()
-    val high = finite.max()
-    val span = (high - low).takeIf { it > 1e-6 } ?: (high * 0.2).coerceAtLeast(1.0)
-    val pad = span * 0.08
-    return ((low - pad).coerceAtLeast(0.0)).toFloat()..(high + pad).toFloat()
-}
-
 private fun DrawScope.drawChart(
     curves: List<PercentileCurve>,
     markers: List<GrowthMarker>,
@@ -222,52 +212,6 @@ private fun DrawScope.drawChart(
         )
         day += monthStepDays
     }
-}
-
-/**
- * At most this many gridlines. Fewer than three reads as a box rather than a scale; more than six
- * crowds a 260dp-tall chart.
- */
-private const val MAX_TICKS = 6
-
-/**
- * Horizontal gridlines, snapped to round values, which is what makes an axis readable.
- *
- * Chooses the SMALLEST round step that still fits within [MAX_TICKS]. The first version rounded the
- * ideal step (span / 4) up to the next "nice" value instead, and the ladder's jump from 5 to 10 meant a
- * head circumference spanning ~31-52 cm got a 10-unit step and only TWO lines. The asset-driven test
- * caught it; the synthetic one had a wide enough span to hide it.
- */
-internal fun yTicks(range: ClosedFloatingPointRange<Float>): List<Double> {
-    val span = (range.endInclusive - range.start).toDouble()
-    if (span <= 0.0) return listOf(range.start.toDouble())
-
-    val step = tickStep(range, span)
-    val first = kotlin.math.ceil(range.start / step) * step
-    val out = mutableListOf<Double>()
-    var value = first
-    while (value <= range.endInclusive + 1e-9) {
-        out.add(value)
-        value += step
-    }
-    return out
-}
-
-private fun tickStep(range: ClosedFloatingPointRange<Float>, span: Double): Double {
-    val ladder = listOf(1.0, 2.0, 2.5, 5.0)
-    var decade = 1e-3
-    while (decade <= 1e6) {
-        for (unit in ladder) {
-            val candidate = unit * decade
-            if (candidate <= 0.0) continue
-            val first = kotlin.math.ceil(range.start / candidate)
-            val last = kotlin.math.floor(range.endInclusive / candidate)
-            val count = last - first + 1
-            if (count in 1.0..MAX_TICKS.toDouble()) return candidate
-        }
-        decade *= 10.0
-    }
-    return span
 }
 
 /** Month labels: every month under a year, then every three, so they never collide. */
