@@ -62,7 +62,6 @@ cases that arrived with Phase 12. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
 nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
-`research/toolchain.md`.
 
 ## Phases 0-2 — where the evidence is
 
@@ -73,7 +72,6 @@ were never device-verified and do not claim to be; their evidence is artifacts, 
 
 | Phase | What landed | Evidence |
 |---|---|---|
-| 0 — Toolchain | Studio, SDK and the environment, read off the machine on 2026-10-12 | `research/toolchain.md` — Studio 2026.2.1.8, JBR 25.0.3, platform-tools 37.0.1, `android-36`, and **no emulator, deliberately** (Task 0.5 dropped: test on the real phone). `scripts/android-env.ps1` and `scripts/sdkmanager.ps1` are its reusable output |
 | 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | the "feat: scaffold Compose app, get a green debug build" commit — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (the ladder's first rung, and no longer "0.1.1 today"). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
 `app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in the "docs: correct the design system against real screenshots; rescope for twins" commit |
 | 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | the "feat(domain): event model, relative-time/duration formatting, day grouping" commit and the "feat(domain): unit system with exact conversions and compound lb/oz formatting" commit. `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
@@ -342,7 +340,7 @@ repo defers to the Project, and the Project's only terms (The Global Health Netw
 holder) reserve rights and permit non-commercial education use. No redistribution grant exists, so it is
 not bundled. Consequence: a measurement taken before term has **no percentile**, with a sentence saying
 why, instead of a percentile from a standard that does not describe it. The finding is recorded in
-`research/growth-data-sources.md`.
+`research/growth-data-sources.md`, kept locally.
 - **A growth logging sheet was added** because the plan's tasks chart data and never log it. `ui/home/GrowthSheet.kt`
 with the pure `GrowthEntry.kt` under it: weight (kg, or the compound lb/oz pair), length, head, date, time
 and a note. The Phase-6 rule holds — an untouched prefill keeps its stored value, so 6355 g displayed as
@@ -388,7 +386,6 @@ tab row — six activity chips do not fit a phone's width. Recorded, not changed
 length/height-for-age, head-circumference-for-age, weight-for-length/height, BMI-for-age; boys and
 girls) as a compact JSON asset under `app/src/main/assets/growth/`. **Do not invent percentile maths** —
 LMS is published data and the z-score formula is standard. Verified source URLs, row counts, sex codes
-and file hashes are recorded in `research/growth-data-sources.md`; that file also documents that **WHO
 has not revised these standards since 2006**, which is why the asset ships bundled rather than being
 fetched on first run.
 
@@ -698,7 +695,9 @@ Until one of these exists, treat Phase 5+ layout as unconfirmed.
 
 **Where the device captures live.** The verification sections below name folders under
 galleries (`README.md`, `index.html`) and `scripts/capture-timeline.ps1` all still work — the evidence
-just stays on the machine that took it.
+just stays on the machine that took it. The same is true of `research/`: the toolchain record cited
+for Phase 0, the WHO growth-data provenance cited below, and the two source apps' teardowns are all
+files.
 
 ---
 

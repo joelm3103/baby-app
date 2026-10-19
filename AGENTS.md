@@ -183,6 +183,5 @@ only, and `1.0.0` is the first release.
 |---|---|
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
-| `research/` | the incumbent tracker/the free alternative teardown, WHO growth data, toolchain traps |
 | `.hermes/skills/babylog-ui/` | The design contract (tokens, components, layout, style guide) |
 | `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1` |

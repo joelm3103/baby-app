@@ -26,9 +26,9 @@ out/
 Thumbs.db
 desktop.ini
 
-# Research: Play Store listing frames are regenerable from the URLs in
-# research/SOURCES.md (~21 MB of PNG). Keep them on disk, out of git history.
-research/screenshots/
+# Research: the teardowns, source provenance, design refs, toolchain record and growth-data notes,
+***REMOVED***
+research/
 
 # Android / Gradle
 .gradle/

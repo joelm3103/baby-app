@@ -124,16 +124,13 @@ baby-app/
 ├── PLAN.md                    # implementation plan, phased
 ├── .hermes/skills/babylog-ui/ # the design system, loadable as a project skill
 ├── scripts/                   # android-env.ps1, sdkmanager.ps1 (toolchain, re-runnable)
-└── research/
-    ├── SOURCES.md             # marketing-frame provenance + fidelity caveat
-    ├── toolchain.md           # exact versions + AGP 9 / KSP traps
-    ├── screenshots/           # raw store frames + raw/ (15 real ones, gitignored)
-    ├── design-refs/           # the approved mockup
-    └── findings/              # teardowns, shared design language, reference-app-a-palette.md
 ```
 
-committed, because the captures show the app with the real child names in its header. Open
-`docs/timeline/index.html` on the machine that captured them.
+
+- `docs/timeline/` — the device captures and their galleries. Open `docs/timeline/index.html` on the
+  machine that took them; `scripts/capture-timeline.ps1` still writes there.
+  toolchain record and the WHO growth-data provenance, plus the raw store frames under
+  `research/screenshots/` (~21 MB of PNG, regenerable from the URLs in `research/SOURCES.md`).
 
 **Note on which evidence wins:** the marketing frames produced two outright errors (light surfaces,
 yellow diaper) that 15 real screenshots corrected. When the two disagree, the screenshots win, and
