@@ -70,6 +70,7 @@ import app.babylog.domain.EventType
 import app.babylog.ui.common.rememberNow
 import app.babylog.ui.growth.GrowthViewModel
 import app.babylog.ui.trends.TrendsScreen
+import app.babylog.ui.trends.TrendsViewModel
 import app.babylog.ui.home.ActivityScreen
 import app.babylog.ui.home.BottleSheet
 import app.babylog.ui.home.DiaperSheet
@@ -162,6 +163,18 @@ fun AppScaffold(container: AppContainer) {
     }
     val growthVm: GrowthViewModel = viewModel(factory = growthFactory)
     val growthState by growthVm.state.collectAsState()
+
+    // Trends' own state: which activity and which window. It observes the SAME stored child selection as
+    // Activity, Summary and Growth, so a chart cannot chart somebody the switcher is not showing.
+    val trendsFactory = remember {
+        viewModelFactory {
+            initializer {
+                TrendsViewModel(container.events, container.children, container.settings)
+            }
+        }
+    }
+    val trendsVm: TrendsViewModel = viewModel(factory = trendsFactory)
+    val trendsState by trendsVm.state.collectAsState()
 
     val settingsFactory = remember {
         viewModelFactory {
@@ -336,9 +349,12 @@ fun AppScaffold(container: AppContainer) {
                     listState = historyListState,
                 )
                 Destination.TRENDS -> TrendsScreen(
-                    state = growthState,
+                    growth = growthState,
                     onSelectMetric = growthVm::selectMetric,
                     onEnsureLoaded = growthVm::ensureLoaded,
+                    trends = trendsState,
+                    onSelectRange = trendsVm::selectRange,
+                    onSelectType = trendsVm::selectType,
                     contentPadding = padding,
                     listState = trendsListState,
                 )
