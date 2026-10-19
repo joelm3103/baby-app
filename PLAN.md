@@ -1,7 +1,7 @@
 # Babylog V1 — Implementation Plan
 
-> **For Hermes:** load `.hermes/skills/babylog-ui/` before any UI or data task. It is the design
-> contract — tokens, components, layout, insets/back requirements, and the measured colour rules.
+> The design contract — tokens, components, layout, insets/back requirements and the measured colour
+> rules — is in `AGENTS.md`. Read it before any UI or data task.
 
 **Goal:** A private, offline-first Android baby tracker for two parents of **twins born early** —
 record bottle, solids, diaper, sleep, growth and health events, see both
@@ -17,7 +17,7 @@ so it is testable without an emulator.
 Firebase Auth + Firestore · JUnit. AGP 9.4.1 / Gradle 9.8.1 / Compose BOM 2026.09.00 / JDK 25 (JBR).
 
 **Effort honestly:** this is a multi-week project, not a weekend — the scope the owner confirmed is close to
-the incumbent's minus the content, the shop and the paywall. Hence the staging below: **Stage 1 is usable, and
+the two apps it replaces, minus the content, the shop and the paywall. Hence the staging below: **Stage 1 is usable, and
 everything after it is additive.**
 
 ---
@@ -61,7 +61,8 @@ rename and its All/None filter chips (the "refactor(ui): rename the History tab 
 cases that arrived with Phase 12. The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file) — a green build proves
-nothing about layout or about system back. Toolchain details and the AGP 9 / KSP traps are in
+nothing about layout or about system back. Toolchain versions and the AGP 9 / KSP traps that cost build
+cycles are in `AGENTS.md` and in the Phase 0 row below.
 
 ## Phases 0-2 — where the evidence is
 
@@ -72,6 +73,7 @@ were never device-verified and do not claim to be; their evidence is artifacts, 
 
 | Phase | What landed | Evidence |
 |---|---|---|
+| 0 — Toolchain | Studio, SDK and the environment, read off the machine on 2026-10-12 | Studio 2026.2.1.8, JBR 25.0.3, platform-tools 37.0.1, `android-36`, and **no emulator, deliberately** (Task 0.5 dropped: test on the real phone). `scripts/android-env.ps1` and `scripts/sdkmanager.ps1` are its reusable output |
 | 1 — Scaffold, theme, tokens | The hand-scaffolded Gradle set (no wizard) and the token/theme/type files | the "feat: scaffold Compose app, get a green debug build" commit — green debug build, and `aapt2 dump badging` then read `package: app.babylog versionName='0.1.0' compileSdkVersion='37' targetSdkVersion:'36'` (the ladder's first rung, and no longer "0.1.1 today"). `gradle/libs.versions.toml` pins AGP 9.4.1 / Compose BOM 2026.09.00, the wrapper pins Gradle 9.8.1, and
 `app/build.gradle.kts` sets `compileSdk 37 + compileSdkMinor 2` on JDK 25 (JBR). `ui/theme/Tokens.kt`, `Theme.kt`, `Type.kt` — dark sampled by pixel clustering from 15 real the incumbent tracker screenshots, light designed and labelled as designed, reworked in the "docs: correct the design system against real screenshots; rescope for twins" commit |
 | 2 — Domain | Event model and the pure logic, TDD with no Android in the loop | the "feat(domain): event model, relative-time/duration formatting, day grouping" commit and the "feat(domain): unit system with exact conversions and compound lb/oz formatting" commit. `domain/` — `BabyEvent.kt`, `Formatting.kt`, `EventOrder.kt`, `Units.kt`, `Age.kt`, `Totals.kt`; 12 tests green at the phase, now the suite under `app/src/test/java/app/babylog/domain/` |
@@ -144,7 +146,7 @@ child ids: Both-mode writes two rows with the same timestamp. `update`, `softDel
 `startTimer`, `stopTimer`.
 **Task 4.2** `SettingsRepository` over DataStore — the **three unit families** (length in/cm, weight
 lb&oz / kg, volume fl oz / ml) with Metric/Imperial/Custom presets, selected child context
-(`Child 1`/`Child 2`/`Both`), `useAdjustedAge`, and a theme override defaulting to system.
+(`First Twin`/`Second Twin`/`Both`), `useAdjustedAge`, and a theme override defaulting to system.
 `domain/Units.kt` is **already written and tested** (13 tests) — exact factors, `lb&oz` compound
 formatting including the 16-ounce carry, unit-appropriate stepper increments, Celsius-only
 temperature. `UnitPreferences.system` is derived, never stored.
@@ -155,7 +157,7 @@ now)`, formatting as `9 months, 1 week, 5 days`. Adjusted age = chronological mi
 
 ## Phase 5 — Activity screen (the home) — DONE (device-verified)
 
-Built: `AppScaffold` (insets + back), `ActivityScreen`, `ChildSwitcher` (Child 1 · Child 2 · Both),
+Built: `AppScaffold` (insets + back), `ActivityScreen`, `ChildSwitcher` (First Twin · Second Twin · Both),
 `ActivityCard`, `HomeViewModel`, `AppContainer` (manual DI), first-run seed of the two children.
 
 **Honest status: it compiles and the APK builds, but no one has LOOKED at it.** Compose layout
@@ -169,9 +171,9 @@ Phase 6 replaces it with the real per-activity sheets.
 **Task 5.1** `MainActivity` + `AppScaffold` — `Scaffold(contentWindowInsets = WindowInsets.navigationBars)`
 and a `LazyColumn` whose `contentPadding` clears `bottomBarHeight` **plus** the nav-bar inset. This is
 the fix for the owner's complaint #1; get it right before any content exists to hide behind it.
-**Task 5.2** `ScreenHeader` + `ChildSwitcher` — Child 1 · Child 2 · Both, outline on the selected pill.
+**Task 5.2** `ScreenHeader` + `ChildSwitcher` — First Twin · Second Twin · Both, outline on the selected pill.
 **Task 5.3** `ActivityCard` — tinted surface, accent label + relative time, full-width action button
-reading `+ Log … for both` / `+ Log … for Child 1`, recent rows, `See all ›`.
+reading `+ Log … for both` / `+ Log … for First Twin`, recent rows, `See all ›`.
 **Task 5.4** Card order fixed: **Bottle · Diaper · Solids · Growth · Health · Sleep.** Sleep last and
 present because the owner asked for it explicitly.
 **Task 5.5** Bottom nav — Activity · History · Trends.
@@ -293,8 +295,8 @@ views of the same list.
   three were "the last three ever", printed with a bare clock time, so yesterday's feed was
   indistinguishable from one an hour ago. Cards now list **today's** entries, newest first, capped at
   five, **including the entry behind the big number**. 4 today + 1 yesterday shows 4.
-- **The Both card's numbers read as wrong; the data was fine.** Child 2's 14:14 feed was the headline on
-  Child 2's card and a row on the Both card, so the two lists could not be compared and its 13:09 feed
+- **The Both card's numbers read as wrong; the data was fine.** Second Twin's 14:14 feed was the headline on
+  Second Twin's card and a row on the Both card, so the two lists could not be compared and its 13:09 feed
   looked missing. The headline keeps its meaning (the newest event of that type in scope) and now
   carries the child's badge and the absolute time when the scope is both children, and the rows include
   it — so the per-child list and the Both list finally agree.
@@ -339,8 +341,7 @@ actually exists. What ships now is the bundled dataset plus the identity line th
 repo defers to the Project, and the Project's only terms (The Global Health Network's, Oxford as rights
 holder) reserve rights and permit non-commercial education use. No redistribution grant exists, so it is
 not bundled. Consequence: a measurement taken before term has **no percentile**, with a sentence saying
-why, instead of a percentile from a standard that does not describe it. The finding is recorded in
-`research/growth-data-sources.md`, kept locally.
+why, instead of a percentile from a standard that does not describe it.
 - **A growth logging sheet was added** because the plan's tasks chart data and never log it. `ui/home/GrowthSheet.kt`
 with the pure `GrowthEntry.kt` under it: weight (kg, or the compound lb/oz pair), length, head, date, time
 and a note. The Phase-6 rule holds — an untouched prefill keeps its stored value, so 6355 g displayed as
@@ -386,6 +387,8 @@ tab row — six activity chips do not fit a phone's width. Recorded, not changed
 length/height-for-age, head-circumference-for-age, weight-for-length/height, BMI-for-age; boys and
 girls) as a compact JSON asset under `app/src/main/assets/growth/`. **Do not invent percentile maths** —
 LMS is published data and the z-score formula is standard. Verified source URLs, row counts, sex codes
+and file hashes are recorded, with the checksums inlined, in `scripts/build-growth-assets.py`; that script
+also records that **WHO
 has not revised these standards since 2006**, which is why the asset ships bundled rather than being
 fetched on first run.
 
@@ -563,8 +566,8 @@ newest day, which keeps them evenly spaced and always names today.
 
 **Verified against the device's own database, not just the screen.** Every figure was recomputed from the
 phone's `events` table with `run-as` (a stronger check than reading the screen, and the same path Phase 11
-used): Child 1 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
-Child 2 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct; 13 diapers each on 2 of 30 days with 9 on 12 Oct;
+used): First Twin 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
+Second Twin 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct; 13 diapers each on 2 of 30 days with 9 on 12 Oct;
 2 solids each; one 13m 5s sleep on 15 Oct; 2 temperatures, both 38.5 °C, 1 fever day. All match the screen
 exactly. Note the 30-day window carries no more data than the 14-day one on this install — every logged
 row falls inside the last 14 days — so the 30-day range was exercised for its bucketing and its labels,
@@ -649,8 +652,8 @@ The owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    from schema v1 so the habit exists before there is data worth losing.
 2. **Export / backup in Settings (Phase 7).** Cheap now, and it means a bad migration can never lose the log. For
    a project whose owner explicitly plans post-build changes, this is the single highest-value
-   insurance and it also unblocks restoring onto a replacement phone. the incumbent tracker has `Export Data` for the
-   same reason.
+   insurance and it also unblocks restoring onto a replacement phone. The apps this one replaces offer the
+   same thing for the same reason.
 3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
    Add it at Phase 14, not Phase 1.
@@ -670,7 +673,7 @@ The owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
 - **Units are core, not a setting.** Three families plus a Custom mix, canonical metric storage,
   temperature always Celsius. `domain/Units.kt` is done; sheets and charts must read the preference
   rather than hardcode oz/cm/kg anywhere.
-- **Sleep's hue is settled as shipped** (`#63C8FF` in `Tokens.kt`). No the incumbent tracker sleep screen was ever
+- **Sleep's hue is settled as shipped** (`#63C8FF` in `Tokens.kt`). No existing tracker's sleep screen was ever
   captured, so it started as a designed guess; the owner confirmed on 2026-10-14 that it stays as-is.
 - **The light theme is designed, not sampled.** The owner's phone runs dark; the mirror in `Tokens.kt` is
   reasonable but unverified.
@@ -692,12 +695,6 @@ order of value:
    validate against AGP 9 first.
 
 Until one of these exists, treat Phase 5+ layout as unconfirmed.
-
-**Where the device captures live.** The verification sections below name folders under
-galleries (`README.md`, `index.html`) and `scripts/capture-timeline.ps1` all still work — the evidence
-just stays on the machine that took it. The same is true of `research/`: the toolchain record cited
-for Phase 0, the WHO growth-data provenance cited below, and the two source apps' teardowns are all
-files.
 
 ---
 
@@ -746,7 +743,7 @@ to a nullable local first to make the check real bytecode.
 | Bottle/diaper cards show a value + relative time, no timer | pass |
 | Last card (Sleep) fully visible above the nav bar at full scroll | pass |
 | Settings -> system back returns to Activity, process survives | pass |
-| Child 1 / Child 2 / Both switcher present | pass |
+| First Twin / Second Twin / Both switcher present | pass |
 | History placeholder renders | pass |
 
 ### Removed
@@ -766,12 +763,12 @@ green build.
 
 ## Phase 6 device verification — 2026-10-14
 
-Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase6/`.
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode.
 
 | Check | Result |
 | --- | --- |
 | Launches without crashing; app is the current activity | pass |
-| Card action label is context-aware (`+ Log feed for Child 1` / `... for both`) | pass |
+| Card action label is context-aware (`+ Log feed for First Twin` / `... for both`) | pass |
 | Bottle sheet: tinted title bar, time, amount stepper, brand, notes; no bottom nav | pass |
 | **Both mode writes two rows with identical timestamps** | pass — child 1 + child 2 BOTTLE at 13:59:53 UTC, 120 ml (read from the Room DB) |
 | Solids sheet: meal chips, food picker, per-meal reaction, notes | pass |
@@ -794,7 +791,7 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 
 ## Phase 7 device verification — 2026-10-14
 
-Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase7/`.
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode.
 
 | Check | Result |
 | --- | --- |
@@ -826,7 +823,6 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 ## Phase 8 device verification — 2026-10-14
 
 Samsung S23 Ultra (SM-S918U1), Android 16, dark mode, device timezone `America/Port_of_Spain`.
-Screenshots: `docs/timeline/2026-10-14-phase8/`.
 
 Every number below was hand-counted from the Room database in the DEVICE'S timezone first, then compared
 against the screen. The totals are not trusted because they look plausible.
@@ -836,7 +832,7 @@ against the screen. The totals are not trusted because they look plausible.
 | History opens from the nav tab with the SAME header and child switcher as Activity | pass |
 | `1d` totals match a hand-count | pass — 3 bottles / 330 ml = **11.2 oz**, average 110 ml = **3.7 oz**, 2 diapers (day 2, night 0) |
 | `7d` totals match a hand-count | pass — 7 sessions / 330 ml = 11.2 oz, 20 diapers (day 20, night 0) |
-| Per-child line in Both mode | pass — Child 1 7.1 oz + Child 2 4.1 oz = the 11.2 oz combined headline |
+| Per-child line in Both mode | pass — First Twin 7.1 oz + Second Twin 4.1 oz = the 11.2 oz combined headline |
 | **Live update**: log on Activity, History follows without a relaunch | pass — 7 → **9 sessions** and 11.2 → **17.2 oz**, matching the DB after the write |
 | Filter chips hide a card | pass — turning Diaper off left the chip but removed the card and its Day/Night rows |
 | **Configurable night window moves the split** | pass — 18:00-06:00 gave Day 20 / Night 0; 06:00-18:00 gave Day 0 / Night 20, exactly as predicted from the diaper hours (10:00 and 15:00) |
@@ -856,7 +852,7 @@ against the screen. The totals are not trusted because they look plausible.
 
 ## Phase 9 device verification — 2026-10-14
 
-Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-14-phase9/`.
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode.
 
 | Check | Result |
 | --- | --- |
@@ -888,8 +884,8 @@ Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timelin
 ## Phase 9.1 device verification — 2026-10-14
 
 Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots:
-`docs/timeline/2026-10-14-phase9.1/`. The three `before/` shots in that folder are the defect report as
-it was seen — they were sent from the phone before any code changed.
+The three `before/` shots below are the defect report as it was seen — they were sent from the phone
+before any code changed.
 
 Every value and time below was read back with `uiautomator dump`, not by eye, and the coordinates for
 every tap came from a dump rather than from the screenshots.
@@ -900,11 +896,11 @@ every tap came from a dump rather than from the screenshots.
 | The entry behind the big number is one of the rows | pass — the headline read `3 oz` with `4h 54m ago` (= 14:14) and the first row was `3 oz 14:14`. Before this pass the rows started at 13:09, which is why it looked like a feed was missing |
 | Both mode puts the child's badge and the absolute time on the big number | pass — `5.5 oz` with a `K` badge and `15:21`, where the old card showed an unattributed `5.5 oz` |
 | Both mode now lists the second twin's 13:09 feed | pass — `K 5.5 oz 15:21`, `K 3 oz 14:14`, `L 3 oz 14:14`, `K 3 oz 13:09`, `L 3 oz 13:09` |
-| Identically timestamped Both-mode rows keep Child 1 above Child 2 | pass — `K 3 oz 14:14` precedes `L 3 oz 14:14`, and again at 13:09; the comparator, not SQLite, decided |
+| Identically timestamped Both-mode rows keep First Twin above Second Twin | pass — `K 3 oz 14:14` precedes `L 3 oz 14:14`, and again at 13:09; the comparator, not SQLite, decided |
 | The child badge is hidden outside Both mode | pass — both children's cards show bare rows; Both shows `K`/`L` on every row |
 | See all opens the full list, grouped by day | pass — header `Bottle feed` / `for both · tap to edit, long-press to delete`, groups `Today`, `Yesterday`, `Mon 12 Oct`, and it covers the bottom navigation bar |
 | System back closes the overlay and returns to Activity | pass |
-| Tap a row → the sheet opens pre-filled for THAT row's child | pass — `Edit feed`, `for Child 1` while the switcher was on Both, Date `14 Oct 2026`, Time `19:12`, Amount `4` |
+| Tap a row → the sheet opens pre-filled for THAT row's child | pass — `Edit feed`, `for First Twin` while the switcher was on Both, Date `14 Oct 2026`, Time `19:12`, Amount `4` |
 | **An edit saves in place and leaves the Both-mode twin alone** | pass — logged 4 oz for both, edited the first twin's row to 5 oz: `K 5 oz 19:12` beside `L 4 oz 19:12`, still two rows rather than four, same timestamp |
 | Long-press → confirm → delete | pass — `Delete this bottle feed?`; confirming removed the row and the headline fell back to the newest remaining row |
 | Undo restores the row | pass — the 19:20 row came back and the headline returned to it |
@@ -932,7 +928,7 @@ every tap came from a dump rather than from the screenshots.
 
 ## Phase 10 device verification — 2026-10-15
 
-Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots: `docs/timeline/2026-10-15-phase10/`
+Samsung S23 Ultra (SM-S918U1), Android 16, dark mode.
 (eleven captures, plus the three `before/` defects reported from the phone). Every tap coordinate came from
 `uiautomator dump`, never from a guess, and every value was read back either from the tree or from the Room
 database.
@@ -998,7 +994,7 @@ Three of the six defects below are layout, which is exactly what a green build c
 ## Phase 11 device verification — 2026-10-18
 
 Samsung S23 Ultra (SM-S918U1), Android 16, dark mode. Screenshots:
-`docs/timeline/2026-10-18-phase11/` (five captures). Every tap coordinate came from `uiautomator dump`,
+Every tap coordinate came from `uiautomator dump`,
 never from a guess, and the stored values were read from the device's own database — this debug build
 allows `run-as`, which is a stronger check than the export path the plan named.
 
@@ -1020,7 +1016,7 @@ device, the new build installed over it, the app launched, and it was copied bac
 
 | Check | Result |
 | --- | --- |
-| Health card, Both mode, no data | pass — `Child 1` / `Child 2` columns each reading `No records yet` |
+| Health card, Both mode, no data | pass — `First Twin` / `Second Twin` columns each reading `No records yet` |
 | The two actions | pass — accent-filled `+ Add health record for both` and a neutral `+ Vaccine` beneath it |
 | Health sheet, empty | pass — `Health record` / `for both`, Date, Time, Temperature (°C), Medication `Choose or type`, Dose, Dose unit `Choose`, `Names only — this app does not suggest a dose.`, Save disabled with `Enter a temperature or a medication.` |
 | Medication dropdown | pass — `COMMON` header + all 14 shipped names + `Type another name…`; no `YOURS` group while no presets exist |
@@ -1028,11 +1024,11 @@ device, the new build installed over it, the app launched, and it was copied bac
 | Dose unit dropdown | pass — exactly `ml`, `mg`, `drops`, `sachet`, `tablet`, `other` |
 | **Both mode writes two rows with one timestamp** | pass — `K ... 12:27` and `L ... 12:27`, and the DB shows two rows sharing `startedAt` per save |
 | Stored dose, read from the DB | pass — `medication = Paracetamol (Calpol)`, `doseAmount = 2.5`, `doseUnit = MILLILITRES` |
-| **The last-dose hint** | pass — `Last recorded — Child 1 2.5 ml · Child 2 2.5 ml`, with the dose field still **empty** and the unit still `Choose` |
+| **The last-dose hint** | pass — `Last recorded — First Twin 2.5 ml · Second Twin 2.5 ml`, with the dose field still **empty** and the unit still `Choose` |
 | Vaccine sheet | pass — `Vaccine` / `for both`, Date, Time, Vaccine, `Enter the vaccine's name.`; saved row reads `6-in-1 vaccine` and the DB row carries `vaccineName = 6-in-1` with no dose |
 | The card after both kinds | pass — each child's column shows `Paracetamol (Calpol) 2.5 ml` and `6-in-1 vaccine` on separate lines |
 | Legacy rows still display | pass — `38.5 °C · Calpol 2.5 ml`, the free-text medicine from before the migration |
-| History | pass — headline `38.5` `°C` with the `Fever` pill, rows `Records 6`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Vaccine 6-in-1`, `Measured 18 Oct`, per-child `Child 1 3` / `Child 2 3` |
+| History | pass — headline `38.5` `°C` with the `Fever` pill, rows `Records 6`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Vaccine 6-in-1`, `Measured 18 Oct`, per-child `First Twin 3` / `Second Twin 3` |
 | Fever marker, in pixels | pass — **10,800 pixels of exactly `#FFB6B6`** (the pill fills) with **928 pixels of `onAccent`** for the word inside them. Before the pill, the same band held 3,762 pixels of tinted text and the owner could not see it. |
 | Trends' Health tab | pass — still `Charts for health arrive in Phase 12…`; the chip is only reachable after scrolling the chip row (see below) |
 | System back closes the sheet, app stays foreground | pass |
@@ -1057,7 +1053,7 @@ device, the new build installed over it, the app launched, and it was copied bac
 ## Phase 12 device verification — 2026-10-18
 
 Samsung S23 Ultra (SM-S918U1), Android 16, dark mode unless stated. Screenshots:
-`docs/timeline/2026-10-18-phase12/` (nine captures, listed in the timeline's README). Every tap
+Every tap
 coordinate came from `uiautomator dump`, never from a guess, and the foreground was checked before the
 first input — the app resumed a stale task with the Growth entry list open and a delete snackbar on
 screen, which was closed without acting on it.
@@ -1073,8 +1069,8 @@ the screen showed. The window is the **local** day (`America/Port_of_Spain` on t
 
 | Check | On screen | Re-read from the DB | Result |
 | --- | --- | --- | --- |
-| Bottle, Both, 14d | Child 1 `27.7 oz`, `3 of 14 days logged`, best `24.7 oz · 14 Oct` | 819 ml = 27.7 oz, 3 days, best 730 ml = 24.7 oz on 14 Oct | pass |
-| Bottle, Both, 14d | Child 2 `19.1 oz`, best `16.1 oz · 14 Oct` | 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct | pass |
+| Bottle, Both, 14d | First Twin `27.7 oz`, `3 of 14 days logged`, best `24.7 oz · 14 Oct` | 819 ml = 27.7 oz, 3 days, best 730 ml = 24.7 oz on 14 Oct | pass |
+| Bottle, Both, 14d | Second Twin `19.1 oz`, best `16.1 oz · 14 Oct` | 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct | pass |
 | The 7d chip | `Bottle feed · 7 days`, averages `4` and `2.7` oz/day | 27.7/7 = 3.96, 19.1/7 = 2.73 | pass |
 | Diaper, Both, 30d | `0.4 per day`, `Total 13`, best `9 · 12 Oct`, `2 of 30 days` | 13 each on 2 days, 9 of them on 12 Oct | pass |
 | Solids, Both, 30d | `0.1 per day`, `Total 2`, best `1 · 12 Oct` | 2 meals each on 2 days | pass |
@@ -1092,7 +1088,7 @@ same totals.
 | --- | --- |
 | Six activity tabs, the row still scrolls to reach Sleep and Health | pass — `Bottle feed · Diaper · Solids · Growth`, then `Solids · Growth · Health · Sleep` after one swipe |
 | Range chips `7d · 14d · 30d`, default 14, on every pane | pass |
-| Both mode legend names both children and samples the line style | pass — `— Child 1` solid, `- - - Child 2` dashed |
+| Both mode legend names both children and samples the line style | pass — `— First Twin` solid, `- - - Second Twin` dashed |
 | A count axis ticks in whole numbers | pass — Solids shows `0` and `1`, not the `0.2` steps the first build drew |
 | The light scheme (the charts are the first token-drawn surfaces seen in light mode) | pass — Bottle pane in light: dashed line, legend, `labelFor` headline and `textOnCard` rows all legible |
 | System back from Trends returns to Activity; back from Activity exits | pass, unchanged from earlier phases |

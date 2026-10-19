@@ -7,8 +7,8 @@ Hermes). Read this before changing anything.
 
 A private, offline-first Android baby tracker for **one family**: two parents and their twins.
 Two users, sideloaded release APK, no Play Store, no monetisation, no analytics.
-It is deliberately small: the model to copy is **the incumbent tracker**, and the whole point is that it does
-*less* than the apps it replaces.
+It is deliberately small: it copies the core of an existing tracker and nothing else, and the whole point
+is that it does *less* than the apps it replaces.
 
 Data is the user's children's health log. Treat it as sensitive.
 
@@ -18,6 +18,10 @@ Kotlin (AGP 9 **built-in** Kotlin — do NOT apply an `org.jetbrains.kotlin.andr
 Jetpack Compose + Material 3 · Room (source of truth) · DataStore (preferences) · Firebase
 Auth/Firestore (sync, later phases). `compileSdk 37` + `compileSdkMinor 2`, `targetSdk 36`,
 `minSdk 26`, JDK = Android Studio's bundled JBR.
+
+Three AGP 9 facts that have already cost build cycles: the `kotlin.android` plugin must **not** be
+applied (AGP 9 carries Kotlin itself); `compileSdkMinor` is required to express `android-37.2`; and
+`jvmToolchain(17)` fails on a JBR-only machine, so the toolchain is the bundled JDK 25.
 
 Read `app/src/main/java/app/babylog/` in this order: `domain/` → `data/local/` →
 `data/repo/` → `ui/`.
@@ -67,6 +71,11 @@ pushes do.
 
 ## Verify on the device
 
+**The app id is `app.babylog`.** A build from this history is a *different app* to one installed from
+before that id, so it installs beside the old one and the existing log moves across with
+Settings → Data → Export, then Import in the new build. Never run both side by side against the same
+log — they keep separate databases, and only one of them is the one being logged into.
+
 The emulator was deliberately skipped. A real phone is the feedback loop (~2 min per cycle):
 
 ```bash
@@ -85,13 +94,12 @@ Rules learned the hard way:
   `content-desc`, not `text` — matching on text alone silently misses every icon.
 - **`adb` is a native binary: `/c/Users/...` fails with `failed to stat`.** Pass `C:/Users/...`.
 - `logcat -b crash -d` still holds a crash trace **after the app is uninstalled**.
-- Screenshots are kept in `docs/timeline/` — see `scripts/capture-timeline.ps1`. That directory is
-  names in the app header.
+- Screenshots are captured by `scripts/capture-timeline.ps1` into a folder beside the repo, not committed.
 
 ## Design contract — measured, not taste
 
-`app/src/main/java/app/babylog/ui/theme/Tokens.kt` is the source of truth, and
-`.hermes/skills/babylog-ui/references/design-tokens.md` holds the derivations. Key decisions:
+`app/src/main/java/app/babylog/ui/theme/Tokens.kt` is the source of truth, and the measured derivations
+are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 - **One hue per activity type, never reused.** Dark accents: Bottle `#FFC857`, Solids `#FF7A5C`,
   Diaper `#5AD98A`, Growth `#B49CFF`, Health `#FF7BC0`, Sleep `#63C8FF`.
@@ -183,5 +191,4 @@ only, and `1.0.0` is the first release.
 |---|---|
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
-| `.hermes/skills/babylog-ui/` | The design contract (tokens, components, layout, style guide) |
-| `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1` |
+| `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py` |

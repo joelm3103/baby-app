@@ -13,12 +13,10 @@ No store listing, no subscription, no account tiers.
 **Born early.** Both arrived prematurely, so adjusted age is a
 first-class concept throughout, not a checkbox bolted on later.
 
-**Why this exists:** the two commercial trackers this app is measured against — **the incumbent tracker** and
-**the free alternative** — are both good at the core job and both hostile to it. They change under you, gate
-the useful parts, and put content feeds and upsells where the three actions we actually perform should
-be. Babylog is the part we use, owned by us, that will work the same in two years.
-
-the paid incumbent and "the free alternative" the free one; the mapping is deliberately not recorded here,
+**Why this exists:** the two commercial trackers this app is measured against are both good at the core
+job and both hostile to it. They change under you, gate the useful parts, and put content feeds and
+upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
+that will work the same in two years.
 
 **Status:** `0.8.0`, through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
 the logging sheets, Settings, Summary, Growth, Health and Trends are built, and every screen is
@@ -36,11 +34,11 @@ new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release
 
 ## Scope
 
-Shaped by 15 real screenshots of the incumbent tracker plus three bugs the owner hit in it, not by guesswork.
+Shaped by 15 real screenshots of an existing tracker plus three bugs reported from daily use, not by guesswork.
 
 | # | Feature | Notes |
 |---|---|---|
-| 1 | **Two children, switcher in the header** | `Child 1 · Child 2 · Both`. Both-mode interleaves both children's data |
+| 1 | **Two children, switcher in the header** | `First Twin · Second Twin · Both`. Both-mode interleaves both children's data |
 | 2 | **Log for both in one action** | With Both selected, one tap writes a row per child |
 | 3 | **Bottle** | Amount + formula brand + time |
 | 4 | **Solids** | Meal slot (breakfast/lunch/dinner/snack), food catalogue with search, per-food reaction/allergy flags |
@@ -80,11 +78,11 @@ The full set is a real project, not a weekend. Staging so it becomes useful earl
 
 ---
 
-## The three bugs in the incumbent tracker we are designing against
+## Three bugs we are designing against
 
 The owner reported these unprompted, so they are requirements, not polish:
 
-1. **Content clipped by the system navigation bar** (the incumbent's Child screen, screenshot #15) — "it cannot
+1. **Content clipped by the system navigation bar** (the other app's Child screen, screenshot #15) — "it cannot
    scroll down any more". We consume `WindowInsets.navigationBars` and pad the scrollable content.
 2. **System back exits the app instead of closing a sheet** — every sheet gets a `BackHandler`.
 3. **Only one child visible at a time** — hence the switcher and the Both view.
@@ -119,18 +117,12 @@ data is never *only* there.
 ## Repo layout
 
 ```
-baby-app/
+first-twinpp/
 ├── README.md                  # this file — scope, stack, decisions
 ├── PLAN.md                    # implementation plan, phased
-├── .hermes/skills/babylog-ui/ # the design system, loadable as a project skill
-├── scripts/                   # android-env.ps1, sdkmanager.ps1 (toolchain, re-runnable)
+├── app/                       # the single Android module (source, tests, schemas, assets)
+└── scripts/                   # android-env.ps1, sdkmanager.ps1, growth assets, timeline capture
 ```
-
-
-- `docs/timeline/` — the device captures and their galleries. Open `docs/timeline/index.html` on the
-  machine that took them; `scripts/capture-timeline.ps1` still writes there.
-  toolchain record and the WHO growth-data provenance, plus the raw store frames under
-  `research/screenshots/` (~21 MB of PNG, regenerable from the URLs in `research/SOURCES.md`).
 
 **Note on which evidence wins:** the marketing frames produced two outright errors (light surfaces,
 yellow diaper) that 15 real screenshots corrected. When the two disagree, the screenshots win, and
