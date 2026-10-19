@@ -602,6 +602,7 @@ Firebase project, Google sign-in, security rules restricted to two uids, outbox 
 HARD-deletes the child row and their events (`MaintenanceRepository.deleteChildPermanently`), so there is
 no tombstone for sync to propagate and the other phone could resurrect them on the next merge. Either
 route a permanent deletion through the outbox as an explicit delete document, or make it a
+tombstone-only purge the sync layer understands. Archive (soft delete) is already sync-safe.
 
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
