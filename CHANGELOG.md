@@ -185,7 +185,6 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Added
 
-- `docs/timeline/`: the Phase 6, 7, 8 and 9 device captures — 32 screenshots under `docs/timeline/2026-10-14-phase6/` through `-phase9/` (9 + 8 + 6 + 9), with `index.html` sections 07-10 and the matching rows in `docs/timeline/README.md` (the "docs(timeline): record the Phase 6 device pass" commit, the "docs(timeline): record the Phase 7 device pass" commit, the "docs(timeline): record the Phase 8 device pass" commit, the "docs(timeline): record the Phase 9 device pass" commit).
 - `docs/timeline/2026-10-14-phase9.1/`: the Phase 9.1 device capture — 10 screenshots plus the three `before/` JPGs that came from the phone as the defect report, with `index.html` section 11 and the matching rows in `docs/timeline/README.md` (the "docs(timeline): record the Phase 9.1 device pass" commit).
 - `PLAN.md` gains **Phase 7 — Settings** (appearance, units, children, export) and **Phase 13 — Update delivery** (release signing plus delivery without a cable). The latter precedes the ship step because a release-signed APK is what gets delivered.
 - `MaintenanceRepository` (`data/repo/MaintenanceRepository.kt`): read-all including tombstones, replace-everything import in one transaction, archive a child, permanently delete a child with their events and outbox rows.
