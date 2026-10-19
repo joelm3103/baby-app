@@ -104,4 +104,4 @@ $crash = (& $adb -s $Serial logcat -d) | Select-String -Pattern "FATAL EXCEPTION
 if ($crash) { Write-Warning "A FATAL EXCEPTION is in logcat - inspect before trusting these shots." } else { Write-Host "crash   : none" }
 
 Write-Host ""
-Write-Host "Add an entry to docs/timeline/README.md with the commit hash, what changed, and WHY."
+Write-Host "Add an entry to docs/timeline/README.md with the commit, what changed, and WHY."

@@ -8,7 +8,11 @@
 $ErrorActionPreference = 'Stop'
 
 $Jbr      = 'C:\Program Files\Android\Android Studio\jbr'
-$Sdk      = 'C:\Users\<user>\AppData\Local\Android\Sdk'
+# Derived, not hard-coded: an explicit ANDROID_SDK_ROOT / ANDROID_HOME wins, otherwise
+# the per-user default Studio uses. Keeps a username out of the repo and works on any account.
+$Sdk      = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT }
+            elseif ($env:ANDROID_HOME) { $env:ANDROID_HOME }
+            else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 $PathAdds = @("$Sdk\platform-tools", "$Sdk\cmdline-tools\latest\bin")
 
 if (-not (Test-Path "$Jbr\bin\java.exe")) {

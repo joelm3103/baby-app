@@ -9,7 +9,11 @@
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$SdkArgs)
 
 $env:JAVA_HOME    = 'C:\Program Files\Android\Android Studio\jbr'
-$env:ANDROID_HOME = 'C:\Users\<user>\AppData\Local\Android\Sdk'
+# Derived, not hard-coded - an explicit ANDROID_SDK_ROOT / ANDROID_HOME wins, otherwise the
+# per-user default Studio uses.
+$env:ANDROID_HOME = if ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT }
+                    elseif ($env:ANDROID_HOME) { $env:ANDROID_HOME }
+                    else { Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
 
 & "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" @SdkArgs
 exit $LASTEXITCODE
