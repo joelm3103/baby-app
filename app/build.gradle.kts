@@ -1,11 +1,27 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     // No kotlin-android plugin — AGP 9.0+ compiles Kotlin itself (built-in Kotlin).
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    // NO com.google.gms.google-services deliberately. That plugin hard-fails the build when
+    // app/google-services.json is missing, and that file is gitignored because it carries the
+    // project's keys — so a fresh clone could not even run the unit tests. The same three values
+    // are read from an optional local firebase.properties instead and passed to FirebaseOptions.
 }
+
+/**
+ * Local-only Firebase configuration. Absent on a fresh clone, and the app then starts as a
+ * single-phone logger rather than refusing to launch: see `data/sync/FirebaseSetup.kt`.
+ */
+val firebaseProperties = Properties().apply {
+    val file = rootProject.file("firebase.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun firebaseValue(key: String): String = firebaseProperties.getProperty(key, "").trim()
 
 android {
     namespace = "app.babylog"
@@ -21,8 +37,18 @@ android {
         applicationId = "app.babylog"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.8.0"
+        versionCode = 11
+        versionName = "0.9.0"
+
+        // Empty strings when no local firebase.properties is present, which is exactly how the app
+        // tells "this build has no sync configured" apart from "sync is configured, but signed out".
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${firebaseValue("firebase.projectId")}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${firebaseValue("firebase.appId")}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${firebaseValue("firebase.apiKey")}\"")
+        buildConfigField("String", "FIREBASE_WEB_CLIENT_ID", "\"${firebaseValue("firebase.webClientId")}\"")
+        // The two uids, comma separated. Empty is allowed: the Firestore rules are the real gate, and
+        // this list only lets the app say WHY a third account was refused instead of showing a read error.
+        buildConfigField("String", "FIREBASE_ALLOWED_UIDS", "\"${firebaseValue("firebase.allowedUids")}\"")
     }
 
     buildTypes {
@@ -43,6 +69,8 @@ android {
 
     buildFeatures {
         compose = true
+        // For the Firebase values above. AGP 8+ defaults this off.
+        buildConfig = true
     }
 
     testOptions {
@@ -84,6 +112,14 @@ dependencies {
 
     // Preferences: units, selected child, theme.
     implementation(libs.androidx.datastore.preferences)
+
+    // Sync (Phase 13). Room stays the source of truth; Firestore is a transport, never a read path.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    // Google Sign-In as the SECOND sign-in option. Email/password is the primary one precisely
+    // because it works whatever key the APK was signed with.
+    implementation(libs.play.services.auth)
 
     testImplementation(libs.junit)
     // Robolectric runs Room DAO tests on the JVM, so the DAO contract is verified without a device

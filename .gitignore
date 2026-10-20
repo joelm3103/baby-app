@@ -43,6 +43,11 @@ app/build/
 *.keystore
 *.jks
 
+# Firebase configuration: carries the project's keys, so it is local-only like the keystore.
+# Phase 13 reads it through Gradle into BuildConfig; see the note in app/build.gradle.kts.
+firebase.properties
+app/google-services.json
+
 # Build/run logs — regenerable, and the full text of any run is in the terminal history anyway.
 logs/
 

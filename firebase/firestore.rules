@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// BabyLog — Phase 13. Two accounts, one shared log.
+//
+// Paste this into the Firebase console (Firestore Database -> Rules) after creating the project.
+// Replace the two placeholders with the uids of the two accounts: Authentication -> Users -> the uid
+// column. They are recorded in PLAN.md once the accounts exist.
+//
+// Two rules carry the whole design:
+//
+//   1. Nothing is readable or writable unless the request is from one of the two uids. That is the real
+//      gate — the app's own allow-list only exists so a third account gets a sentence instead of a
+//      permission error on a screen that would otherwise look empty.
+//   2. Only `children` and `events` exist. There is no catch-all match, so a typo'd collection name
+//      fails closed instead of quietly creating a new one.
+//
+// Deliberately NOT restricted further: a client may write a tombstone for a row it holds, and may
+// update its own rows. Per-field validation would be the next rung, and is not worth it for a two-uid
+// log that only this app writes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function oneOfTheTwo() {
+      return signedIn() && request.auth.uid in [
+        'REPLACE_WITH_FIRST_UID',
+        'REPLACE_WITH_SECOND_UID'
+      ];
+    }
+
+    match /children/{childId} {
+      allow read, write: if oneOfTheTwo();
+    }
+
+    match /events/{eventId} {
+      allow read, write: if oneOfTheTwo();
+    }
+  }
+}

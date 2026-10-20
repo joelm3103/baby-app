@@ -1,0 +1,22 @@
+# BabyLog — local Firebase configuration, Phase 13.
+#
+# Copy this file to `firebase.properties` (gitignored, next to settings.gradle.kts) and fill in the
+# values from the Firebase console. The build reads them into BuildConfig; the app passes them to
+# FirebaseOptions. Nothing here is committed, and a build without this file still works: it is the
+# single-phone logger, and Settings -> Sync says exactly that.
+#
+# Where each value comes from:
+#   projectId    Project settings -> General -> Project ID
+#   appId        Project settings -> General -> Your apps -> the Android app's "App ID"
+#   apiKey       Project settings -> General -> Web API Key
+#   webClientId  Only for Google Sign-In: the OAuth 2.0 Web client id under Google Cloud credentials
+#   allowedUids  Authentication -> Users -> the uid column, for BOTH accounts, comma separated
+#
+# google-services.json is NOT used: the usual google-services plugin fails the build when that file is
+# missing, which would break a fresh clone. See the note at the top of app/build.gradle.kts.
+
+firebase.projectId=
+firebase.appId=
+firebase.apiKey=
+firebase.webClientId=
+firebase.allowedUids=

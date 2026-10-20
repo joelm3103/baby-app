@@ -9,6 +9,12 @@ lifecycle = "2.11.0"
 room = "2.8.5"
 ksp = "2.3.12"
 datastore = "1.2.1"
+# Read off Google's Maven repository on 2026-10-19 (dl.google.com/dl/android/maven2).
+# Firebase is published to Google Maven only, not Maven Central — a 404 from repo1 is not a bad version.
+firebaseBom = "35.0.2"
+# Deliberately 21.x, NOT 22.0.0: the 22 line drops the legacy GoogleSignInClient API this app uses.
+# Migrating to Credential Manager is its own task, not a side effect of adding sync.
+playServicesAuth = "21.6.0"
 junit = "4.13.2"
 robolectric = "4.17"
 androidxTestCore = "1.7.0"
@@ -30,6 +36,10 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
