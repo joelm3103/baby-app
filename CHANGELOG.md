@@ -21,11 +21,38 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 **In short:**
 
+- **Two accounts, one shared log.** Phase 13 lands the sync layer: Firebase Auth with email + password as the primary route and Google Sign-In as a second button, an outbox drain to Firestore, and an inbound listener that applies `updatedAt`-wins. **398 tests green** (349 → 398). It is **built and tested but not yet on a phone** — no device was attached and the Firebase project does not exist yet, so the two-phone acceptance run is still outstanding.
+- **The Phase 7 permanent-delete defect is fixed.** Deleting a child now queues a DELETE intent for the child and every one of their events inside the same transaction that hard-deletes them, so the deletion reaches the other phone instead of being handed back on the next merge. No schema change: `schemas/` still holds only `1.json` and `2.json`.
+- A defect found while wiring, not on a phone: **`ChildRepository` never queued an outbox intent** — children were the one write path sync would have silently missed. Every write path queues now.
 - **A badge is numbered when two children share a first letter**, so `Kai` and `Kim` read `K1` and `K2` instead of both reading `K`. One function now feeds every badge in the app, and `ChildBadge` draws two glyphs as a pill of the same height so nothing shrinks and no row moves. **349 tests green** (339 → 349).
 - The app id is `app.babylog` for both `namespace` and `applicationId`, and the default children are **First Twin** and **Second Twin**, so a fresh install shows initials that can be told apart (`F` / `S`) instead of two the same.
 - The docs were tightened in the same pass: `PLAN.md`'s Phase 0 row states the toolchain it was read from rather than pointing elsewhere, the growth provenance cites `scripts/build-growth-assets.py` where the checksums actually live, and `README.md`'s layout block matches what is in the repo.
 
+### Versions
+
+- `0.9.0` — Phase 13, two accounts and one shared log
+
+### Added
+
+- `domain/SyncMerge.kt` — `resolveSync()`: the whole merge rule as a pure function. Later `updatedAt` wins, **a deletion wins a tie** (a tie going to the live row resurrects a deleted bottle with nobody having logged it), and a row this phone has never seen is taken. 9 tests.
+- `data/sync/` — the sync layer, each piece separable from Firestore:
+  - `SyncDocuments.kt`: the wire mapping to and from a plain `Map`, so the round trip is proved on the JVM (Firestore's `DocumentSnapshot` cannot be constructed in a test). Includes the reduced tombstone a permanent delete sends.
+  - `SyncGateway.kt` / `FirestoreGateway.kt`: two collections, `children` and `events`, document id = the row's own client-generated id, every write `SetOptions.merge()`.
+  - `OutboxDrainer.kt`: re-reads the row by id at send time, deletes the intent only on ack, stops at the first failure rather than reordering the queue, and falls back to a tombstone when the row is already gone.
+  - `AccountAuthenticator.kt`: email/password, Google Sign-In, and the two-uid allow-list as a separate `Refused` result — a refused account is signed straight back out.
+  - `SyncRepository.kt`: first-sign-in seeding, the inbound merge, sign-in states, and one drain at a time.
+  - `FirebaseSetup.kt`: builds `FirebaseOptions` from `BuildConfig`, so no `google-services.json` is needed to build.
+- `firebase/firestore.rules` — read and write only for the two uids, and only for `children` and `events`; nothing else is matchable, so a typo'd collection fails closed.
+- Settings → **Sync**: email and password, `Sign in with Google` (hidden until an OAuth client id exists), the signed-in account, a pending-write count, `Sync now`, and `Sign out`.
+- 49 new tests, all JVM: `SyncMergeTest` (9), `SyncDocumentsTest` (12), `OutboxDrainerTest` (11), `SyncRepositoryTest` (16), plus one in `MaintenanceRepositoryTest`.
+
 ### Changed
+
+- `ChildRepository`, `MaintenanceRepository` and `EventRepository` all queue an outbox intent and poke the drain after a write. Children queued nothing before this.
+- `deleteChildPermanently` queues DELETEs **before** hard-deleting, then drops the dead UPSERTs. `archiveChild` queues its tombstones too.
+- An import re-seeds the queue (`reseedAfterRestore`): `replaceAll` wipes the tables *and* the outbox, so without it the next snapshot would merge the pre-restore log back in. Stated limitation: server rows the backup does not contain are not deleted, because absence in a file is not a delete instruction.
+- Firestore runs with a **memory-only cache**, so an offline `set()` does not ack and the outbox row survives. Room + `outbox` stays the only queue.
+- `TextFieldRow` gained an `isPassword` mask, used only by the sync password field.
 
 - `namespace` and `applicationId` moved together, with the Kotlin packages, imports, both source roots, the committed Room schema directory and the `MigrationTest` path that reads it.
 - **Two children whose names start with the same letter no longer wear the same badge.** `badgesFor()` in `domain/ChildBadges.kt` is the single source for the switcher pills, the card and recent-row marks, the event list, the Growth chart's markers and legend, and the fever table's child column; it numbers a collision group in list order (`Kai`, `Kim` -> `K1`, `K2`) and leaves a letter that occurs once alone. The Both pill keeps the two raw initials (`KL`) — its label already says Both — and the seeded children still render `F`/`S`. Numbers follow the switcher's order (`sortOrder, name`), accepted as it stands: a child inserted earlier in that order renumbers the group it lands in.

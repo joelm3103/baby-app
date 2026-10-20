@@ -40,7 +40,8 @@ everything after it is additive.**
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
-| 13 — Two accounts, one shared log | not started |
+| 13 — Two accounts, one shared log | **BUILT, 398 tests green — device pass pending** (no phone attached and no Firebase project yet). Email/password + Google Sign-In, outbox drain against Firestore, inbound `updatedAt`-wins merge, round-tripping tombstones, and the Phase 7 permanent-delete defect fixed with DELETE intents |
+| 13.1 — Growth dataset update channel | not started — split out of 13, `0.10.0` |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -583,7 +584,63 @@ branch is covered by `TrendsTest` instead, and by the empty states Summary and G
 per-child split, the running-sleep rule and the fever boundary at exactly 38.0, and `TrendChartAxisTest`
 (5) for the x-axis labels, the count ticks and the dashed second child. The suite is **339, 0 failures**.
 
-## Phase 13 — Two accounts, one shared log
+## Phase 13 — Two accounts, one shared log — BUILT AND TESTED, device pass pending
+
+**As built — 2026-10-19. Read this before the original scope below.**
+
+Six decisions were taken before any code, because each one changes the shape of the work:
+
+- **Email + password is the primary sign-in; Google Sign-In is the second button.** Email/password works
+  with whatever key the APK was signed with. Google Sign-In needs an OAuth client plus a registered
+  certificate SHA-1 — the debug key is registered now, and **the release key only exists in Phase 14**,
+  so that step is a Phase 14 checklist item rather than a Phase 13 one.
+- **No `com.google.gms.google-services` plugin.** That plugin fails the build when
+  `app/google-services.json` is missing, and that file is gitignored because it carries the project's
+  keys — so a fresh clone could not even run the tests. The same values are read from an optional local
+  `firebase.properties` into `BuildConfig` and handed to `FirebaseOptions`. With no properties file the
+  app starts as the single-phone logger it has always been, and Settings → Sync says exactly that.
+- **Permanent delete is fixed with DELETE intents, not a new column.** A delete already carries its id,
+  so the existing `outbox` shape was enough: `deleteChildPermanently` queues a DELETE for the child and
+  for every event id *inside the same transaction* that hard-deletes them, then drops the dead UPSERTs
+  and keeps the DELETEs. No schema change — `schemas/` still holds only `1.json` and `2.json`.
+- **The drain is in-process, no WorkManager.** Triggers: app start, after every queued write, and the
+  `Sync now` row. An unacked intent stays in `outbox`, so a killed process loses nothing.
+- **Firestore's cache is memory-only.** With the default persistent cache `set()` completes once the
+  write is in Firestore's own local cache, which would make an offline drain look acknowledged and
+  delete the outbox row while nothing had reached the server. Room + `outbox` is this app's only queue.
+- **The growth dataset channel moved to Phase 13.1.** Two features in one phase would have had two
+  device passes in one branch, and sync is the half that two phones must prove first.
+
+Built: `domain/SyncMerge.kt` (the merge rule, pure), `data/sync/` (`SyncDocuments.kt` wire mapping,
+`SyncGateway.kt`, `FirestoreGateway.kt`, `OutboxDrainer.kt`, `AccountAuthenticator.kt` + the Firebase and
+unconfigured implementations, `SyncRepository.kt`, `FirebaseSetup.kt`), a `Sync` card in Settings, and
+`firebase/firestore.rules` (two uids, pasted into the console by hand).
+
+**A defect found while wiring, not on a phone:** `ChildRepository` was the one write path that never
+queued an outbox intent — `EventRepository` had queued from day one, children had not. A renamed or added
+child would have stayed on the phone that did it. Children now queue like everything else, and archive
+and permanent delete queue their tombstones too.
+
+**Also fixed here because sync made it dangerous:** `replaceAll` (import) wipes the tables *and* the
+queue. Without a re-seed the restored log would sit on this phone while Firestore still held the
+pre-restore version, and the next snapshot would merge the old rows back in. Import now resets the seed
+flag, re-queues every restored row and drains once. Known limitation, stated rather than hidden: server
+documents for rows the restore does not contain are not deleted — absence of a row in a backup file does
+not mean "delete it on the server".
+
+**Acceptance, unchanged, and not yet met on hardware.** Log on A, see it on B; three airplane-mode writes
+on A arrive exactly once after restore. Every claim above is a JVM test or an inspection; **nothing has
+been on a phone yet**, because no device was attached and no Firebase project exists. What the phones
+must still prove: both sign-in routes, a real round trip, the airplane-mode case, and a permanent delete
+that does not come back on the other phone.
+
+**Tests:** 49 new on the JVM — `SyncMergeTest` (9, the tie-breaking rules), `SyncDocumentsTest` (12, the
+wire round trip including a dose, a temperature and a tombstone with no payload), `OutboxDrainerTest`
+(11, ack/retry/idempotency against a fake server), `SyncRepositoryTest` (16, the seed, the inbound merge
+and the sign-in states), and one in `MaintenanceRepositoryTest` for the delete intents. The suite is
+**398, 0 failures**.
+
+### Original scope, for the record
 
 **Carried over from Phase 10 — the dataset update channel.** Task 10.2 assumed Firestore was already in
 the stack; it is not, which is why the channel lives here. When the Firebase project exists: a
@@ -607,6 +664,21 @@ tombstone-only purge the sync layer understands. Archive (soft delete) is alread
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
+## Phase 13.1 — the growth dataset update channel — not started (`0.10.0`)
+
+Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
+The Firebase project already exists by then, which is the only precondition this channel ever had.
+
+- A `reference/growth_manifest` document pointing at `reference/growth_dataset`.
+- A **checksum gate**: a manifest that fails its sha256, is older than the bundled dataset, or is
+  unreachable keeps the current dataset and shows nothing. A failed check is silent, not an error dialog.
+- A **90-day** silent check on app start, and `Check for updates` rows on the Growth screen and in
+  Settings.
+- `GrowthReference.identityLine` already exists for the display line — this adds the fetch, not the
+  format.
+
+The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
+
 ## Phase 14 — Update delivery
 
 Getting a new build onto both phones without a cable. This has to precede the ship step, because a
@@ -617,6 +689,9 @@ release-signed APK is the thing being delivered.
 - **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 13,
   or a hosted APK link. Installing a new build becomes a tap on both phones instead of running
   `adb install -r` twice.
+- **Register the release certificate's SHA-1 with the Google Sign-In OAuth client.** Phase 13 added Google
+  Sign-In, and it only accepts a build whose signing certificate the console knows. Email/password keeps
+  working either way, which is why it is the primary route.
 - **The first tag lands here.** All phase rungs stay untagged on purpose — tags are for released builds,
   and a phase ending is not a release. `v1.0.0` is cut when the signed build is delivered, which is also
 the point at which `versionCode` starts mattering to something other than a human: App Distribution

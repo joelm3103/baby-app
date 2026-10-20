@@ -154,9 +154,34 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   contains a digit, and the health sheet itself says `Names only — this app does not suggest a dose`. An
   infant dose depends on weight and age, so the app must never propose one.
 
+## Sync rules (Phase 13) that will cost you if you forget them
+
+- **Later `updatedAt` wins, and a deletion wins a tie.** `domain/SyncMerge.kt` is the only place that
+  decides it, and it is pure. A tie going to the live row resurrects a deleted bottle with nobody having
+  logged it.
+- **The outbox stores intent, never a payload**, and the drain re-reads the row by id at send time. The
+  one exception is a *permanent* delete, whose row is already gone: it travels as an id-and-timestamp
+  tombstone, which is why `OutboxDrainer` tries the row first and falls back to the tombstone.
+- **A tombstone for an id this phone never had is not an instruction to create a row.** There is nothing
+  to delete, and inventing a child from a document with no name would corrupt the percentile maths.
+- **Firestore's disk cache is off** (`MemoryCacheSettings`). With the default cache, `set()` acks as soon
+  as the write is in Firestore's local cache, so an offline drain would delete the outbox row while
+  nothing had reached the server. Room + `outbox` is the only queue.
+- **Every write path queues.** `EventRepository`, `ChildRepository`, `MaintenanceRepository`. Children
+  once did not, and a rename would have stayed on the phone that made it.
+- **`google-services.json` and `firebase.properties` are local-only and gitignored.** The build reads the
+  four values into `BuildConfig` instead of using the `google-services` plugin, because that plugin fails
+  the build when its JSON is missing — which would break a fresh clone's test run.
+- **An import re-seeds the queue** (`reseedAfterRestore`). `replaceAll` wipes the tables *and* the outbox,
+  so without this the next snapshot would merge the pre-restore log back in.
+
 ## Tests
 
-339 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+398 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+
+**Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
+written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
+`FakeAuthenticator`. Only Firestore itself needs two real phones.
 
 **Robolectric limit:** it cannot collect a Room-backed Flow — the paused main looper never pumps
 Room's invalidation callbacks, so a test like that hangs. Test ViewModels against fake DAOs, not Room.
@@ -175,7 +200,8 @@ only, and `1.0.0` is the first release.
 | 6 logging sheets | `0.2.0` | 11 Health | `0.7.0` |
 | 7 Settings | `0.3.0` | 12 Trends | `0.8.0` |
 | 8 Summary | `0.4.0` | 13 two accounts | `0.9.0` |
-| 9 daily-use polish | `0.4.1` | 14/15 release | `1.0.0` |
+| 9 daily-use polish | `0.4.1` | 13.1 dataset channel | `0.10.0` |
+| | | 14/15 release | `1.0.0` |
 
 - **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever
   goes up, because App Distribution decides "newer" from it.
@@ -192,3 +218,4 @@ only, and `1.0.0` is the first release.
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
 | `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py` |
+| `firebase/firestore.rules` | Phase 13 security rules — pasted into the console by hand, **not** deployed by a tool |

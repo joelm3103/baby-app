@@ -18,13 +18,19 @@ job and both hostile to it. They change under you, gate the useful parts, and pu
 upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
 that will work the same in two years.
 
-**Status:** `0.8.0`, through Phase 12. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
-the logging sheets, Settings, Summary, Growth, Health and Trends are built, and every screen is
-device-verified. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
+**Status:** `0.9.0`, through Phase 13. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+the logging sheets, Settings, Summary, Growth, Health, Trends and the sync layer are built. Every screen up
+to Trends is device-verified. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
 Health records a temperature, a medication with its dose and vaccines, and Trends charts bottle volume,
 solids, diapers and sleep per day over a 7/14/30-day window (Health is a dated fever table rather than a
-chart, because a temperature is a reading and not a daily amount). The shared log across two accounts is
-Phase 13. See `PLAN.md`.
+chart, because a temperature is a reading and not a daily amount).
+
+**Sync (Phase 13) is built and tested but not yet on a phone:** two accounts, one shared log, with an outbox
+drained to Firestore and an inbound listener applying `updatedAt`-wins. Email + password is the primary
+sign-in and Google Sign-In is the second button. It needs a local `app/google-services.json` (or the same
+values in a local `firebase.properties`) plus the two uids in `firebase/firestore.rules` — none of which is
+committed — and a build without them is the single-phone logger it has always been, which is what Settings
+→ Sync reports. See `PLAN.md` for the outstanding two-phone acceptance run.
 
 **Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
 new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release. Every dated
@@ -97,8 +103,8 @@ The owner reported these unprompted, so they are requirements, not polish:
 |---|---|
 | Kotlin + Compose, single `app/` module | Android-only; multi-module buys nothing here |
 | Room as the source of truth | Must work in a car park, a clinic waiting room, a corridor. Local-first is not optional |
-| Firestore for sync, offline persistence on | Deletes a whole class of sync bugs. Free tier covers two users by three orders of magnitude |
-| Google sign-in | Two people, two phones, no password reset flow to build |
+| Firestore for sync, offline persistence **off** in favour of the Room-backed outbox | Deletes a whole class of sync bugs; the app's queue is the only queue, so an offline write cannot look acknowledged. Free tier covers two users by three orders of magnitude |
+| Email + password first, Google sign-in second | Email/password works with any signing key; Google is a tap when the certificate is registered in the console |
 | Sideload the release APK | Free. A Play listing costs $25 and adds review latency for zero benefit |
 | No server to run | An app the second parent depends on should not page anyone because a container is down |
 
