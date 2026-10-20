@@ -30,6 +30,12 @@ class EventRepository(
     private val foodDao: FoodDao,
     private val clock: Clock = Clock.systemUTC(),
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    /**
+     * Called after every queued write, so a signed-in phone drains within a second of a tap instead of
+     * waiting for the next launch. Defaults to nothing: the repository must keep working as a plain
+     * local write path in tests and on a build with no sync configured.
+     */
+    private val onQueued: suspend () -> Unit = {},
 ) {
     private fun now(): Long = clock.millis()
 
@@ -142,5 +148,6 @@ class EventRepository(
                 queuedAt = now(),
             ),
         )
+        onQueued()
     }
 }

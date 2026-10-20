@@ -15,6 +15,14 @@ import app.babylog.data.repo.SettingsRepository
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
 import app.babylog.data.medications.MedicationCatalogueParser
+import app.babylog.data.sync.AccountAuthenticator
+import app.babylog.data.sync.FirebaseAuthenticator
+import app.babylog.data.sync.FirebaseSetup
+import app.babylog.data.sync.FirestoreGateway
+import app.babylog.data.sync.OutboxDrainer
+import app.babylog.data.sync.SyncGateway
+import app.babylog.data.sync.SyncRepository
+import app.babylog.data.sync.UnconfiguredAuthenticator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,15 +49,75 @@ class AppContainer(private val context: Context) {
             eventDao = database.eventDao(),
             outboxDao = database.outboxDao(),
             foodDao = database.foodDao(),
+            // A tap drains within a second when signed in; when signed out this is a no-op and the
+            // intent waits, which is what offline-first means here.
+            onQueued = { sync.requestDrain() },
         )
     }
 
-    val children: ChildRepository by lazy { ChildRepository(database.childDao()) }
+    val children: ChildRepository by lazy {
+        ChildRepository(
+            childDao = database.childDao(),
+            outboxDao = database.outboxDao(),
+            onQueued = { sync.requestDrain() },
+        )
+    }
 
     val settings: SettingsRepository by lazy { SettingsRepository(dataStore) }
 
     /** Whole-database operations: backup, restore, archive and permanent delete. */
-    val maintenance: MaintenanceRepository by lazy { MaintenanceRepository(database) }
+    val maintenance: MaintenanceRepository by lazy {
+        MaintenanceRepository(database = database, onQueued = { sync.requestDrain() })
+    }
+
+    /**
+     * Whether this build can talk to Firebase at all.
+     *
+     * Resolved once and off the launch path: a project that is configured but unreachable must still
+     * leave the app a working single-phone logger, not a blank screen.
+     */
+    private val firebaseReady: Boolean by lazy {
+        FirebaseSetup.isConfigured && runCatching { FirebaseSetup.app(context) }.getOrNull() != null
+    }
+
+    private val syncGateway: SyncGateway? by lazy {
+        if (!firebaseReady) null else FirebaseSetup.firestore(context)?.let(::FirestoreGateway)
+    }
+
+    private val authenticator: AccountAuthenticator by lazy {
+        val auth = if (firebaseReady) FirebaseSetup.auth(context) else null
+        if (auth == null) {
+            UnconfiguredAuthenticator
+        } else {
+            FirebaseAuthenticator(auth, FirebaseSetup.allowedUids)
+        }
+    }
+
+    private val outboxDrainer: OutboxDrainer? by lazy {
+        syncGateway?.let {
+            OutboxDrainer(
+                outboxDao = database.outboxDao(),
+                childDao = database.childDao(),
+                eventDao = database.eventDao(),
+                gateway = it,
+            )
+        }
+    }
+
+    /** Two accounts, one shared log. Constructible on every build; inert without configuration. */
+    val sync: SyncRepository by lazy {
+        SyncRepository(
+            authenticator = authenticator,
+            gateway = syncGateway,
+            drainer = outboxDrainer,
+            childDao = database.childDao(),
+            eventDao = database.eventDao(),
+            outboxDao = database.outboxDao(),
+            settings = settings,
+            scope = scope,
+            googleSignInAvailable = FirebaseSetup.supportsGoogle,
+        )
+    }
 
     /**
      * The solids catalogue. The asset is read on `seedIfNeeded`, never at construction: the list is
@@ -68,7 +136,6 @@ class AppContainer(private val context: Context) {
     }
 
     private var cachedGrowth: GrowthReference? = null
-
     /**
      * The bundled growth reference, parsed once.
      *

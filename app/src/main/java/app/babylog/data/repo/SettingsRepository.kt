@@ -47,6 +47,22 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     val childSeedDone: Flow<Boolean> = dataStore.data.map { it[KEY_CHILD_SEEDED] == true }
 
     /**
+     * True once the local log has been pushed to Firestore for the first time.
+     *
+     * A one-way flag, deliberately not "is the outbox empty": an empty queue is what a *finished* drain
+     * looks like, so a flag is the only thing that tells "never seeded" apart from "seeded and drained".
+     */
+    val syncSeedDone: Flow<Boolean> = dataStore.data.map { it[KEY_SYNC_SEEDED] == true }
+
+    suspend fun markSyncSeedDone() = dataStore.edit { it[KEY_SYNC_SEEDED] = true }
+
+    /**
+     * After a restore the whole database is new but the queue is empty, so the server has to be told
+     * about it from scratch — this puts the one-way seed flag back so the next seed does exactly that.
+     */
+    suspend fun resetSyncSeed() = dataStore.edit { it[KEY_SYNC_SEEDED] = false }
+
+    /**
      * When night is, for the History day/night diaper split. Defaults to 18:00-06:00; `start == end`
      * means no night at all (see [NightWindow]).
      */
@@ -169,6 +185,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
         val KEY_THEME = stringPreferencesKey("ui.theme")
         val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
+        val KEY_SYNC_SEEDED = booleanPreferencesKey("sync.seeded")
         val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
         val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
         val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")

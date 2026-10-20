@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import app.babylog.data.backup.Backup
 import app.babylog.data.backup.BackupSnapshot
 import app.babylog.data.local.AppDatabase
+import app.babylog.data.sync.OutboxDrainer
+import app.babylog.data.sync.outboxIntent
 import java.time.Clock
 
 /**
@@ -17,6 +19,8 @@ import java.time.Clock
 class MaintenanceRepository(
     private val database: AppDatabase,
     private val clock: Clock = Clock.systemUTC(),
+    /** See `EventRepository.onQueued`: archive and permanent delete are news the other phone needs. */
+    private val onQueued: suspend () -> Unit = {},
 ) {
     private val childDao get() = database.childDao()
     private val eventDao get() = database.eventDao()
@@ -60,25 +64,51 @@ class MaintenanceRepository(
      */
     suspend fun archiveChild(childId: String) {
         val at = clock.millis()
+        val eventIds = eventDao.idsForChild(childId)
         database.withTransaction {
             eventDao.softDeleteByChild(childId, at)
             childDao.softDelete(childId, at)
+            // Archive is a tombstone, so it travels as one: the same DELETE intent a permanent delete
+            // queues, but the rows stay here so the archive can be undone on either phone.
+            enqueueTombstones(childId, eventIds, at)
         }
+        onQueued()
     }
 
     /**
-     * Delete a child and their log for good, and drop the queued outbox intent that pointed at those
-     * rows so the queue cannot reference something that no longer exists.
+     * Delete a child and their log for good — **including on the other phone**.
      *
-     * **Leaves no tombstone.** A later sync therefore cannot learn about this deletion and could
-     * resurrect the child from the other phone — recorded in PLAN.md as something Phase 13 must revisit.
+     * This used to leave no tombstone at all, which Phase 7 recorded as a defect: the other phone still
+     * held the child and their events, so the next merge would hand them straight back. The fix is the
+     * one the outbox was already shaped for — a DELETE intent needs only the id, so it can be queued for
+     * rows that are about to stop existing:
+     *
+     * 1. queue a DELETE for the child and for every one of their events, in the same transaction that
+     *    hard-deletes them, so a crash cannot lose the news;
+     * 2. the drain writes an id-and-timestamp tombstone document for each;
+     * 3. the other phone receives it and soft-deletes its copies, which keeps its own tombstones so
+     *    nothing can resurrect them later.
      */
     suspend fun deleteChildPermanently(childId: String) {
         val eventIds = eventDao.idsForChild(childId)
+        val at = clock.millis()
         database.withTransaction {
+            // Intents first, deletes second: the other direction would leave a window where the rows are
+            // gone and nothing remembers them.
+            enqueueTombstones(childId, eventIds, at)
             eventDao.deleteByChild(childId)
             childDao.hardDelete(childId)
-            outboxDao.deleteByEntityIds(eventIds + childId)
+            // Drop every OTHER intent for these ids: a queued UPSERT now points at a row that no longer
+            // exists, and the DELETE just queued is the truth.
+            outboxDao.deleteUpserts(entityIds = eventIds + childId)
+        }
+        onQueued()
+    }
+
+    private suspend fun enqueueTombstones(childId: String, eventIds: List<String>, at: Long) {
+        outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, childId, deleted = true, queuedAt = at))
+        eventIds.forEach { id ->
+            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
         }
     }
 }
