@@ -87,11 +87,14 @@ import app.babylog.ui.history.HistoryScreen
 import app.babylog.ui.history.HistoryViewModel
 import app.babylog.ui.settings.SettingsScreen
 import app.babylog.ui.settings.SettingsViewModel
+import app.babylog.BuildConfig
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.displayName
 import androidx.compose.runtime.collectAsState
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -180,7 +183,12 @@ fun AppScaffold(container: AppContainer) {
     val settingsFactory = remember {
         viewModelFactory {
             initializer {
-                SettingsViewModel(container.settings, container.children, container.maintenance)
+                SettingsViewModel(
+                    settings = container.settings,
+                    children = container.children,
+                    maintenance = container.maintenance,
+                    sync = container.sync,
+                )
             }
         }
     }
@@ -191,6 +199,9 @@ fun AppScaffold(container: AppContainer) {
     val settingsNight by settingsVm.nightWindow.collectAsState()
     val settingsPresets by settingsVm.bottlePresets.collectAsState()
     val medicationPresets by settingsVm.medicationPresets.collectAsState()
+    val syncState by settingsVm.syncState.collectAsState()
+    val syncMessage by settingsVm.syncMessage.collectAsState()
+    val pendingWrites by settingsVm.pendingWrites.collectAsState()
 
     // The bundled medicine names, read once from the asset. Small (~2 KB) and only needed by the health
     // sheet, but parsed up front so the first tap on Medication is not the moment a file read happens.
@@ -208,6 +219,36 @@ fun AppScaffold(container: AppContainer) {
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
     // user chooses the destination, so the app never owns the file.
     val context = LocalContext.current
+
+    // Google Sign-In, as the SECOND route into the same two accounts. It needs an OAuth web client id
+    // and a registered signing-certificate SHA-1, which is why email/password is the primary one: a
+    // release build will only accept Google sign-in once Phase 14 registers the release key's SHA-1.
+    @Suppress("DEPRECATION")
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val intent = result.data
+        if (intent == null) {
+            settingsVm.showMessage("Google sign-in was cancelled.")
+        } else {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(intent)
+            val token = runCatching { account.result?.idToken }.getOrNull()
+            if (token.isNullOrBlank()) {
+                settingsVm.showMessage("Google sign-in did not return a token. Try again.")
+            } else {
+                settingsVm.signInWithGoogle(token)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    fun launchGoogleSignIn() {
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.FIREBASE_WEB_CLIENT_ID)
+            .requestEmail()
+            .build()
+        googleSignInLauncher.launch(GoogleSignIn.getClient(context, options).signInIntent)
+    }
     val scope = rememberCoroutineScope()
     var pendingImport by remember { mutableStateOf<String?>(null) }
     // A pending delete is confirmed before anything is written: a soft delete is recoverable, but only
@@ -385,6 +426,14 @@ fun AppScaffold(container: AppContainer) {
                     onExport = { exportLauncher.launch(backupFileName()) },
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
                     message = settingsMessage,
+                    syncState = syncState,
+                    syncMessage = syncMessage,
+                    pendingWrites = pendingWrites,
+                    googleSignInAvailable = settingsVm.googleSignInAvailable,
+                    onSignIn = settingsVm::signIn,
+                    onSignInWithGoogle = { launchGoogleSignIn() },
+                    onSignOut = settingsVm::signOut,
+                    onSyncNow = settingsVm::syncNow,
                     contentPadding = padding,
                     listState = settingsListState,
                     bottomInset = settingsBottomInset,

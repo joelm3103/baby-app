@@ -158,8 +158,29 @@ class MaintenanceRepositoryTest {
         assertNull(db.childDao().byId("first-twin"))
         assertEquals(listOf("second-twin"), db.childDao().allIncludingDeleted().map { it.id }.sorted())
         assertEquals(listOf("e3"), db.eventDao().allIncludingDeleted().map { it.id }.sorted())
-        // firstTwin's queued write is gone; secondTwin's survives.
-        assertEquals(listOf("e3"), db.outboxDao().pending().map { it.entityId })
+        // The dead write for e1 is gone, secondTwin's write survives — and, new in Phase 13, the deletion
+        // itself is now IN the queue as DELETE intents instead of being lost with the rows.
+        val queued = db.outboxDao().pending().map { it.entityType to it.entityId to it.op }
+        assertTrue(("EVENT" to "e3" to "UPSERT") in queued)
+        assertTrue(("EVENT" to "e1" to "UPSERT") !in queued)
+    }
+
+    @Test
+    fun `permanent delete queues a tombstone for the child and every one of their events`() = runBlocking {
+        repo.deleteChildPermanently("first-twin")
+
+        val queued = db.outboxDao().pending().map { Triple(it.entityType, it.entityId, it.op) }
+
+        // The Phase 7 defect: without these, the other phone keeps the child and hands them back on the
+        // next merge. A DELETE intent needs only an id, which is why it can outlive the row it names.
+        assertEquals(
+            listOf(
+                Triple("CHILD", "first-twin", "DELETE"),
+                Triple("EVENT", "e1", "DELETE"),
+                Triple("EVENT", "e2", "DELETE"),
+            ).sortedBy { it.second },
+            queued.sortedBy { it.second },
+        )
     }
 
     private fun child(id: String, order: Int, deleted: Boolean) = ChildEntity(

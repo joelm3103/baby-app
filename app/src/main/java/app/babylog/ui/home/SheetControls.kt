@@ -43,6 +43,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.VolumeUnit
@@ -134,6 +136,11 @@ fun TextFieldRow(
      * it the field is on screen but the keyboard is still down, which is a second tap for no reason.
      */
     focusRequester: FocusRequester? = null,
+    /**
+     * Masks the field. Only the sync password uses this — everything else in the app is a log entry, and
+     * a masked bottle amount would be worse than useless.
+     */
+    isPassword: Boolean = false,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -145,6 +152,11 @@ fun TextFieldRow(
             },
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = if (isPassword) {
+                PasswordVisualTransformation()
+            } else {
+                VisualTransformation.None
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)

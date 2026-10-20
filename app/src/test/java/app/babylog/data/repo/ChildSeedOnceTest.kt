@@ -55,7 +55,7 @@ class ChildSeedOnceTest {
             File(tempDir, "settings.preferences_pb")
         }
         settings = SettingsRepository(store)
-        children = ChildRepository(db.childDao(), Clock.systemUTC())
+        children = ChildRepository(db.childDao(), db.outboxDao(), Clock.systemUTC())
         maintenance = MaintenanceRepository(db)
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import app.babylog.data.sync.SyncState
 import app.babylog.domain.Child
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.NightWindow
@@ -112,6 +113,18 @@ fun SettingsScreen(
      * line; Settings is where they can find out which tables the app is reading.
      */
     growthReference: String? = null,
+    /** Signed-in state of the shared log. NotConfigured on a build with no Firebase values. */
+    syncState: SyncState = SyncState.NotConfigured,
+    /** What the last sign-in or drain did, in one sentence. */
+    syncMessage: String? = null,
+    /** Queued writes waiting to reach the other phone. */
+    pendingWrites: Int = 0,
+    /** False until this build has an OAuth client id: the Google row is hidden rather than broken. */
+    googleSignInAvailable: Boolean = false,
+    onSignIn: (String, String) -> Unit = { _, _ -> },
+    onSignInWithGoogle: () -> Unit = {},
+    onSignOut: () -> Unit = {},
+    onSyncNow: () -> Unit = {},
     contentPadding: PaddingValues,
     listState: LazyListState,
     /**
@@ -368,7 +381,26 @@ fun SettingsScreen(
                     )
                 }
             }
+        }
 
+        item {
+            // Raised, so the alternation keeps working down the list (Data is plain, Growth is plain).
+            SectionCard("Sync", alternate = true) {
+                SyncSection(
+                    state = syncState,
+                    message = syncMessage,
+                    pendingWrites = pendingWrites,
+                    googleSignInAvailable = googleSignInAvailable,
+                    selection = selection,
+                    onSignIn = onSignIn,
+                    onSignInWithGoogle = onSignInWithGoogle,
+                    onSignOut = onSignOut,
+                    onSyncNow = onSyncNow,
+                )
+            }
+        }
+
+        item {
             SectionCard("Growth reference") {
                 Text(
                     text = growthReference ?: "Reading the bundled reference…",
@@ -405,6 +437,120 @@ fun SettingsScreen(
                 }
             },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun SyncSection(
+    state: SyncState,
+    message: String?,
+    pendingWrites: Int,
+    googleSignInAvailable: Boolean,
+    selection: Color,
+    onSignIn: (String, String) -> Unit,
+    onSignInWithGoogle: () -> Unit,
+    onSignOut: () -> Unit,
+    onSyncNow: () -> Unit,
+) {
+    val colors = BabyLogTheme.colors
+    // `remember`, not `rememberSaveable`: a password has no business in the saved-instance-state bundle.
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    when (state) {
+        SyncState.NotConfigured -> {
+            Text(
+                text = "Sync is not set up on this build, so the log stays on this phone. Logging works " +
+                    "normally.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textPrimary,
+            )
+            Text(
+                text = "Setting it up needs a Firebase project for app.babylog and a local " +
+                    "firebase.properties. See PLAN.md, Phase 13.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+
+        is SyncState.SignedIn -> {
+            Text(
+                text = "Signed in as ${state.email ?: "an account with no email"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.textPrimary,
+            )
+            Text(
+                text = if (pendingWrites == 0) {
+                    "Everything here is on the server."
+                } else {
+                    "$pendingWrites change${if (pendingWrites == 1) "" else "s"} waiting to sync."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            SecondaryButton(
+                label = "Sync now",
+                onClick = onSyncNow,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            )
+            SecondaryButton(
+                label = "Sign out",
+                onClick = onSignOut,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+
+        SyncState.SignedOut, is SyncState.Refused -> {
+            if (state is SyncState.Refused) {
+                Text(
+                    text = "${state.email ?: "That account"} is not one of the two accounts this log " +
+                        "belongs to, so sync stays off and nothing is shared. Sign in with one of the two.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.danger,
+                )
+            } else {
+                Text(
+                    text = "Two accounts, one shared log. Sign in with either account on either phone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textPrimary,
+                )
+            }
+            TextFieldRow(
+                label = "Email",
+                value = email,
+                onValueChange = { email = it },
+                keyboardType = KeyboardType.Email,
+            )
+            TextFieldRow(
+                label = "Password",
+                value = password,
+                onValueChange = { password = it },
+                isPassword = true,
+            )
+            SecondaryButton(
+                label = "Sign in",
+                onClick = { onSignIn(email, password) },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            )
+            if (googleSignInAvailable) {
+                SecondaryButton(
+                    label = "Sign in with Google",
+                    onClick = onSignInWithGoogle,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        }
+    }
+
+    message?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 10.dp),
         )
     }
 }

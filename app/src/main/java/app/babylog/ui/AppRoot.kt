@@ -24,6 +24,9 @@ fun AppRoot(container: AppContainer) {
     LaunchedEffect(Unit) {
         container.settings.seedChildrenOnce { container.children.seedIfEmpty() }
         container.foods.seedIfNeeded()
+        // A phone that was already sharing the log must keep sharing it after a restart: this restores
+        // the drain and the inbound listener without a trip to Settings. Inert when signed out.
+        container.sync.start()
     }
 
     BabyLogTheme(darkTheme = dark) {

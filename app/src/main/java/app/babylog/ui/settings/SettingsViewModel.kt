@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
+import app.babylog.data.sync.SyncRepository
+import app.babylog.data.sync.SyncState
 import app.babylog.domain.Child
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.NightWindow
@@ -30,6 +32,7 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val children: ChildRepository,
     private val maintenance: MaintenanceRepository,
+    private val sync: SyncRepository,
 ) : ViewModel() {
 
     val childrenList: StateFlow<List<Child>> = children.observeAll()
@@ -56,6 +59,28 @@ class SettingsViewModel(
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    // ---- sync ---------------------------------------------------------------
+
+    val syncState: StateFlow<SyncState> = sync.state
+
+    /** What the last sign-in or drain did, in one sentence. */
+    val syncMessage: StateFlow<String?> = sync.message
+
+    /** Writes waiting for the other phone to be reachable. */
+    val pendingWrites: StateFlow<Int> = sync.pendingWrites
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** False until the build has an OAuth client id; the Google button is hidden rather than broken. */
+    val googleSignInAvailable: Boolean = sync.googleSignInAvailable
+
+    fun signIn(email: String, password: String) = viewModelScope.launch { sync.signIn(email, password) }
+
+    fun signInWithGoogle(idToken: String) = viewModelScope.launch { sync.signInWithGoogle(idToken) }
+
+    fun signOut() = sync.signOut()
+
+    fun syncNow() = viewModelScope.launch { sync.syncNow() }
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settings.setTheme(mode) }
 
@@ -111,6 +136,9 @@ class SettingsViewModel(
     suspend fun importJson(json: String) {
         maintenance.replaceAll(json)
         settings.markChildSeedDone()
+        // The file's rows are the new truth and the queue was wiped with the tables, so tell the server
+        // about the restored log instead of letting the next snapshot merge the old one back in.
+        sync.reseedAfterRestore()
         _message.value = "Backup imported. Everything now matches the file."
     }
 
