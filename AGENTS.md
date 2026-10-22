@@ -219,3 +219,4 @@ only, and `1.0.0` is the first release.
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
 | `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py` |
 | `firebase/firestore.rules` | Phase 13 security rules — pasted into the console by hand, **not** deployed by a tool |
+| `docs/firebase-setup.md` | Phase 13's console runbook: the project, the two accounts, the four `firebase.properties` values, and what each misconfiguration looks like on screen |
