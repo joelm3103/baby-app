@@ -40,8 +40,9 @@ everything after it is additive.**
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
-| 13 — Two accounts, one shared log | **BUILT, 398 tests green — device pass pending** (no phone attached and no Firebase project yet). Email/password + Google Sign-In, outbox drain against Firestore, inbound `updatedAt`-wins merge, round-tripping tombstones, and the Phase 7 permanent-delete defect fixed with DELETE intents |
+| 13 — Two accounts, one shared log | **BUILT, 398 tests green — outbound sync device-verified 2026-10-22 on one phone; the two-phone run and the inbound listener are outstanding.** Two passes the same day: an unconfigured build proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build then signed in with email/password, drained the seed, acked a live write in under five seconds, and took three airplane-mode writes as exactly three intents and delivered them on reconnect as five events with five distinct ids — no duplicates, nothing lost. Still to prove: the A↔B round trip, the inbound listener applying another phone's rows, and a tombstone surviving that hop. Runbook: `docs/firebase-setup.md`. One open finding: "Sync now" offline gives no feedback |
 | 13.1 — Growth dataset update channel | not started — split out of 13, `0.10.0` |
+| 13.2 — Reset to defaults | not started — scoped 2026-10-22, `0.11.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -56,12 +57,14 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **339/339** with 0 failures — the
-308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived with the Summary
-rename and its All/None filter chips (the "refactor(ui): rename the History tab to Summary, add All/None filter chips" commit), plus the 28 `TrendsTest` and `TrendChartAxisTest`
-cases that arrived with Phase 12. The
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **398/398** with 0 failures — the
+339 of Phase 12 (the 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived
+with the Summary rename and its All/None filter chips, plus the 28 `TrendsTest` and
+`TrendChartAxisTest` cases) and the 49 sync tests Phase 13 added (the "feat(sync): two accounts, one
+shared log, and an outbox that is the only queue" commit). The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
-real device (see the device-verification sections at the end of this file) — a green build proves
+real device (see the device-verification sections at the end of this file), as was Phase 13's
+Firebase-free half on 2026-10-22 — a green build proves
 nothing about layout or about system back. Toolchain versions and the AGP 9 / KSP traps that cost build
 cycles are in `AGENTS.md` and in the Phase 0 row below.
 
@@ -584,7 +587,7 @@ branch is covered by `TrendsTest` instead, and by the empty states Summary and G
 per-child split, the running-sleep rule and the fever boundary at exactly 38.0, and `TrendChartAxisTest`
 (5) for the x-axis labels, the count ticks and the dashed second child. The suite is **339, 0 failures**.
 
-## Phase 13 — Two accounts, one shared log — BUILT AND TESTED, device pass pending
+## Phase 13 — Two accounts, one shared log — BUILT AND TESTED; outbound sync device-verified on one phone, two-phone run pending
 
 **As built — 2026-10-19. Read this before the original scope below.**
 
@@ -592,8 +595,9 @@ Six decisions were taken before any code, because each one changes the shape of 
 
 - **Email + password is the primary sign-in; Google Sign-In is the second button.** Email/password works
   with whatever key the APK was signed with. Google Sign-In needs an OAuth client plus a registered
-  certificate SHA-1 — the debug key is registered now, and **the release key only exists in Phase 14**,
-  so that step is a Phase 14 checklist item rather than a Phase 13 one.
+  certificate SHA-1 — this machine's debug print is recorded in `docs/firebase-setup.md` and has to be
+  added to the Android app in the console, which nobody has confirmed yet — and **the release key only
+  exists in Phase 14**, so that step is a Phase 14 checklist item rather than a Phase 13 one.
 - **No `com.google.gms.google-services` plugin.** That plugin fails the build when
   `app/google-services.json` is missing, and that file is gitignored because it carries the project's
   keys — so a fresh clone could not even run the tests. The same values are read from an optional local
@@ -629,16 +633,99 @@ documents for rows the restore does not contain are not deleted — absence of a
 not mean "delete it on the server".
 
 **Acceptance, unchanged, and not yet met on hardware.** Log on A, see it on B; three airplane-mode writes
-on A arrive exactly once after restore. Every claim above is a JVM test or an inspection; **nothing has
-been on a phone yet**, because no device was attached and no Firebase project exists. What the phones
-must still prove: both sign-in routes, a real round trip, the airplane-mode case, and a permanent delete
-that does not come back on the other phone.
+on A arrive exactly once after restore. Every claim above is a JVM test or an inspection; at the time of
+writing nothing had been on a phone, because no device was attached and the Firebase project did not
+exist yet. What the phones must still prove: both sign-in routes, a real round trip, the airplane-mode
+case, and a permanent delete that does not come back on the other phone. The Firebase-free half of that
+was taken on 2026-10-22 — see the next section — and the rest needs a second phone and the project's
+values in a local `firebase.properties`.
 
 **Tests:** 49 new on the JVM — `SyncMergeTest` (9, the tie-breaking rules), `SyncDocumentsTest` (12, the
 wire round trip including a dose, a temperature and a tombstone with no payload), `OutboxDrainerTest`
 (11, ack/retry/idempotency against a fake server), `SyncRepositoryTest` (16, the seed, the inbound merge
 and the sign-in states), and one in `MaintenanceRepositoryTest` for the delete intents. The suite is
 **398, 0 failures**.
+
+### Device pass, 2026-10-22 — the half that needs no Firebase
+
+A phone was attached (`<handset>`, Android with the 3-button nav bar) and had no `app.babylog` on
+it, so this was a clean install of the `0.9.0` debug APK. **No `firebase.properties` existed on the
+build machine**, so the build was the deliberately-supported single-phone shape: `BuildConfig`'s four
+values blank, `FirebaseSetup.isConfigured` false, `UnconfiguredAuthenticator` in place. That is exactly
+the state a fresh clone builds, which is why it is worth a phone pass rather than an assumption.
+
+What was confirmed **on the hardware**, with the database read back through `run-as app.babylog`
+rather than inferred from the screen:
+
+| Check | Evidence |
+|---|---|
+| Launches with no Firebase configured, no crash | `topResumedActivity=app.babylog/.MainActivity`, `logcat -b crash -d` empty across launch, force-stop/relaunch, and the delete below |
+| The Sync card tells the truth instead of offering a button that cannot work | Renders *"Sync is not set up on this build, so the log stays on this phone. Logging works normally."* and offers **no** email/password fields and no Google button. The `NotConfigured` state is not the `SignedOut` form with a broken button — it is a different body entirely |
+| Logging still works after Phase 13 rewrote every write path | A 90 ml bottle for both children landed as two `events` rows and appeared on the card immediately (`2m ago` after a relaunch) |
+| **Both children queue intents now** — the defect found while wiring | `outbox` held `CHILD/first-twin/UPSERT` and `CHILD/second-twin/UPSERT` alongside the two `EVENT` UPSERTs. Before this phase `ChildRepository` queued nothing at all |
+| **The permanent-delete fix works on a real database** | Deleting *Second Twin* hard-deleted the child row and their bottle, **dropped the two dead UPSERTs**, and left `CHILD/second-twin/DELETE` + `EVENT/86f9a2e5…/DELETE` queued with one shared timestamp. *First Twin* and their bottle were untouched |
+| The UI degrades to one child cleanly | After a cold relaunch the switcher shows a single *First Twin* pill, the buttons read "+ Log feed for First Twin", and the Both pill is gone |
+| Schema v2 on a real device | `pragma user_version` = 2, `events`/`children`/`outbox` all present |
+
+The pre-compact device state was reset afterwards with `pm clear app.babylog`, so the two-phone run starts
+from a clean database.
+
+**One behaviour worth naming, not a defect:** on a build with no Firebase the outbox is never drained, so
+it keeps one row per write for as long as the phone stays unconfigured. It is small (an id and an
+operation), and it is not wasted work — `seedIfNeeded` skips ids already queued, so the accumulated
+queue *is* the first sign-in's seed. The consequence to know about is the other end: the first sign-in on
+a phone that has logged for months pushes that whole backlog in one drain, because a drain is sequential
+and stops at the first failure.
+
+**What this pass does not prove, and cannot:** both sign-in routes, the outbound drain against a real
+Firestore, the inbound listener, the airplane-mode exactly-once case, and a permanent delete *staying*
+deleted on the other phone. All of that needs the project's values in a local `firebase.properties` and a
+second phone. Steps and failure symptoms are in `docs/firebase-setup.md`.
+
+### Device pass, part two — the configured build (still 2026-10-22)
+
+The same phone, the same day, after the console steps in `docs/firebase-setup.md` were done and the five
+values were written to `firebase.properties`: project `baby-log-app-119e4`, the Android app
+`1:705332594857:android:71a9c8f699a0effd7041b8`, and two uids — `wJjDVdK1FVRkSoSwBo5LOc8GGJt1` and
+`REPLACE_WITH_SECOND_UID` — now in `firebase/firestore.rules` and `firebase.allowedUids`.
+
+**The values are compiled in, so a reinstall is not enough.** `BuildConfig` was checked first, because
+every failure mode here looks like a console problem: `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID`,
+`FIREBASE_API_KEY`, `FIREBASE_WEB_CLIENT_ID` and `FIREBASE_ALLOWED_UIDS` all populated, at `0.9.0` /
+versionCode 11.
+
+| Check | What the phone showed |
+|---|---|
+| The card leaves single-phone mode | Email and Password fields, `Sign in`, and — new — **`Sign in with Google`**, which only appears when `webClientId` is non-blank. That button is the proof the OAuth client id reached the build |
+| Auth is reachable, and errors are sentences | Empty submit → *"Enter the account's email and password."*; a wrong credential → *"Wrong email or password."* from Firebase itself. Neither crashed |
+| Sign-in, and the first-sign-in seed | `Signed in as joelm3103@gmail.com`, *"Everything here is on the server."*, and the outbox was **already empty** — the seeded children had been queued and acked |
+| A live write reaches Firestore | A 60 ml bottle for both children → two `events` rows, and **0 rows queued within ~5 s**. A row is deleted from `outbox` only on ack, so both writes were confirmed by the server |
+| **Airplane mode, three writes** | Airplane mode on (`Network is unreachable`, verified): three bottles queued **exactly three intents**, and none drained |
+| **Exactly once on reconnect** | Airplane mode off → outbox **0**, **five events, five distinct ids** — 2 earlier + 3 offline, no duplicates, nothing lost, no user action needed |
+| The pending count tells the truth | One further offline write: *"1 change waiting to sync."*, which drained by itself on reconnect (`events` 6 → 7, outbox 0) |
+| System back | Back from Settings returns to Today with both children |
+| No crash, no rule errors | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the session; Firestore logged only `UNAVAILABLE` stream closures during the offline window — no `PERMISSION_DENIED`, no auth errors |
+
+#### Found on the phone, left open: "Sync now" offline is silent
+
+With no network, pressing **Sync now** gives no feedback at all. The write suspends — Firestore's
+`WriteStream` closes `UNAVAILABLE` and the `Task` never completes — so `syncNow()` never returns, the
+message line keeps whatever the last completed drain said (*"Sent 1 change(s)."*) beside a live
+*"1 change waiting to sync."*, and the button looks inert. Nothing is lost: the intent stays in the
+outbox and drains within seconds of the network returning, as verified above. Two details make it worth
+naming rather than shrugging at:
+
+- `drainLock` is a `Mutex`, so the suspended drain **holds the lock**; later triggers wait behind it
+  instead of reporting again. That is the right call for safety — two interleaved drains could reorder
+  one queue — but it means the silence cannot resolve itself.
+- The fix is a connectivity-aware state, *"waiting for a network connection"*, with its own tests. It is
+  deliberately **not** bolted onto this pass.
+
+#### What this pass still cannot prove
+
+The A↔B round trip, the inbound listener applying **another phone's** rows, and a tombstone surviving
+that hop. One phone was reachable, and the pull half cannot be faked on it without wiping its data and
+signing in again — worth doing as the next step, but not to a working log without asking first.
 
 ### Original scope, for the record
 
@@ -678,6 +765,31 @@ The Firebase project already exists by then, which is the only precondition this
   format.
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
+
+## Phase 13.2 — Reset to defaults — scoped 2026-10-22, not started (`0.11.0`)
+
+Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
+Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
+it is not lost, and **deliberately not started in the session that scoped it.**
+
+Shape agreed with the owner:
+
+- A **Reset to defaults** row in Settings → Data, behind a confirmation that names what will go.
+- It wipes **events**, **children** (re-seeding *First Twin* / *Second Twin*), and **settings and presets**
+  — theme, units, night window, bottle and medication presets. Export files are not touched.
+- **Server deletion is a separate, opt-in choice**, and its own confirmation must say plainly that the
+  data will be removed from the server and **cannot be recovered**. Off by default.
+
+The reason that last point is not optional detail: **sync makes a local-only wipe a trap.** `replaceAll`
+wipes the tables *and* the outbox, so a reset that did not queue DELETEs would leave Firestore holding the
+whole log, and the next snapshot would merge it straight back in — the exact defect Phase 13 fixed for
+Import with `reseedAfterRestore`. A reset therefore has to either push tombstones for every row and drain,
+or refuse while signed in. Pick one deliberately; do not let it be an accident of implementation order.
+
+Reuse, not reinvention: `MaintenanceRepository` already owns the wipe-in-one-transaction pattern
+(`replaceAll`) and `OutboxDrainer` already knows how to travel a permanent delete as an id-and-timestamp
+tombstone. The tests to write mirror the ones there: the wipe is atomic, the queue is left consistent, and
+a reset while signed out cannot resurrect rows on the next sign-in.
 
 ## Phase 14 — Update delivery
 

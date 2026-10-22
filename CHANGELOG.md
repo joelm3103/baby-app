@@ -17,6 +17,53 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-22]
+
+**In short:**
+
+- **Phase 13's device pass starts, and the half that needs no Firebase is done.** A phone was attached this time (`<handset>`, clean install of the `0.9.0` debug APK) but the build still carried no `firebase.properties`, so what ran on hardware was the single-phone shape: launch without a crash, the Sync card saying it is not set up and offering no dead buttons, every write path queueing an outbox intent, and a child's permanent delete queueing DELETE intents while dropping the dead UPSERTs. **The two-phone round trip is still outstanding** — it needs the project's values and a second phone.
+- **The `.babylog` outbox was read back off the phone, not inferred from the screen.** `run-as` + the WAL: a 90 ml bottle for both children = two `events` rows and four outbox intents including both `CHILD` UPSERTs (the write path that queued nothing before Phase 13); deleting *Second Twin* left `CHILD/second-twin/DELETE` and their event's DELETE queued at one timestamp with the two dead UPSERTs gone.
+- **`docs/firebase-setup.md`** is the console runbook the owner asked for: the four values and where they live in `google-services.json`, the two accounts, the rules paste, and a table of what each misconfiguration looks like on screen. The debug certificate's SHA-1 is recorded there for the Google Sign-In client.
+- **Then the console steps were done, and the drain went live and was proved on the phone.** A configured build (`0.9.0`, values compiled into `BuildConfig`) signed in with email/password, pushed the seeded children, wrote a 60 ml bottle for both children and had it acked inside five seconds, then took **three writes in airplane mode as exactly three queued intents** and delivered them on reconnect as **five events, five distinct ids, no duplicates and nothing lost**. `logcat -b crash -d` stayed empty throughout and system back from Settings returned to Today. **Still outstanding: the two-phone run and the inbound listener** — only one phone was reachable, and the pull half needs either a second device or a data wipe plus a fresh sign-in.
+- **A finding the device exposed and the build could not:** pressing **Sync now** with no network gives no feedback at all. Firestore's `WriteStream` closes `UNAVAILABLE`, the write stays pending, and `syncNow()` therefore never returns — the card keeps the previous drain's message ("Sent 1 change(s).") beside a live "1 change waiting to sync.". Nothing is lost — the intent survives and drains within seconds of the network returning — but the button looks inert, and the suspended drain holds the `Mutex`, so later triggers queue behind it rather than re-reporting. Recorded as an open issue in `PLAN.md`, not fixed here, because a connectivity-aware "waiting for network" state is its own change with its own tests.
+- Two stale numbers were corrected in `PLAN.md` while writing the pass up: the suite is **398** (not the 339 the "Verified" paragraph still quoted), and the Phase-13 row now says what was actually put on a phone instead of "device pass pending" without qualification.
+- **A reset to defaults is scoped, not built.** Asked for while closing this out: Settings → Data has no way to return the app to first-run state. It is now `PLAN.md` Phase 13.2 (`0.11.0`) with the shape agreed — events, children re-seeded, and settings, with **server deletion as a separate, explicitly warned choice**, because a local-only wipe would be merged back by the next snapshot.
+
+### Versions
+
+- No rung moved. This was a device pass and documentation; Phase 13 is still `0.9.0` and still open, and a `0.9.1` would have made two builds from one unfinished phase look like two phases.
+
+### Added
+
+- `docs/firebase-setup.md` — the Phase 13 console runbook: what is already known (`baby-log-app-119e4`, the Android app id, the debug SHA-1), how to read `apiKey` and `webClientId` out of `google-services.json` (`client_type` `3`, not `1`), creating the two email/password accounts (the app has no sign-up on purpose), pasting `firebase/firestore.rules` with the two uids, the `firebase.properties` template, and a symptom table — "not set up on this build" means the values were missing **at build time**, `CONFIGURATION_NOT_FOUND` means the provider is off, `PERMISSION_DENIED` means the rules or a uid.
+- `PLAN.md` Phase 13.2 — the **reset to defaults** item, scoped so it is not lost: events, children (re-seeded), and settings, with server deletion behind its own confirmation that says the data cannot be recovered.
+
+### Changed
+
+- `firebase/firestore.rules` now carries the two real uids instead of the placeholders, and `PLAN.md` records them beside the phase, as the file's own header asks.
+- `PLAN.md`'s Phase 13 section gained a dated device-pass record with the evidence table, the behaviour worth naming (an unconfigured build never drains, so its outbox accumulates and that accumulated queue *is* the first sign-in's seed), and an explicit list of what the pass cannot prove.
+- Two stale claims corrected in the same pass: the suite is **398**, not the 339 the `Verified:` line still quoted, and `README.md` now says the build reads `firebase.properties` rather than implying it reads `app/google-services.json` — the plugin that would have read that file is deliberately not applied, so the JSON is only where the values are copied from.
+- `README.md`'s repo-layout block named the folder `first-twinpp/` and omitted `CHANGELOG.md`, `docs/` and `firebase/`; it now matches the repository.
+
+### Fixed
+
+- Nothing in the app's code changed today. What is recorded here is the **verification** of two Phase 13 fixes that no JVM test could reach, both read back from the phone's own database rather than inferred from a screen:
+  - **Children now queue an outbox intent.** `ChildRepository` queued nothing before this phase, so a renamed or added child would have stayed on the phone that made it. On the device the outbox held `CHILD/first-twin/UPSERT` and `CHILD/second-twin/UPSERT` beside the two `EVENT` UPSERTs.
+  - **A permanent delete travels as DELETE intents.** Deleting *Second Twin* hard-deleted the child and their bottle, **dropped the two dead UPSERTs**, and kept `CHILD/second-twin/DELETE` plus the event's DELETE at one shared timestamp, leaving *First Twin* untouched. After a cold relaunch the UI had degraded to a single child pill without a crash.
+
+#### What the phone showed, pass by pass
+
+- **Unconfigured build** (`0.9.0`, no `firebase.properties`): launches with no crash; Settings → Sync renders the `NotConfigured` body — "Sync is not set up on this build, so the log stays on this phone. Logging works normally." — with no email/password fields and no Google button, so the build cannot offer a button that cannot work; a 90 ml bottle for both children wrote two `events` rows and showed `just now`, then `2m ago` after a relaunch; `pragma user_version` = 2; the phone was then cleared with `pm clear app.babylog`.
+- **Configured build:** `BuildConfig` carries the project id, app id, API key, web client id and both uids at `0.9.0` / versionCode 11; the Sync card switched to the sign-in form and the **Google button appeared**, which is what proves `webClientId` is being read; an empty submit answered "Enter the account's email and password." and a wrong credential answered "Wrong email or password." from Firebase itself; sign-in succeeded as `joelm3103@gmail.com`, the card read "Everything here is on the server." and the outbox was already empty — the first-sign-in seed had drained; a 60 ml bottle for both children left **0 queued** within five seconds, and a row is only deleted from `outbox` on ack, so both writes reached Firestore; three bottles logged in airplane mode queued **exactly three intents** and none drained; on reconnect the queue fell to 0 with **five events and five distinct ids** — no duplicates, nothing lost; one further offline write showed "1 change waiting to sync." and drained by itself on reconnect (`events` 6 → 7, outbox 0). Firestore logged only `UNAVAILABLE` stream closures during the offline window — no permission or auth errors — and `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the whole session.
+
+#### Found on the phone, left open
+
+- **"Sync now" offline is silent.** The drain suspends on a write Firestore cannot deliver, so the action returns nothing: the card keeps the previous message beside a live pending count, and because the suspended drain holds the `Mutex`, repeated taps queue rather than re-report. Reconnect proves the queue is safe (it empties within seconds, exactly once). The fix is a connectivity-aware state — "waiting for a network connection" — and it belongs with its own tests rather than bolted onto a close-out. See `PLAN.md`, Phase 13's device-pass section.
+
+### Security
+
+- The Google provider being enabled does not open the log: account creation is open to any Google user, but `firebase/firestore.rules` allows reads and writes only from the two uids, and the app signs a third account straight back out on its own allow-list so it cannot be shown an empty log and mistake it for data loss. `firebase.properties` stays gitignored; the API key in an Android APK identifies the project rather than granting access, and restricting it to `app.babylog` + the registered SHA-1s is left as an optional hardening note in the runbook.
+
 ## [2026-10-19]
 
 **In short:**

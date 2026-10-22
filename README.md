@@ -25,12 +25,14 @@ Health records a temperature, a medication with its dose and vaccines, and Trend
 solids, diapers and sleep per day over a 7/14/30-day window (Health is a dated fever table rather than a
 chart, because a temperature is a reading and not a daily amount).
 
-**Sync (Phase 13) is built and tested but not yet on a phone:** two accounts, one shared log, with an outbox
-drained to Firestore and an inbound listener applying `updatedAt`-wins. Email + password is the primary
-sign-in and Google Sign-In is the second button. It needs a local `app/google-services.json` (or the same
-values in a local `firebase.properties`) plus the two uids in `firebase/firestore.rules` — none of which is
-committed — and a build without them is the single-phone logger it has always been, which is what Settings
-→ Sync reports. See `PLAN.md` for the outstanding two-phone acceptance run.
+**Sync (Phase 13) is built and tested, and its Firebase-free half is now on a phone:** two accounts, one
+shared log, with an outbox drained to Firestore and an inbound listener applying `updatedAt`-wins. Email +
+password is the primary sign-in and Google Sign-In is the second button. The build reads five values from a
+local, gitignored `firebase.properties` — `google-services.json` is only where you copy four of them from,
+because the usual plugin would break a fresh clone — plus the two uids in `firebase/firestore.rules`, and a
+build without them is the single-phone logger it has always been, which is what Settings → Sync reports.
+`docs/firebase-setup.md` is the console runbook; `PLAN.md` records what a phone has already proved and the
+outstanding two-phone acceptance run.
 
 **Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
 new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release. Every dated
@@ -123,10 +125,13 @@ data is never *only* there.
 ## Repo layout
 
 ```
-first-twinpp/
+baby-app/
 ├── README.md                  # this file — scope, stack, decisions
-├── PLAN.md                    # implementation plan, phased
+├── PLAN.md                    # implementation plan, phased, and the log of bugs found on-device
+├── CHANGELOG.md               # dated record of every day of work, with the version ladder
 ├── app/                       # the single Android module (source, tests, schemas, assets)
+├── docs/                      # firebase-setup.md — the Phase 13 console runbook
+├── firebase/                  # firestore.rules, pasted into the console by hand
 └── scripts/                   # android-env.ps1, sdkmanager.ps1, growth assets, timeline capture
 ```
 
