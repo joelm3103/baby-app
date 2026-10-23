@@ -26,7 +26,7 @@ service cloud.firestore {
 
     function oneOfTheTwo() {
       return signedIn() && request.auth.uid in [
-        'wJjDVdK1FVRkSoSwBo5LOc8GGJt1',
+        'REPLACE_WITH_FIRST_UID',
         'REPLACE_WITH_SECOND_UID'
       ];
     }

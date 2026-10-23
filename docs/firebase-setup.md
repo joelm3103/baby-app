@@ -32,6 +32,15 @@ The debug keystore on this machine has SHA-1:
 SHA-1 and Google Sign-In will refuse it until that certificate is registered too. Email/password does not
 care, which is why it is the primary route. The release certificate does not exist until Phase 14.
 
+**A different debug key also means a different app signature, and that blocks the install, not just
+Google.** `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when the existing copy was built
+on another computer, so the app has to be uninstalled first — which discards the local database and the
+outbox. The log itself is safe on the server and comes back on the next sign-in (verified 2026-10-22), but
+anything still queued is lost, so drain before moving a phone to a build from a different machine. The
+second debug print seen at `C:\HermesHome` on 2026-10-22 is
+`F8:27:D1:F3:38:B8:B9:6D:5F:C9:81:54:1D:04:22:0D:81:C6:3C:CE`, and the 2026-10-22 round trip ran on that
+one with email/password only.
+
 ---
 
 ## Step 1 — read the four values out of `google-services.json`
