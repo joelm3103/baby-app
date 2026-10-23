@@ -40,7 +40,7 @@ everything after it is additive.**
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
-| 13 — Two accounts, one shared log | **BUILT, 398 tests green — outbound sync device-verified 2026-10-22 on one phone; the two-phone run and the inbound listener are outstanding.** Two passes the same day: an unconfigured build proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build then signed in with email/password, drained the seed, acked a live write in under five seconds, and took three airplane-mode writes as exactly three intents and delivered them on reconnect as five events with five distinct ids — no duplicates, nothing lost. Still to prove: the A↔B round trip, the inbound listener applying another phone's rows, and a tombstone surviving that hop. Runbook: `docs/firebase-setup.md`. One open finding: "Sync now" offline gives no feedback |
+| 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. Two open findings: "Sync now" is silent offline, and the first-sign-in seed sits queued until a drain is triggered |
 | 13.1 — Growth dataset update channel | not started — split out of 13, `0.10.0` |
 | 13.2 — Reset to defaults | not started — scoped 2026-10-22, `0.11.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
@@ -587,7 +587,7 @@ branch is covered by `TrendsTest` instead, and by the empty states Summary and G
 per-child split, the running-sleep rule and the fever boundary at exactly 38.0, and `TrendChartAxisTest`
 (5) for the x-axis labels, the count ticks and the dashed second child. The suite is **339, 0 failures**.
 
-## Phase 13 — Two accounts, one shared log — BUILT AND TESTED; outbound sync device-verified on one phone, two-phone run pending
+## Phase 13 — Two accounts, one shared log — DONE, device-verified
 
 **As built — 2026-10-19. Read this before the original scope below.**
 
@@ -726,6 +726,69 @@ naming rather than shrugging at:
 The A↔B round trip, the inbound listener applying **another phone's** rows, and a tombstone surviving
 that hop. One phone was reachable, and the pull half cannot be faked on it without wiping its data and
 signing in again — worth doing as the next step, but not to a working log without asking first.
+
+### Device pass, part three — the hop, and the A↔B round trip (2026-10-22)
+
+**Written up after the fact**, in the same dated section as the two passes above. This is the pass that
+closes the gap the previous two sections name: the inbound listener applying **another device's** rows,
+and a tombstone surviving the hop. It ran in two parts.
+
+**Part one — the wipe and re-sign-in, on the phone alone.** `pm clear app.babylog` emptied the local
+database; the log survived because Firestore held it. Signing back in as `joelm3103@gmail.com` restored
+**the same six row ids** that were on the phone before the wipe (`920c4d6f`, `37a12b78`, `adf27e6b`,
+`b5c9f5fb`, `a464cd4f`, `b4532613`), and the row deleted *before* the wipe (`d02ad63f`) did **not**
+return — the tombstone won over the stale server document. Read from the database through `run-as`, not
+from the screen; `outbox` was 0 and `logcat -b crash -d` stayed empty.
+
+**Part two — two devices, two accounts.** `emulator-5554` (Android 16) joined `<handset>` as the second
+sync client. The owner replaced the unused Firebase account, so the allow-list and the rules moved to
+the new uid `REPLACE_WITH_FIRST_UID` beside `REPLACE_WITH_SECOND_UID`, the app was rebuilt with
+that configuration, and both devices were reinstalled and signed in — the phone as `TSz2…`, the emulator
+as `B43h…`. **The emulator is a second sync client only:** it proved the wire, and layout questions were
+settled on the phone, per `AGENTS.md`.
+
+| Check | Evidence |
+|---|---|
+| **A different uid reads the whole log** | On a fresh install, the emulator signed in as `B43h…` and pulled the phone's **six rows by id** — the inbound listener, across accounts, with no prior state |
+| **Log on A, see it on B** | A 90 ml bottle for both children on the phone → two rows on the phone, then the **same two ids** (`60b95a2c`, `e390a804`) on the emulator, shown as `just now` |
+| **Log on B, see it on A** | A 120 ml bottle for both on the emulator → `661e6748` and `1d3a752b` on the emulator, then on the phone |
+| **Airplane-mode trio, exactly once** | Airplane mode on the emulator (`Network is unreachable`, verified): three single-child bottles queued **exactly three intents** and the phone stayed at 10 events. On reconnect the phone gained **exactly three rows, three distinct ids** (`d636207e`, `391c8b77`, `e416186c`) — no duplicates — and both devices settled at **13 events, 13 distinct ids, outbox 0** |
+| **A deletion crosses devices** | Long-pressing an entry row on the phone deleted `e416186c` (soft delete, `deleted=1`); the emulator marked **that id** deleted and dropped to 12 live rows |
+| **It stays gone** | `am force-stop` + relaunch on the emulator: still 13 events, 12 live, `e416186c` still `deleted=1`, outbox 0 — nothing resurrected the row |
+| No crash on either device | `logcat -b crash -d` → **0** `FATAL EXCEPTION` on `<handset>` *and* `emulator-5554` |
+
+**As built, where it differed from the plan.** Three things worth recording, because each cost time and
+none of them is visible from a green build:
+
+- **A debug APK is per build machine.** The rebuild here is signed with this machine's debug key, so
+  `install -r` failed on both devices with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` and the app had to be
+  uninstalled first — which discards the local database. Nothing was lost because Firestore held the
+  log, and the reinstall then re-proved the restore path on both devices. `docs/firebase-setup.md` says
+  a debug keystore is per machine; it now also says what that costs at install time.
+- **The second account was replaced, not added.** The first attempt signed the second device in as the
+  same account as the phone, which proves device-to-device sync but not *two accounts* — so the run was
+  redone with a genuinely different uid. The uids recorded in the part-two table above are the ones in
+  use that day; the current pair is in `firebase/firestore.rules`, which is the file that has to be
+  pasted into the console.
+- **The emulator is not a phone.** It is a second sync client: fine for row ids, outbox counts and
+  tombstones, and not a substitute for the layout and contrast judgements, which stayed on the phone.
+
+#### Second finding, left open: the seed waits for a drain
+
+After a fresh install and the first sign-in, the two seeded `CHILD` UPSERTs stayed in `outbox` — and the
+card read *"2 changes waiting to sync."* — for at least thirty seconds with the network up. Tapping
+**Sync now** drained them immediately (*"Sent 2 change(s)."*) and the queue went to 0, so nothing was
+stuck or lost: the drain simply had no trigger between sign-in and the next write. It is the mirror of
+the `Sync now` finding above and is deliberately not fixed in a close-out pass — the honest fix is to
+drain once when the inbound listener finishes its first snapshot, which deserves its own test.
+
+### The three passes at a glance
+
+| Pass | Device | Proved |
+|---|---|---|
+| Non-destructive (unconfigured build) | `<handset>` | Launch without Firebase, the "not set up" card, every write path queueing, permanent delete queueing DELETEs |
+| Configured build, outbound | `<handset>` | Sign-in both routes offered, live ack in under five seconds, three airplane-mode writes delivered exactly once |
+| Wipe + re-sign-in, then A↔B | `<handset>` + `emulator-5554` | The inbound listener restoring the log by row id, a tombstone not returning, and **two accounts** round-tripping a bottle each way, an offline trio, and a cross-device delete that stayed deleted |
 
 ### Original scope, for the record
 
