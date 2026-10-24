@@ -186,7 +186,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-405 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+409 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -209,7 +209,9 @@ only, and `1.0.0` is the first release.
 | 6 logging sheets | `0.2.0` | 11 Health | `0.7.0` |
 | 7 Settings | `0.3.0` | 12 Trends | `0.8.0` |
 | 8 Summary | `0.4.0` | 13 two accounts | `0.9.0` |
-| 9 daily-use polish | `0.4.1` | 13.1 dataset channel | `0.10.0` |
+| 9 daily-use polish | `0.4.1` | 13.1 time/temp preferences | `0.10.0` |
+| | | 13.2 dataset channel | `0.11.0` |
+| | | 13.3 reset to defaults | `0.12.0` |
 | | | 14/15 release | `1.0.0` |
 
 - **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever
@@ -229,3 +231,9 @@ only, and `1.0.0` is the first release.
 | `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py` |
 | `firebase/firestore.rules` | Phase 13 security rules — pasted into the console by hand, **not** deployed by a tool |
 | `docs/firebase-setup.md` | Phase 13's console runbook: the project, the two accounts, the four `firebase.properties` values, and what each misconfiguration looks like on screen |
+
+## Time and temperature preferences (owner override, 2026-10-23)
+
+The owner requested explicit 12/24-hour and Celsius/Fahrenheit preferences. This supersedes
+older Celsius-only guidance. Store temperatures in Celsius and timestamps unchanged; convert
+only at display/input boundaries. Fever classification continues to use `FEVER_C`.

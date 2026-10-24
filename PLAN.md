@@ -42,8 +42,9 @@ everything after it is additive.**
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
 | 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. Two open findings: "Sync now" is silent offline, and the first-sign-in seed sits queued until a drain is triggered |
-| 13.1 — Growth dataset update channel | not started — split out of 13, `0.10.0` |
-| 13.2 — Reset to defaults | not started — scoped 2026-10-22, `0.11.0`; **not started in this session, by the owner's instruction** |
+| 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green |
+| 13.2 — Growth dataset update channel | not started — split out of 13, `0.11.0` |
+| 13.3 — Reset to defaults | not started — scoped 2026-10-22, `0.12.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -58,9 +59,10 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **405/405** with 0 failures — the
-398 of the Phase-13 close, plus the 7 the activity glyphs added on 2026-10-23 (`PatternPaletteTest` 5,
-`ActivityGlyphTest` 2) — of which the 398 were
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **409/409** with 0 failures — the
+405 of the activity-glyph close, plus 4 preference tests on 2026-10-23 (`DisplayPreferencesTest` 3 and
+`SettingsRepositoryTest` 1). The 405 were the 398 of the Phase-13 close plus the 7 activity-glyph tests
+(`PatternPaletteTest` 5, `ActivityGlyphTest` 2); the 398 were
 the 339 of Phase 12 (the 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived
 with the Summary rename and its All/None filter chips, plus the 28 `TrendsTest` and
 `TrendChartAxisTest` cases) and the 49 sync tests Phase 13 added (the "feat(sync): two accounts, one
@@ -891,7 +893,57 @@ tombstone-only purge the sync layer understands. Archive (soft delete) is alread
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
-## Phase 13.1 — the growth dataset update channel — not started (`0.10.0`)
+## Phase 13.1 — Time and temperature preferences — DONE, device-verified (`0.10.0`)
+
+**As built — 2026-10-23.** The owner requested this capability before the growth dataset update channel.
+Settings now offers independent `12-hour` / `24-hour` and `°C` / `°F` choices, persisted in DataStore
+with the previous behaviour as the defaults: 24-hour and Celsius.
+
+The preferences are display/input choices, not stored-data choices. Timestamps remain epoch milliseconds;
+temperatures remain Celsius in Room, backups and sync documents; and fever classification remains the
+canonical `FEVER_C` comparison. Fahrenheit input converts to Celsius before validation/storage, while an
+untouched Fahrenheit prefill keeps the exact stored reading rather than rounding it through the displayed
+text. Cards, entry rows, Both-mode Health columns, Summary, Trends' fever list and threshold, sheet time
+rows, the Material time picker, and Settings' night-window labels all follow the selected preferences.
+`LocalTimeFormat` and `LocalTemperatureUnit` carry the choices through Compose. There is no Room schema
+change and no sync-document change.
+
+### As built, where it differed from the plan
+
+- This supersedes the earlier Celsius-only rule. Temperature remains independent of the Metric / Imperial /
+  Custom presets, so changing a preset cannot silently change a health-entry field.
+- The capability took the next `0.MINOR` rung and was inserted before the already-planned dataset channel;
+  that channel and Reset to defaults moved forward one phase/version without changing scope.
+- The first phone pass showed that a temperature error at the bottom of the form was disconnected from the
+  field that caused it. The final layout puts temperature parse/range warnings directly beneath
+  Temperature, keeps dose validation separate, and hides the empty-form hint while either field is invalid.
+
+**Validation:** `:app:assembleDebug` builds; the JVM suite is **409/409** with 0 failures, 0 errors and 0
+skipped, read from `app/build/test-results/testDebugUnitTest/*.xml`. The four new cases cover 12-hour clock
+boundaries, Fahrenheit input and the exact fever threshold, untouched-prefill precision, and persistence
+independent of the three unit presets.
+
+### Device pass — 2026-10-23
+
+Samsung S23 Ultra (`<handset>`), in-place install of the `0.10.0` / versionCode 13 debug APK. The app
+was confirmed foreground before every input sequence, and every tap coordinate came from a fresh
+`uiautomator dump`. Screenshots are stored beside the repository under
+`babylog-refshots/2026-10-23-time-temperature-closeout/`, not committed.
+
+| Check | What the phone showed |
+|---|---|
+| Settings controls | Temperature and Time format render together without clipping. The original `°C` / `12-hour` choices changed to `°C` / `24-hour` (night window `6:00 PM` / `6:00 AM` → `18:00` / `06:00`), then to `°F` / `12-hour`, and finally back to the owner's original `°C` / `12-hour` |
+| Persistence | `°C` / `24-hour` survived force-stop/relaunch. `°F` / `12-hour` then survived another relaunch and opened Health as `Temperature (°F)` with a `10:39 PM` row. After final restoration and relaunch, Health read `Temperature (°C)` and `10:48 PM` |
+| Fahrenheit input guard | An unsaved `38` produced `Temperature must be between 86 and 113 °F.` directly beneath Temperature and above Medication |
+| Canonical storage | A synthetic `100.4 °F` reading saved as exactly `38.0` in the phone's Room `temperatureC` column; `PRAGMA user_version` remained 2, so no schema migration was involved |
+| Activity card and entry | The Health card showed `100.4 °F` with the filled `Fever` pill; the entry row also read `100.4 °F` with its own `Fever` pill |
+| Summary | Health showed `100.4 °F`, the `Fever` pill, `Records 1`, and `Measured 23 Oct` |
+| Trends | Health showed `100.4 °F`, `Fever`, `23 Oct 10:39 PM`, and `A reading at or above 100.4 °F is marked as a fever.` |
+| System back | System back from Trends returned to Activity without leaving the app; the Health card and bottom navigation remained intact |
+| Test-row cleanup | The synthetic row was soft-deleted through its long-press confirmation. It disappeared from the UI and remains only as the expected Room tombstone (`deleted = 1`) |
+| No crash | The final `logcat -b crash -d` buffer was empty: 0 `FATAL EXCEPTION` |
+
+## Phase 13.2 — the growth dataset update channel — not started (`0.11.0`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -906,7 +958,7 @@ The Firebase project already exists by then, which is the only precondition this
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.2 — Reset to defaults — scoped 2026-10-22, not started (`0.11.0`)
+## Phase 13.3 — Reset to defaults — scoped 2026-10-22, not started (`0.12.0`)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so

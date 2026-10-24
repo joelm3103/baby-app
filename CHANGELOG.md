@@ -21,6 +21,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 **In short:**
 
+- **Time and temperature now follow explicit family preferences.** Settings offers independent
+  `12-hour` / `24-hour` and `°C` / `°F` choices, persisted locally. Timestamps and stored readings are
+  unchanged: time remains epoch milliseconds, temperature remains Celsius, and fever classification
+  remains the canonical `FEVER_C` boundary. The preference changes the night-window labels, sheet rows
+  and picker, card and entry times, Health input, Summary, and the Trends fever list.
 - **Every activity now has its own glyph, on its card and on the chips that control it.** Six outline
   drawables — bottle, bowl-and-spoon, nappy, ruler, thermometer, moon — are tiled **tone-on-tone** as a
   watermark filling each dashboard card (and each Summary total card), and drawn small and solid inside the
@@ -42,6 +47,8 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Versions
 
+- `0.10.0` / `versionCode 13`. Phase 13.1 is a new display/input capability, so it takes the next
+  `0.MINOR` rung; the planned growth dataset channel and reset-to-defaults work move forward one rung.
 - `0.9.1` / `versionCode 12`. A `0.PATCH` bump because this is polish on the 0.9.0 rung, not a capability;
   the ladder's next rung is still `0.10.0` for Phase 13.1. The `2026-10-22` entry declined a bump for a
   device pass — that was documentation of an existing build, this is new code, so a build on a phone can
@@ -49,6 +56,12 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Added
 
+- Settings → Units now includes independent Temperature (`°C` / `°F`) and Time format (`12-hour` /
+  `24-hour`) chip rows. `SettingsRepository` persists both choices with 24-hour and Celsius defaults;
+  changing Metric / Imperial / Custom leaves the temperature choice alone.
+- `ui/DisplayPreferences.kt` provides the two choices through Compose, and four JVM tests cover clock
+  boundaries, Fahrenheit-to-Celsius input, exact fever classification, untouched-prefill precision, and
+  persistence independent of the unit presets.
 - Six stroke-style vector drawables, `res/drawable/ic_glyph_{bottle,solids,diaper,growth,health,sleep}.xml`,
   on a 24dp viewport with no colour of their own — the tint arrives at runtime, because one glyph has to be
   a card's pattern colour and a chip's accent.
@@ -64,6 +77,13 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Changed
 
+- Temperature converts only at the input/display boundary. Health accepts the selected unit but stores
+  Celsius; an untouched Fahrenheit prefill keeps the original stored precision, and `isFever` still
+  compares that canonical Celsius value against `FEVER_C`.
+- Cards, entry rows, Both-mode Health columns, Summary totals, Trends fever readings and threshold copy,
+  sheet time rows, the Material time picker, and Settings' night-window labels now read the selected
+  display preferences. There is no Room migration and no sync-document change.
+- `versionCode` is 13 and `versionName` is `0.10.0`.
 - `Tokens.kt` gained `PATTERN_ALPHA = 0.14f` and `patternFor(accent)`, with the measurements in the comments,
   and `textOnCard` was lifted in both palettes for the reason above.
 - `ActivityCard` and History's `TotalCard` draw the pattern after the fill and before the padding, so it sits
@@ -75,12 +95,21 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Fixed
 
+- Health's temperature parse/range warning now sits directly beneath the Temperature field, before
+  Medication, instead of being grouped with dose validation at the bottom of the form. The empty-form
+  hint stays hidden while either field is invalid.
 - **The diaper glyph read as a letter.** The first version was one silhouette — two tabs and a centre dip —
   and on the phone it looked like a row of `M`s rather than nappies. It is now a waistband bar above a
   rounded pad, with the bar deliberately wider than the pad so it cannot be confused with the Solids bowl.
 
 ### Notes
 
+- Device-verified on `<handset>` with the `0.10.0` / versionCode 13 APK. A synthetic `100.4 °F`
+  reading rendered as `100.4 °F` with the `Fever` pill on Activity, Summary and Trends, while the phone's
+  Room row held exactly `38.0` Celsius. Trends read `23 Oct 10:39 PM` and named the threshold as
+  `100.4 °F`; system back returned to Activity and `logcat -b crash -d` held 0 `FATAL EXCEPTION`. The
+  test row was soft-deleted through the app and remains only as a tombstone. Screenshots are beside the
+  repository, not committed.
 - Deliberately **not** included, and left as the owner's call: the sheet title bars, the entry rows, Growth's
   metric chips, the `1d·7d·14d` range chips, and Both-mode column glyphs.
 - The phone's `0.9.0` install had to be uninstalled first (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, a different
