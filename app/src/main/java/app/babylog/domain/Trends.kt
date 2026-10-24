@@ -174,21 +174,25 @@ private fun startOfDay(at: Long, zone: ZoneId): Long =
 
 // ---- Health: a table, not a chart -------------------------------------------------------------
 
-/** One fever reading, as the table names it. */
+/** One flagged reading, as the table names it. */
 data class FeverReading(
     val childName: String,
     val childBadge: String,
     val at: Long,
     val temperatureC: Double,
+    /** MILD_FEVER or FEVER — the word the row prints beside the reading. */
+    val band: TemperatureBand,
 )
 
 /**
- * Health over the window: how many readings were taken, and which of them were fevers.
+ * Health over the window: how many readings were taken, and which of them were flagged.
  *
  * A temperature has no meaningful per-day quantity — averaging two readings is not a number a parent
- * should act on — so this is a list plus a count of distinct fever DAYS. Only readings at or above
- * [FEVER_C] are listed: the whole reason to look back is to see how long a fever lasted, and a list
- * that also held every normal reading would bury that.
+ * should act on — so this is a list plus a count of distinct DAYS. Readings at or above
+ * [MILD_FEVER_MIN_C] are listed, each with its band: the whole reason to look back is to see how long a
+ * temperature ran, and a list that also held every normal reading would bury that. A LOW reading is
+ * labelled on the cards and in Summary but is deliberately NOT listed here — this is the flagged table,
+ * and a cold reading is not something to watch over days.
  */
 data class HealthTrend(
     val readings: Int,
@@ -202,14 +206,16 @@ fun healthTrend(children: List<Child>, events: List<BabyEvent>, zone: ZoneId): H
     val names = children.associate { it.id to it.name }
     val badges = badgesFor(children)
     val measured = events.filterNot { it.deleted }.filter { it.temperatureC != null && it.childId in names }
-    val fever = measured.filter { (it.temperatureC ?: 0.0) >= FEVER_C }
-        .sortedByDescending { it.startedAt }
-        .map { event ->
+    val fever = measured.sortedByDescending { it.startedAt }
+        .mapNotNull { event ->
+            val band = temperatureBand(event.temperatureC)
+            if (band != TemperatureBand.MILD_FEVER && band != TemperatureBand.FEVER) return@mapNotNull null
             FeverReading(
                 childName = names.getValue(event.childId),
                 childBadge = badges.getValue(event.childId),
                 at = event.startedAt,
                 temperatureC = event.temperatureC!!,
+                band = band,
             )
         }
     return HealthTrend(

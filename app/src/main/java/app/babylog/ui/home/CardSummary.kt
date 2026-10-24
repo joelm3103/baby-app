@@ -1,8 +1,10 @@
 package app.babylog.ui.home
 
 import app.babylog.domain.TemperatureUnit
+import app.babylog.domain.TemperatureBand
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
+import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.elapsed
 import app.babylog.domain.formatLength
@@ -220,8 +222,8 @@ fun healthLatest(entries: List<BabyEvent>): HealthLatest {
  * vaccine — with the reading and the medication combined into ONE line when they came from the same
  * record, which is how a fever and its dose are normally logged.
  *
- * [fever] on a line is what the card turns into the `Fever` pill, so the marker travels with the reading
- * rather than being re-derived by the renderer.
+ * [band] on a line is what the card turns into the band pill, so the marker travels with the reading
+ * rather than being re-derived by the renderer. Null means NORMAL or no reading at all.
  */
 fun healthLines(latest: HealthLatest, unit: TemperatureUnit = TemperatureUnit.CELSIUS): List<ChildLine> {
     val temperature = latest.temperature
@@ -229,10 +231,13 @@ fun healthLines(latest: HealthLatest, unit: TemperatureUnit = TemperatureUnit.CE
     val sameRecord = temperature != null && medication != null && temperature.id == medication.id
     return listOfNotNull(
         when {
-            sameRecord -> ChildLine(healthRecordLine(temperature!!, unit), fever = isFever(temperature.temperatureC))
+            sameRecord -> ChildLine(
+                healthRecordLine(temperature!!, unit),
+                band = markedBand(temperature.temperatureC),
+            )
             temperature != null -> ChildLine(
                 formatTemperature(temperature.temperatureC!!, unit),
-                fever = isFever(temperature.temperatureC),
+                band = markedBand(temperature.temperatureC),
             )
             else -> null
         },
@@ -285,10 +290,12 @@ fun healthByChild(entries: List<BabyEvent>, childIds: List<String>, unit: Temper
 data class ChildColumn(val childId: String, val lines: List<ChildLine>, val hasData: Boolean)
 
 /**
- * One line inside a column. [fever] marks a reading at or above [FEVER_C] so the card can colour it
- * without re-deriving the rule — the column and the headline must flag the same readings.
+ * One line inside a column. [band] is the reading's band when it carries a marker, so the card can draw
+ * the pill without re-deriving the rule — the column and the headline must flag the same readings.
+ * NORMAL and a line with no temperature are both null: NORMAL has no pill by design.
  */
-data class ChildLine(val text: String, val fever: Boolean = false)
+data class ChildLine(val text: String, val band: TemperatureBand? = null)
+
 
 /** The columns for an activity that splits per child, or null for one that does not. */
 fun cardColumns(
@@ -303,7 +310,7 @@ fun cardColumns(
         .map { column ->
             ChildColumn(
                 childId = column.childId,
-                lines = column.lines.map { ChildLine(it.text, fever = it.fever) },
+                lines = column.lines.map { ChildLine(it.text, band = it.band) },
                 hasData = column.hasData,
             )
         }

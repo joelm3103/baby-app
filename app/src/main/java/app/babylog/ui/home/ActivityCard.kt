@@ -23,8 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.TemperatureBand
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
+import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
 import app.babylog.domain.elapsed
@@ -158,9 +160,12 @@ fun ActivityCard(
                             // codes were unreadable at half a card's width.
                             if (column.hasData) {
                                 column.lines.forEach { line ->
-                                    if (line.fever) {
+                                    val band = line.band
+                                    if (band != null) {
                                         // A shape, not just a hue: the tinted number alone was invisible on
                                         // a magenta card (the owner's report), so the word rides in a pill.
+                                        // Only FEVER recolours the number; Low and Mild keep textPrimary and
+                                        // rely on the outline, so there is exactly one strong cue.
                                         Row(
                                             modifier = Modifier.padding(top = 2.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -169,9 +174,13 @@ fun ActivityCard(
                                             Text(
                                                 text = line.text,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = colors.feverOnCard,
+                                                color = if (band == TemperatureBand.FEVER) {
+                                                    colors.feverOnCard
+                                                } else {
+                                                    colors.textPrimary
+                                                },
                                             )
-                                            FeverBadge()
+                                            TemperatureBadge(band)
                                         }
                                     } else {
                                         Text(
@@ -211,25 +220,28 @@ fun ActivityCard(
             val headline = growth?.headline ?: health?.temperature ?: health?.medication ?: last
             if (headline != null && columns == null) {
                 val value = growth?.let { growthBigValue(it, units) } ?: bigValue(headline, units)
-                val fever = card.type == EventType.HEALTH && isFever(headline.temperatureC)
+                val band = if (card.type == EventType.HEALTH) markedBand(headline.temperatureC) else null
                 if (value != null) {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                        // A reading at or above 38.0 °C leaves `textPrimary` — the pill beside it is the
-                        // marker, and the colour is the second cue rather than the only one.
+                        // Only FEVER leaves `textPrimary` — the filled pill beside it is the marker, and the
+                        // colour is the second cue rather than the only one. A Mild or Low reading keeps
+                        // the number's own colour and relies on the outlined pill.
+                        val valueColor = if (band == TemperatureBand.FEVER) colors.feverOnCard else colors.textPrimary
                         Text(
                             value.first,
                             style = MaterialTheme.typography.displayLarge,
-                            color = if (fever) colors.feverOnCard else colors.textPrimary,
+                            color = valueColor,
                         )
                         if (value.second.isNotBlank()) {
                             Text(
                                 " ${value.second}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (fever) colors.feverOnCard else colors.textPrimary,
+                                color = valueColor,
                             )
                         }
-                        if (fever) {
-                            FeverBadge(
+                        if (band != null) {
+                            TemperatureBadge(
+                                band,
                                 Modifier
                                     .align(Alignment.CenterVertically)
                                     .padding(start = 8.dp, bottom = 4.dp),
@@ -362,8 +374,8 @@ fun ActivityCard(
                     units = units,
                     initials = childInitials[event.childId],
                     showChild = showChildBadge,
-                    // The row says `Fever` in a pill, so a fever cannot be read past in a list either.
-                    fever = isFever(event.temperatureC),
+                    // The row says its band in a pill, so a flagged reading cannot be read past in a list.
+                    band = markedBand(event.temperatureC),
                     zone = zone,
                     onTap = { onEditEntry(event) },
                     onLongPress = { onDeleteEntry(event) },

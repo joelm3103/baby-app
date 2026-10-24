@@ -5,7 +5,6 @@ import app.babylog.domain.toCelsius
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
-import app.babylog.domain.FEVER_C
 import app.babylog.domain.doseNumber
 import app.babylog.domain.formatDose
 import app.babylog.domain.formatTemperature
@@ -204,6 +203,3 @@ private fun readTemperature(
     }
     return celsius to null
 }
-
-/** True when a stored temperature is at or above [FEVER_C]; the display side of the same rule. */
-fun isFever(celsius: Double?): Boolean = celsius != null && celsius >= FEVER_C

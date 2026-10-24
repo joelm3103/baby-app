@@ -6,6 +6,8 @@ import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.MealSlot
+import app.babylog.domain.TemperatureBand
+import app.babylog.domain.temperatureBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.WeightUnit
@@ -231,8 +233,8 @@ class CardSummaryTest {
         // "fever" is not in either string - it travels as the pill, so it cannot be lost to an ellipsis.
         assertEquals("Calpol", detailLine(fever, metric))
         assertEquals("Calpol", detailLine(normal, metric))
-        assertTrue(isFever(fever.temperatureC))
-        assertFalse(isFever(normal.temperatureC))
+        assertEquals(TemperatureBand.FEVER, temperatureBand(fever.temperatureC))
+        assertEquals(TemperatureBand.NORMAL, temperatureBand(normal.temperatureC))
     }
 
     @Test
@@ -302,8 +304,8 @@ class CardSummaryTest {
         assertEquals(38.5, latest.temperature?.temperatureC!!, 0.0)
         val lines = healthLines(latest)
         assertEquals(listOf("38.5 \u00b0C", "Paracetamol (Calpol) 2.5 ml"), lines.map { it.text })
-        assertTrue("the reading's line must carry the fever flag", lines[0].fever)
-        assertFalse(lines[1].fever)
+        assertEquals("the reading's line must carry its band", TemperatureBand.FEVER, lines[0].band)
+        assertNull("a medication line has no band", lines[1].band)
     }
 
     @Test
@@ -318,7 +320,7 @@ class CardSummaryTest {
 
         assertEquals(1, lines.size)
         assertEquals("38.2 \u00b0C \u00b7 Calpol 2.5 ml", lines[0].text)
-        assertTrue(lines[0].fever)
+        assertEquals(TemperatureBand.FEVER, lines[0].band)
     }
 
     @Test
@@ -347,12 +349,12 @@ class CardSummaryTest {
         // First Twin's fever line is flagged so the card can put the pill beside it, and his vaccine keeps its
         // own line. The word is NOT in the text: the pill carries it.
         assertEquals("38.4 \u00b0C", columns[0].lines[0].text)
-        assertTrue(columns[0].lines[0].fever)
+        assertEquals(TemperatureBand.FEVER, columns[0].lines[0].band)
         assertEquals("6-in-1 vaccine", columns[0].lines[1].text)
-        assertFalse(columns[0].lines[1].fever)
-        // Second Twin has a temperature and nothing else; his line is not a fever.
+        assertNull("a vaccine line has no band", columns[0].lines[1].band)
+        // Second Twin has a temperature and nothing else, and a normal reading gets no pill at all.
         assertEquals("36.9 \u00b0C", columns[1].lines[0].text)
-        assertFalse(columns[1].lines[0].fever)
+        assertNull(columns[1].lines[0].band)
     }
 
     @Test

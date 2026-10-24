@@ -1,11 +1,13 @@
 package app.babylog.domain
 
+import app.babylog.domain.TemperatureBand
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -187,20 +189,24 @@ class TotalsTest {
         first { it.label == label }.value
 
     @Test
-    fun `a fever reading is flagged in the totals and a normal one is not`() {
+    fun `a flagged reading carries its band in the totals and a normal one carries none`() {
         fun healthTotal(vararg celsius: Double) = totalsFor(
             celsius.mapIndexed { i, c -> health(at(9 + i, 0), c) },
             listOf(firstTwin), UnitPreferences.Metric, NightWindow(), zone,
         ).associateBy { it.type }.getValue(EventType.HEALTH)
 
         val fevered = healthTotal(38.4)
-        assertTrue(fevered.fever)
+        assertEquals(TemperatureBand.FEVER, fevered.temperatureBand)
         assertEquals("38.4", fevered.headline)
 
-        assertFalse(healthTotal(37.2).fever)
+        // NORMAL is a null band, not a separate value: a normal reading gets no pill at all.
+        assertNull(healthTotal(37.2).temperatureBand)
         // The newest reading wins, so a fever this morning still reads as recovered by the evening.
-        assertFalse(healthTotal(38.4, 37.0).fever)
+        assertNull(healthTotal(38.4, 37.0).temperatureBand)
         assertEquals("37", healthTotal(38.4, 37.0).headline)
+        // The band is not a fever-only flag: a mild reading is marked, and only FEVER recolours anything.
+        assertEquals(TemperatureBand.MILD_FEVER, healthTotal(37.8).temperatureBand)
+        assertEquals(TemperatureBand.LOW, healthTotal(36.1).temperatureBand)
     }
 
     @Test
@@ -249,7 +255,7 @@ class TotalsTest {
         assertFalse(health.empty)
         assertEquals("1", health.rows.value("Records"))
         assertEquals("Vitamin D", health.rows.value("Medication"))
-        assertFalse(health.fever)
+        assertNull(health.temperatureBand)
     }
 
     /** A wall-clock instant on [today] (offset in days) in the test zone. */

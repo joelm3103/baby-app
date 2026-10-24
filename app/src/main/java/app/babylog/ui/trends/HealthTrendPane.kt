@@ -25,11 +25,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.FEVER_C
+import app.babylog.domain.MILD_FEVER_MIN_C
 import app.babylog.domain.FeverReading
 import app.babylog.domain.HealthTrend
 import app.babylog.domain.TrendRange
 import app.babylog.domain.formatTemperature
-import app.babylog.ui.home.FeverBadge
+import app.babylog.ui.home.TemperatureBadge
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
@@ -41,15 +42,17 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Health over the window: a dated list of fever readings, and how many days of fever there were.
+ * Health over the window: a dated list of flagged readings, and how many days they covered.
  *
  * Deliberately NOT a chart. A temperature is a reading at a point in time rather than a per-day
  * quantity, so a daily average would invent a number nobody should act on — and a line drawn between two
  * readings three days apart is a line through nothing. What a parent looks back for is "how long did
  * that last", which is a list and a day count.
  *
- * Only readings at or above [FEVER_C] are listed; the plain readings are counted, not listed, or the
- * one line that matters would be buried in a fortnight of 36.5s.
+ * Only readings at or above [MILD_FEVER_MIN_C] are listed, each with its word (`Mild` or `Fever`); the
+ * plain readings are counted, not listed, or the lines that matter would be buried in a fortnight of
+ * 36.5s. A LOW reading is deliberately absent: it is labelled on the cards and in Summary, but a cold
+ * reading is not something to watch over days.
  */
 @Composable
 fun HealthTrendPane(
@@ -103,7 +106,7 @@ fun HealthTrendPane(
                     )
                 }
                 DataRow("Temperatures", health.readings.toString())
-                DataRow("Fever readings", health.feverReadings.size.toString())
+                DataRow("Flagged readings", health.feverReadings.size.toString())
                 if (childLabel.isNotEmpty()) DataRow("Children", childLabel.removePrefix("for "))
             }
         }
@@ -133,7 +136,7 @@ fun HealthTrendPane(
         } else {
             item {
                 Text(
-                    text = "Fever readings",
+                    text = "Flagged readings",
                     style = MaterialTheme.typography.titleMedium,
                     color = colors.textPrimary,
                 )
@@ -143,7 +146,8 @@ fun HealthTrendPane(
             }
             item {
                 Text(
-                    text = "A reading at or above ${formatThreshold()} is marked as a fever. " +
+                    text = "A reading at or above ${formatThreshold()} is marked Mild, and at or above " +
+                        "${formatFeverThreshold()} as Fever. " +
                         "The marker describes the number, not the child — an armpit reading runs lower than " +
                         "a core one, so a flagged reading is a prompt to look rather than a diagnosis.",
                     style = MaterialTheme.typography.bodySmall,
@@ -183,9 +187,10 @@ private fun ReadingRow(reading: FeverReading, zone: ZoneId, showChild: Boolean, 
             fontWeight = FontWeight.Medium,
             color = colors.textPrimary,
         )
-        // The same shape marker the dashboard, the entry list and Summary use. On a plain background the
-        // feverOnCard fill clears 10.39:1 (dark) / 9.75:1 (light), so it is legible here too.
-        FeverBadge(modifier = Modifier.padding(start = 8.dp))
+        // The same shape marker the dashboard, the entry list and Summary use, carrying THIS reading's
+        // word. On a plain background the feverOnCard fill clears 10.39:1 (dark) / 9.75:1 (light) and the
+        // outline holds 9.75:1 as well, so both treatments are legible here too.
+        TemperatureBadge(reading.band, modifier = Modifier.padding(start = 8.dp))
         Box(modifier = Modifier.weight(1f))
         Text(
             text = readingLabel(reading.at, zone),
@@ -220,4 +225,7 @@ private fun readingLabel(at: Long, zone: ZoneId): String =
         " " + clockTime(at, zone, LocalTimeFormat.current)
 
 @Composable
-private fun formatThreshold(): String = formatTemperature(FEVER_C, LocalTemperatureUnit.current)
+private fun formatThreshold(): String = formatTemperature(MILD_FEVER_MIN_C, LocalTemperatureUnit.current)
+
+@Composable
+private fun formatFeverThreshold(): String = formatTemperature(FEVER_C, LocalTemperatureUnit.current)

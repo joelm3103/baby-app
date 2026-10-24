@@ -218,18 +218,57 @@ class TrendsTest {
     // ---- health: a table, and the fever boundary ----------------------------
 
     @Test
-    fun `only readings at or above 38 are fevers, and the boundary is inclusive`() {
+    fun `readings at or above 37_6 are listed with their band, and 38 stays the fever boundary`() {
         val events = listOf(
-            health(at(8, 0), 37.9),
-            health(at(9, 0), 38.0),
-            health(at(10, 0), 38.6),
+            health(at(8, 0), 37.5),
+            health(at(9, 0), 37.6),
+            health(at(10, 0), 37.9),
+            health(at(11, 0), 38.0),
+            health(at(12, 0), 38.6),
         )
         val trend = healthTrend(listOf(firstTwin), events, zone)
 
-        assertEquals(3, trend.readings)
-        assertEquals(listOf(38.6, 38.0), trend.feverReadings.map { it.temperatureC })
+        assertEquals(5, trend.readings)
+        // Mild rows are listed too - that is the whole point of a band table - newest first.
+        assertEquals(listOf(38.6, 38.0, 37.9, 37.6), trend.feverReadings.map { it.temperatureC })
+        assertEquals(
+            listOf(
+                TemperatureBand.FEVER,
+                TemperatureBand.FEVER,
+                TemperatureBand.MILD_FEVER,
+                TemperatureBand.MILD_FEVER,
+            ),
+            trend.feverReadings.map { it.band },
+        )
         assertEquals(1, trend.feverDays)
         assertTrue(trend.hasFever)
+    }
+
+    @Test
+    fun `the flagged table follows the displayed value at the mild boundary`() {
+        val events = listOf(
+            health(at(8, 0), 37.54), // displays 37.5: normal, omitted
+            health(at(9, 0), 37.56), // displays 37.6: mild, listed
+        )
+
+        val trend = healthTrend(listOf(firstTwin), events, zone)
+
+        assertEquals(listOf(37.56), trend.feverReadings.map { it.temperatureC })
+        assertEquals(listOf(TemperatureBand.MILD_FEVER), trend.feverReadings.map { it.band })
+        assertEquals(1, trend.feverDays)
+    }
+
+    @Test
+    fun `a mild day counts as a day in the band table`() {
+        val events = listOf(
+            health(at(8, 0, dayOffset = -1), 37.7),
+            health(at(9, 0), 38.2),
+        )
+        val trend = healthTrend(listOf(firstTwin), events, zone)
+
+        // Yesterday was mild, today is a fever: two days, even though only one reading is a fever.
+        assertEquals(2, trend.feverDays)
+        assertEquals(listOf(TemperatureBand.FEVER, TemperatureBand.MILD_FEVER), trend.feverReadings.map { it.band })
     }
 
     @Test

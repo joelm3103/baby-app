@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.TemperatureBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
 import app.babylog.ui.theme.BabyLogTheme
@@ -36,9 +37,9 @@ import java.time.ZoneId
  * `textSecondary` on the plain background of the full-entry list. They are not interchangeable — the
  * card tint is exactly why the two exist.
  *
- * [fever] adds the `Fever` pill for a reading at or above 38.0 °C. It is a marker on the row rather than
- * a word in the label, because the label is the first thing to be ellipsised when a row is narrow — and
- * losing "fever" to an ellipsis is exactly how a fever gets read past.
+ * [band] adds the band's pill for a flagged reading (Low, Mild or Fever). It is a marker on the row
+ * rather than a word in the label, because the label is the first thing to be ellipsised when a row is
+ * narrow — and losing the marker to an ellipsis is exactly how a fever gets read past.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -52,7 +53,7 @@ internal fun EntryRow(
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
     onCard: Boolean = true,
-    fever: Boolean = false,
+    band: TemperatureBand? = null,
 ) {
     val colors = BabyLogTheme.colors
     Row(
@@ -82,7 +83,7 @@ internal fun EntryRow(
                 // The label gives way first, so the pill and the time both survive a narrow row.
                 modifier = Modifier.weight(1f, fill = false),
             )
-            if (fever) FeverBadge()
+            if (band != null) TemperatureBadge(band)
         }
         Text(
             text = clockTime(event.startedAt, zone, LocalTimeFormat.current),

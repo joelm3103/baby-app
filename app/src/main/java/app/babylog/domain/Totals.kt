@@ -78,10 +78,11 @@ data class ActivityTotal(
     /** True when there is nothing to show at all (Growth/Health with no measurement in range). */
     val empty: Boolean = false,
     /**
-     * A Health total whose latest reading is at or above [FEVER_C]. The total CARDS are tinted with the
-     * activity's own accent exactly like the dashboard, so the marker uses the same token there.
+     * A Health total's band, from its latest reading. Null when the range holds no reading, or the
+     * reading is NORMAL — the total CARDS are tinted with the activity's own accent exactly like the
+     * dashboard, so the marker uses the same tokens there.
      */
-    val fever: Boolean = false,
+    val temperatureBand: TemperatureBand? = null,
 )
 
 private val measuredOn = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
@@ -278,7 +279,9 @@ private fun healthTotal(events: List<BabyEvent>, children: List<Child>, zone: Zo
         // A range holding only a medication or a vaccine is NOT empty - it holds one record, and saying
         // "nothing logged in this range" beside a count of 1 is a contradiction a parent would not trust.
         empty = events.isEmpty(),
-        fever = latestReading?.temperatureC?.let { it >= FEVER_C } ?: false,
+        temperatureBand = temperatureBand(latestReading?.temperatureC)?.takeIf {
+            it != TemperatureBand.NORMAL
+        },
     )
 }
 

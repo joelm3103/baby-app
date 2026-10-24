@@ -3,6 +3,7 @@ package app.babylog.ui.home
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
+import app.babylog.domain.isFever
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull

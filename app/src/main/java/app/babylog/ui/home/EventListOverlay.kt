@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
+import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.groupByDay
 import app.babylog.ui.theme.BabyLogTheme
@@ -147,7 +148,7 @@ fun EventListOverlay(
                             initials = childInitials[event.childId],
                             showChild = showChildBadge,
                             // Same marker as the card: the list and the card must flag the same readings.
-                            fever = isFever(event.temperatureC),
+                            band = markedBand(event.temperatureC),
                             zone = zone,
                             onTap = { onEditEntry(event) },
                             onLongPress = { onDeleteEntry(event) },

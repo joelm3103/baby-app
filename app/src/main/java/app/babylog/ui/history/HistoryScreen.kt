@@ -28,9 +28,10 @@ import app.babylog.domain.ActivityTotal
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
 import app.babylog.domain.HistoryRange
+import app.babylog.domain.TemperatureBand
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.home.ScreenHeader
-import app.babylog.ui.home.FeverBadge
+import app.babylog.ui.home.TemperatureBadge
 import app.babylog.ui.common.activityPattern
 import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
@@ -242,22 +243,31 @@ private fun TotalCard(total: ActivityTotal, showPerChild: Boolean) {
                 Text(
                     text = total.headline,
                     style = MaterialTheme.typography.displayLarge,
-                    // A fever reading leaves textPrimary here for the same reason it does on the dashboard,
+                    // Only FEVER leaves textPrimary here, for the same reason it does on the dashboard,
                     // and with the same token: these cards are tinted with the accent at 26%, so `danger`
-                    // is not legible on them (it measures 3.76:1 dark / 4.28:1 light).
-                    color = if (total.fever) colors.feverOnCard else colors.textPrimary,
+                    // is not legible on them (it measures 3.76:1 dark / 4.28:1 light). A Mild or Low total
+                    // keeps textPrimary and relies on the outlined pill.
+                    color = if (total.temperatureBand == TemperatureBand.FEVER) {
+                        colors.feverOnCard
+                    } else {
+                        colors.textPrimary
+                    },
                 )
                 total.unit?.let { unit ->
                     Text(
                         text = " $unit",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (total.fever) colors.feverOnCard else colors.textPrimary,
+                        color = if (total.temperatureBand == TemperatureBand.FEVER) {
+                            colors.feverOnCard
+                        } else {
+                            colors.textPrimary
+                        },
                     )
                 }
-                if (total.fever) {
-                    // A filled pill, not a tinted word: the colour alone was invisible on the tinted
-                    // card, which is the owner's report from the first device pass.
-                    FeverBadge(Modifier.padding(start = 8.dp, bottom = 4.dp))
+                total.temperatureBand?.let { band ->
+                    // A pill, not a tinted word: the colour alone was invisible on the tinted card, which
+                    // is the owner's report from the first device pass. Filled for Fever, outlined otherwise.
+                    TemperatureBadge(band, Modifier.padding(start = 8.dp, bottom = 4.dp))
                 }
             }
         }
