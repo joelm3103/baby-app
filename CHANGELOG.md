@@ -17,6 +17,76 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-23]
+
+**In short:**
+
+- **Every activity now has its own glyph, on its card and on the chips that control it.** Six outline
+  drawables — bottle, bowl-and-spoon, nappy, ruler, thermometer, moon — are tiled **tone-on-tone** as a
+  watermark filling each dashboard card (and each Summary total card), and drawn small and solid inside the
+  activity chips on Summary's filter row and Trends' tabs. Activity is now identifiable by shape as well as
+  hue, which is the same argument that gave a fever a pill instead of a red number.
+- **The pattern is the card's own hue, one measured step stronger — not white.** White is what the owner's
+  infographic reference uses, and on our 26% tint it fails both ways: dE 3 at alpha 0.04 with `textOnCard`
+  at 4.2:1, dE 12.5 and 3.1:1 at alpha 0.16, and effectively invisible in the light theme (dE 1-4).
+  `patternFor` pushes the fill 0.14 toward its accent instead — dE 7-11 dark, 7-10 light — and the cost was
+  paid where it lands: **`textOnCard` moved to `#DCDEE7` dark / `#404E69` light**, which holds 4.5:1 on the
+  worst pattern tile and 5.9:1 / 5.5:1 on the plain tint.
+- **Checked on the phone, not in the abstract:** dark, light and 1.3x font scale on `<handset>`, with
+  `logcat -b crash` holding **0** `FATAL EXCEPTION` and system back from Settings returning to Today. The
+  first diaper glyph read as a letter `M` repeated down the card and was redrawn as a waistband above a
+  rounded pad; at 18dp the glyphs were too small to read as texture and they now draw at 26dp on a 64dp
+  pitch.
+- **A pre-existing bug found while looking:** at 1.3x font scale the `Both` pill in the child switcher wraps
+  to `Bot` / `h`. Not caused by this work and deliberately not fixed here.
+
+### Versions
+
+- `0.9.1` / `versionCode 12`. A `0.PATCH` bump because this is polish on the 0.9.0 rung, not a capability;
+  the ladder's next rung is still `0.10.0` for Phase 13.1. The `2026-10-22` entry declined a bump for a
+  device pass — that was documentation of an existing build, this is new code, so a build on a phone can
+  still say which work produced it.
+
+### Added
+
+- Six stroke-style vector drawables, `res/drawable/ic_glyph_{bottle,solids,diaper,growth,health,sleep}.xml`,
+  on a 24dp viewport with no colour of their own — the tint arrives at runtime, because one glyph has to be
+  a card's pattern colour and a chip's accent.
+- `ui/common/ActivityGlyph.kt` — the exhaustive `EventType.glyphRes()` mapping, `glyphPainter()` for the
+  chips, and `Modifier.activityPattern()`: a tile rasterised **once** per type, tint and density
+  (`ImageBitmap` + `ImageShader`, repeated at 1:1 device pixels) rather than ~24 vector draws per card per
+  frame. The second row is baked into the tile at half a pitch, which is what makes the repeat read as a
+  diagonal field rather than a grid.
+- `PatternPaletteTest` (5 cases) and `ActivityGlyphTest` (2) — the suite is **405, 0 failures**. The palette
+  test asserts, for all six accents in both themes, that the pattern is visible (dE >= 7), that `textOnCard`,
+  the label and `textPrimary` all clear 4.5:1 **on the pattern**, and that the chip glyphs clear 3:1 both
+  ways. The glyph test asserts the mapping is total and one-to-one.
+
+### Changed
+
+- `Tokens.kt` gained `PATTERN_ALPHA = 0.14f` and `patternFor(accent)`, with the measurements in the comments,
+  and `textOnCard` was lifted in both palettes for the reason above.
+- `ActivityCard` and History's `TotalCard` draw the pattern after the fill and before the padding, so it sits
+  under every label, value and row.
+- `ChoiceChip` takes an optional `icon`, null by default, so the range chips, meal slots, diaper kinds and
+  Growth's metric chips are unchanged; only the activity chips pass one, tinted with the raw accent when off
+  and `onAccent` when on.
+- `versionCode` 12 / `versionName` 0.9.1.
+
+### Fixed
+
+- **The diaper glyph read as a letter.** The first version was one silhouette — two tabs and a centre dip —
+  and on the phone it looked like a row of `M`s rather than nappies. It is now a waistband bar above a
+  rounded pad, with the bar deliberately wider than the pad so it cannot be confused with the Solids bowl.
+
+### Notes
+
+- Deliberately **not** included, and left as the owner's call: the sheet title bars, the entry rows, Growth's
+  metric chips, the `1d·7d·14d` range chips, and Both-mode column glyphs.
+- The phone's `0.9.0` install had to be uninstalled first (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, a different
+  signing key from this machine's), which is why the log was pulled back by signing in afterwards. Same
+  per-machine debug keystore consequence `docs/firebase-setup.md` already records.
+
 ## [2026-10-22]
 
 **In short:**

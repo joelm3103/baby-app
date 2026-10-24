@@ -117,6 +117,15 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   3.76:1 on the 26% tint, below AA — so `feverOnCard` exists for tinted surfaces (5.71:1 on the Health
   card, 4.80:1 worst of the six). A tinted number was measured legible at 5.20:1 and was still invisible
   on the phone, which is why the marker has a shape and the word inside it.
+- **Each card is watermarked with its activity's OWN GLYPH, tiled tone-on-tone.** Six stroke drawables
+  (`res/drawable/ic_glyph_*`) go through `EventType.glyphRes()`; `Modifier.activityPattern()` fills the card
+  with the glyph repeated at 26dp on a 64dp pitch, alternate rows offset half a pitch, and the same glyphs
+  sit solid at 14dp inside the activity chips. The pattern colour is `patternFor(accent)` — the card fill
+  pushed **0.14** toward its own accent (dE 7–11 dark, 7–10 light), NEVER white: white over a 26% tint
+  measures dE 3 and 4.2:1 at alpha 0.04, and is invisible in the light theme. Because the pattern sits
+  behind every word, `textOnCard` was lifted (`#DCDEE7` / `#404E69`) so meta text still clears 4.5:1 on a
+  tile; `PatternPaletteTest` asserts all of it for six accents × both themes. Raising the alpha, retuning an
+  accent, or lowering the tint goes through that test.
 
 ## Domain rules that already cost us
 
@@ -177,7 +186,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-398 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+405 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /

@@ -37,6 +37,7 @@ everything after it is additive.**
 | 8 — Summary (was History) | **DONE, device-verified** — calendar-day totals, configurable day/night split, filters, 149 tests green |
 | 9 — Daily-use polish | **DONE, device-verified** — child badges, free-text amount + presets, Date rows, alternating Settings cards, shell fades and insets, 158 tests green |
 | 9.1 — Card entries, See all, in-place edits | **DONE, device-verified** — today's rows, full entry list, tap-to-edit, long-press-to-delete, Both-mode headline badge + deterministic ordering, 178 tests green |
+| 9.2 — Activity glyphs on cards and chips | **DONE, device-verified** — a glyph per activity, tiled tone-on-tone behind each card and on Summary's total cards, and drawn small inside the activity chips; `textOnCard` lifted to keep meta text at AA on the pattern; 405 tests green |
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
@@ -57,16 +58,92 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **398/398** with 0 failures — the
-339 of Phase 12 (the 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **405/405** with 0 failures — the
+398 of the Phase-13 close, plus the 7 the activity glyphs added on 2026-10-23 (`PatternPaletteTest` 5,
+`ActivityGlyphTest` 2) — of which the 398 were
+the 339 of Phase 12 (the 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived
 with the Summary rename and its All/None filter chips, plus the 28 `TrendsTest` and
 `TrendChartAxisTest` cases) and the 49 sync tests Phase 13 added (the "feat(sync): two accounts, one
 shared log, and an outbox that is the only queue" commit). The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
-real device (see the device-verification sections at the end of this file), as was Phase 13's
-Firebase-free half on 2026-10-22 — a green build proves
+real device (see the device-verification sections at the end of this file), as was Phase 13 on
+2026-10-22 and the glyphs on 2026-10-23 — a green build proves
 nothing about layout or about system back. Toolchain versions and the AGP 9 / KSP traps that cost build
 cycles are in `AGENTS.md` and in the Phase 0 row below.
+
+## Phase 9.2 — Activity glyphs on cards and chips — DONE, device-verified (`0.9.1`)
+
+**As built — 2026-10-23. Read this before the numbers.**
+
+Each of the six activities now carries its own glyph, in three places: tiled **tone-on-tone** as a
+watermark filling its dashboard card, on Summary's per-activity total cards, and small and solid inside the
+activity chips (Summary's filter row, Trends' tabs). Shape now identifies an activity as well as hue, for
+the same reason a fever got a pill rather than a red number. `EventType.glyphRes()` is the single mapping;
+`Modifier.activityPattern()` draws the tile.
+
+**Where the design came from, measured rather than chosen.** A live Huckleberry screenshot taken from the
+phone (`com.huckleberry_labs.app` on `<handset>`, saved beside the repo, not committed) draws one large
+glyph per card, clipped by the card's left edge, in its own fill darkened to **dE 9-18**. The owner's
+infographic reference (`Three Options Infographic Cards.png`) tiles **white** glyphs at ~8% of card width
+over a saturated fill — a recipe that fails on our cards in both directions: over the 26% tint a white
+pattern measures dE 3 at alpha 0.04 and drops `textOnCard` to **4.2:1**, and at alpha 0.16 it is dE 12.5
+and 3.1:1; on the light theme white over a near-white tint is **invisible** (dE 1-4 at every alpha tried).
+
+So the pattern is the card fill pushed **0.14** toward its own accent (`patternFor`), which is dE 7-11 on
+dark and 7-10 on light, and the one cost was paid in the token it lands on: **`textOnCard` moved from
+`#C2C6D6` to `#DCDEE7`** (dark) and `#41506B` to `#404E69` (light), because the pattern sits behind that
+text — 3.2:1 before, 4.5:1 on the worst tile and 5.9:1 on the plain tint after. `PatternPaletteTest`
+asserts it for all six accents in both themes, so a retuned accent or a "subtler" alpha fails the build
+instead of shipping an unreadable card.
+
+### As built, where it differed from the plan
+
+- **The glyph is 26dp on a 64dp pitch, not 18dp on 46dp.** The first pass was built at 18dp and the owner
+  read it on the phone as too small to work as texture. The pitch is what the seamlessness constraint sets,
+  not taste: with the second row offset half a pitch, a glyph may be at most half a pitch wide, so 26dp
+  needs a pitch of 52dp or more and 64dp was chosen for the gap.
+- **Tiling is an `ImageShader` over a pre-rasterised `ImageBitmap`, not `BitmapPainter` + `ContentScale.Tile`.**
+  Tile scales a bitmap by the painter's intrinsic size, so the pattern's spacing would follow the density
+  rather than the dp grid. The shader repeats the tile at 1:1 device pixels, and the tile is built once per
+  type, tint and density and held in `remember`.
+- **The diaper glyph was redrawn after the phone pass.** The first version was one silhouette — two tabs and
+  a centre dip — and on the card it read as a letter `M` repeated down the screen. It is now a waistband bar
+  above a rounded pad, with the bar wider than the pad so it cannot be confused with the Solids bowl.
+- **The phone had to be uninstalled before this build would install.** `install -r` answered
+  `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — the installed `0.9.0` carried a different signing key — so the local
+  database was wiped and the log came back by signing in, which is the per-machine debug keystore consequence
+  `docs/firebase-setup.md` already records. The owner approved the wipe before it was done.
+- **Scoped as polish and closed as a sub-phase.** It was planned as `0.9.1` polish on the Phase-13 rung, so
+  it carries a `0.PATCH` bump and the next capability rung is still `0.10.0` (Phase 13.1). The row and the
+  heading marker were added when it was closed out.
+
+### Device pass, 2026-10-23
+
+`<handset>`, in-place `install -r` of the `0.9.1` debug APK (`versionCode=12`, `versionName=0.9.1`, read
+back from `dumpsys package`). Every tap coordinate came from a `uiautomator dump`, and the foreground was
+checked before the first input: `dumpsys activity activities` reported
+`Resumed: ActivityRecord{… app.babylog/.MainActivity t1919}`.
+
+| Check | What the phone showed |
+|---|---|
+| The pattern fills all six dashboard cards | Today, dark: bottle, nappy, bowl, ruler, thermometer and moon each tiled in their own hue at 26dp, visible without reading the label |
+| Summary's total cards carry the same pattern | The `Bottle feed` and `Diaper` total cards are patterned exactly as their dashboard cards |
+| The activity chips carry the glyph | Summary's filter row shows a glyph in all six activity chips; the bulk `None` chip correctly has none. Trends' tabs show `Bottle feed` with the glyph in `onAccent` (selected) and `Diaper` / `Solids` in their accents |
+| The light theme is not a smudge | Settings → Theme → `Light`: the pattern is visible on every card and every label still reads — the theme the measurement said was most at risk (dE 7-10) |
+| Settings opens from the header icon | The `Settings` node (`content-desc="Settings"`, clickable ancestor `[900,289][1035,424]`) opened Settings |
+| System back returns to Today | `input keyevent 4` from Settings returned to Today with the switcher and all cards intact |
+| No crash | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the install, the navigation and the theme change |
+
+**A trap worth naming for the next pass:** one `uiautomator dump` returned the *previous* screen's tree while
+Settings was already open, so the dump said "Today" and the tap that had worked looked like it had failed.
+The screenshot was the source of truth for which screen was up; the dump is only good for coordinates taken
+immediately before a tap.
+
+**Found on the phone, not fixed here:** at 1.3x font scale the `Both` pill in the child switcher wraps to
+`Bot` / `h`. Pre-existing, unrelated to the glyphs, and its own change.
+
+**Open question left for the owner:** whether the glyph should also reach the sheet title bars, the entry
+rows, Growth's metric chips and the range chips. Deliberately not included here.
 
 ## Phases 0-2 — where the evidence is
 
