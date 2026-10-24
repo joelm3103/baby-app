@@ -17,6 +17,61 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-24]
+
+**In short:**
+
+- **`12-hour` is now the default clock on a fresh install.** Existing saved choices remain unchanged;
+  timestamps still use epoch milliseconds, and Celsius remains the temperature default.
+- **A temperature now carries one of four bands, marked by shape rather than hue.** LOW (`< 36.5`),
+  NORMAL (`36.5–37.5`), MILD_FEVER (`37.6–37.9`) and FEVER (`>= 38.0`, still `FEVER_C`) are classified
+  from the value rounded to the displayed decimal, so the word can never contradict the number beside it.
+- **Trends now lists Mild and Fever readings with their own words.** Low remains marked on Activity and
+  Summary but stays out of the over-time table.
+
+### Versions
+
+- `0.11.0` / `versionCode 15`. Phase 13.2 adds the four temperature bands; the planned dataset channel
+  moves to `0.12.0` and reset-to-defaults to `0.13.0`.
+- `0.10.1` / `versionCode 14`. A `0.PATCH` bump for making 12-hour the fresh-install default before the
+  Phase 13.2 capability rung.
+
+### Added
+
+- `domain/Temperature.kt` — `NORMAL_MIN_C`, `MILD_FEVER_MIN_C`, `TemperatureBand`, `temperatureBand()`,
+  `markedBand()` and an `isFever()` derived from the FEVER band rather than a separate comparison.
+- `ui/home/TemperatureBadge.kt` replaces `FeverBadge.kt` with one stable pill geometry: filled for FEVER,
+  outlined for MILD_FEVER and LOW, and absent for NORMAL.
+- `TemperatureBandTest` adds six cases for every boundary and a 35.00–39.00 °C sweep; two new
+  `TrendsTest` cases pin Mild-day counting and the displayed `37.54` / `37.56` boundary. The suite moves
+  from 409 to **417**, with 0 failures, 0 errors and 0 skipped across 42 XML result files.
+
+### Changed
+
+- `SettingsRepository`, `clockTime`, `AppRoot` and `LocalTimeFormat` now default to `TWELVE_HOUR` when no
+  choice has been stored. `SettingsRepositoryTest` and `DisplayPreferencesTest` pin the fallback; existing
+  installs with a stored choice are not migrated.
+- The boolean `fever` flag became a nullable `TemperatureBand` through `ChildLine`, `ActivityTotal`,
+  `EntryRow`, `FeverReading`, Activity, Summary, the entry list and Trends. NORMAL collapses to null at the
+  source because a normal reading has no pill; only FEVER recolours the number.
+- Bands are computed from the number as displayed: `37.99` prints `38.0` and is FEVER, while `37.94`
+  prints `37.9` and is MILD_FEVER. The same rule controls Trends inclusion, preventing a displayed Mild
+  reading near `37.6` from being omitted by a raw-value comparison.
+- Trends → Health now says `Flagged readings`, lists MILD_FEVER and FEVER with their own badges, counts
+  their distinct days, quotes both thresholds in the selected unit, and deliberately excludes LOW.
+- Device verification used `<handset>` (S23 Ultra, Android 16) with `0.11.0` / versionCode 15. Activity
+  showed Low / no marker / Mild / Fever for 36.2 / 37.1 / 37.6 / 38.4; Summary carried the latest Fever;
+  and Trends listed only Mild and Fever (`4` temperatures, `2` flagged, `1` day). Stored 37.94 displayed
+  `37.9` / Mild and 37.99 displayed `38` / Fever. System back returned Trends to Activity and dismissed
+  the Health sheet; all six close-out rows were soft-deleted through the app, and the crash buffer ended
+  with 0 `FATAL EXCEPTION` entries. The evidence table is in `PLAN.md`; screenshots remain beside the repo.
+
+### Fixed
+
+- Trends no longer filters flagged readings with the raw `temperatureC >= 37.6` comparison. It derives
+  `TemperatureBand` first, so a stored `37.56` that displays as `37.6` is listed as Mild, while `37.54`
+  displays as `37.5` and remains unlisted. A focused `TrendsTest` regression pins both sides.
+
 ## [2026-10-23]
 
 **In short:**
@@ -57,7 +112,8 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 ### Added
 
 - Settings → Units now includes independent Temperature (`°C` / `°F`) and Time format (`12-hour` /
-  `24-hour`) chip rows. `SettingsRepository` persists both choices with 24-hour and Celsius defaults;
+  `24-hour`) chip rows. `SettingsRepository` persists both choices with 24-hour and Celsius defaults —
+  the clock default was later flipped to `12-hour` on 2026-10-24;
   changing Metric / Imperial / Custom leaves the temperature choice alone.
 - `ui/DisplayPreferences.kt` provides the two choices through Compose, and four JVM tests cover clock
   boundaries, Fahrenheit-to-Celsius input, exact fever classification, untouched-prefill precision, and

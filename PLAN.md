@@ -42,9 +42,10 @@ everything after it is additive.**
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
 | 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. Two open findings: "Sync now" is silent offline, and the first-sign-in seed sits queued until a drain is triggered |
-| 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green |
-| 13.2 — Growth dataset update channel | not started — split out of 13, `0.11.0` |
-| 13.3 — Reset to defaults | not started — scoped 2026-10-22, `0.12.0`; **not started in this session, by the owner's instruction** |
+| 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green; `0.10.1` makes 12-hour the default |
+| 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
+| 13.3 — Growth dataset update channel | not started — split out of 13, `0.12.0` |
+| 13.4 — Reset to defaults | not started — scoped 2026-10-22, `0.13.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -59,9 +60,11 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **409/409** with 0 failures — the
-405 of the activity-glyph close, plus 4 preference tests on 2026-10-23 (`DisplayPreferencesTest` 3 and
-`SettingsRepositoryTest` 1). The 405 were the 398 of the Phase-13 close plus the 7 activity-glyph tests
+Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **417/417** with 0 failures, 0 errors
+and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` — the 409 of the time and
+temperature-preference close plus 8 temperature-band cases (`TemperatureBandTest` 6 and `TrendsTest` 2).
+The 409 were the 405 of the activity-glyph close plus 4 preference tests on 2026-10-23
+(`DisplayPreferencesTest` 3 and `SettingsRepositoryTest` 1). The 405 were the 398 of the Phase-13 close plus the 7 activity-glyph tests
 (`PatternPaletteTest` 5, `ActivityGlyphTest` 2); the 398 were
 the 339 of Phase 12 (the 308 the Phase-11 row quotes, plus the three `HistoryFilterTest` cases that arrived
 with the Summary rename and its All/None filter chips, plus the 28 `TrendsTest` and
@@ -69,8 +72,8 @@ with the Summary rename and its All/None filter chips, plus the 28 `TrendsTest` 
 shared log, and an outbox that is the only queue" commit). The
 Phase-5 layout, the two launch bugs, and the Phase-6, 7, 8, 9, 9.1, 10, 11 and 12 screens were all confirmed on a
 real device (see the device-verification sections at the end of this file), as was Phase 13 on
-2026-10-22 and the glyphs on 2026-10-23 — a green build proves
-nothing about layout or about system back. Toolchain versions and the AGP 9 / KSP traps that cost build
+2026-10-22, the glyphs and preferences on 2026-10-23, and the temperature bands on 2026-10-24 — a green
+build proves nothing about layout or about system back. Toolchain versions and the AGP 9 / KSP traps that cost build
 cycles are in `AGENTS.md` and in the Phase 0 row below.
 
 ## Phase 9.2 — Activity glyphs on cards and chips — DONE, device-verified (`0.9.1`)
@@ -893,11 +896,68 @@ tombstone-only purge the sync layer understands. Archive (soft delete) is alread
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
+## Phase 13.2 — Temperature bands — DONE, device-verified (`0.11.0`)
+
+**As built — 2026-10-24.** The owner asked for the single fever threshold to become four bands, marked by
+shape and judged from a rendered mockup before code was written. `domain/Temperature.kt` classifies LOW
+(`< 36.5`), NORMAL (`36.5–37.5`), MILD_FEVER (`37.6–37.9`) and FEVER (`>= FEVER_C`) from the value **as
+displayed** — rounded to one decimal first, exactly as `trimZero(_, 1)` rounds. A marker can therefore
+never contradict the number beside it: `37.99` prints `38.0` and is FEVER; `37.94` prints `37.9` and is
+MILD_FEVER. `isFever()` is defined from that band, so the pill and number treatment cannot drift.
+
+`TemperatureBadge` replaces `FeverBadge` with one geometry for the three marked bands: FEVER filled in
+`feverOnCard` with the word in `onAccent`, and MILD_FEVER / LOW outlined in `feverOnCard`. Only FEVER moves
+a number off `textPrimary`. The nullable band replaces the boolean through `ChildLine`, `ActivityTotal`,
+`EntryRow`, `FeverReading`, Activity, Summary, the entry list and Trends; NORMAL collapses to null at the
+source because a normal reading has no pill.
+
+Trends lists MILD_FEVER and FEVER readings with their words and counts their distinct days. LOW is
+intentionally absent from Trends: it remains labelled on Activity and Summary, but the over-time table is
+for a raised temperature. Inclusion uses `temperatureBand()` rather than a second raw threshold, so values
+that round onto the displayed boundary stay consistent across every surface.
+
+### As built, where it differed from the plan
+
+- Shape carries the bands rather than adding more hues. The original fever-only marker had already proved
+  that a tinted number was invisible on the Health card; Low and Mild therefore use an outlined version of
+  the same pill geometry, while Fever keeps the filled pill.
+- Classification happens after one-decimal display rounding rather than on the raw stored double. The
+  first Trends implementation accidentally kept a raw `>= 37.6` filter; close-out replaced it with the
+  shared `TemperatureBand` rule and added a `37.54` / `37.56` regression.
+- Trends broadened from Fever-only to Mild and Fever, but Low deliberately stays out. Activity, entry rows
+  and Summary still mark Low, so the omission is scope rather than lost information.
+- The owner also changed the fresh-install clock fallback to 12-hour on this branch. That is separate
+  polish, recorded immediately before the phase as `0.10.1` / versionCode 14; Phase 13.2 remains the
+  `0.11.0` / versionCode 15 capability rung.
+
+**Validation:** `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **417/417** with 0 failures, 0
+errors and 0 skipped, summed from 42 XML files under `app/build/test-results/testDebugUnitTest/`.
+`TemperatureBandTest` contributes six cases, and two new `TrendsTest` cases cover Mild-day counting and
+the displayed `37.54` / `37.56` boundary; `TotalsTest` and `CardSummaryTest` cover band propagation.
+
+### Device pass — 2026-10-24
+
+Samsung S23 Ultra (`<handset>`), Android 16. The APK was installed in place with the native Windows
+ADB path. Before each input sequence `topResumedActivity` showed `app.babylog/.MainActivity`; every tap
+came from the matching node or clickable ancestor in a fresh `uiautomator dump`.
+
+| Check | What the phone showed |
+|---|---|
+| APK identity | `install -r` succeeded; Package Manager reported `versionName=0.11.0`, `versionCode=15`. The Health sheet used the fresh-install fallback and read `6:00 PM`, not `18:00`. |
+| Activity headline and rows | With 36.2, 37.1, 37.6 and 38.4 °C logged in order, the latest headline was `38.4` with a filled `Fever` pill. The rows showed Low outlined, Normal unmarked, Mild outlined and Fever filled; the three marked entry badges all occupied the same-height bounds. Only Fever changed the number treatment. |
+| Displayed-value boundaries | A stored 37.94 displayed as `37.9 °C` with `Mild`; 37.99 displayed as `38 °C` with `Fever`. The shape therefore followed the rendered number at both sides of the Fever boundary. |
+| Summary | The Health total showed the latest `38.4` reading with its filled `Fever` pill. |
+| Trends | Health showed `Temperatures 4`, `Flagged readings 2`, and `Fever days 1`; only 38.4/Fever and 37.6/Mild appeared. 37.1 and 36.2 were excluded, and the caption quoted both 37.6 and 38 °C thresholds. |
+| System back | Back from Trends returned to Activity without leaving the app; back with the Health sheet open dismissed the sheet and kept Activity foreground. |
+| Test-row cleanup | Six close-out readings (the four bands plus 37.94/37.99) were long-pressed and confirmed through the app. No matching live row remained; the latest six rows were soft-deleted tombstones. Ten matching tombstones existed in total because the earlier exploratory device pass had already created and removed the same four-band set. |
+| No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
+
 ## Phase 13.1 — Time and temperature preferences — DONE, device-verified (`0.10.0`)
 
 **As built — 2026-10-23.** The owner requested this capability before the growth dataset update channel.
 Settings now offers independent `12-hour` / `24-hour` and `°C` / `°F` choices, persisted in DataStore
-with the previous behaviour as the defaults: 24-hour and Celsius.
+with the previous behaviour as the defaults: 24-hour and Celsius. The owner later chose `12-hour` as the
+clock default on a fresh install (2026-10-24, `0.10.1`); Celsius remains the temperature default.
 
 The preferences are display/input choices, not stored-data choices. Timestamps remain epoch milliseconds;
 temperatures remain Celsius in Room, backups and sync documents; and fever classification remains the
@@ -943,7 +1003,7 @@ was confirmed foreground before every input sequence, and every tap coordinate c
 | Test-row cleanup | The synthetic row was soft-deleted through its long-press confirmation. It disappeared from the UI and remains only as the expected Room tombstone (`deleted = 1`) |
 | No crash | The final `logcat -b crash -d` buffer was empty: 0 `FATAL EXCEPTION` |
 
-## Phase 13.2 — the growth dataset update channel — not started (`0.11.0`)
+## Phase 13.3 — the growth dataset update channel — not started (`0.12.0`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -958,7 +1018,7 @@ The Firebase project already exists by then, which is the only precondition this
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.3 — Reset to defaults — scoped 2026-10-22, not started (`0.12.0`)
+## Phase 13.4 — Reset to defaults — scoped 2026-10-22, not started (`0.13.0`)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so

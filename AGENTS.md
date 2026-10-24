@@ -112,11 +112,17 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   stronger tints) and never a `MaterialTheme.colorScheme.*` default.
 - Action buttons are filled with the **raw accent** and labelled in `onAccent` (5.9-11.2:1).
 - Verify any colour change numerically before shipping it. Do not eyeball.
-- **A fever is marked by a SHAPE, not a hue.** A reading at or above 38.0 °C (`FEVER_C` in
-  `domain/BabyEvent.kt`) gets the filled `FeverBadge` pill. `danger` is NOT usable there — it measures
-  3.76:1 on the 26% tint, below AA — so `feverOnCard` exists for tinted surfaces (5.71:1 on the Health
-  card, 4.80:1 worst of the six). A tinted number was measured legible at 5.20:1 and was still invisible
-  on the phone, which is why the marker has a shape and the word inside it.
+- **A temperature band is marked by a SHAPE, not a hue.** `domain/Temperature.kt` classifies a reading
+  into LOW (`< 36.5`), NORMAL (`36.5–37.5`), MILD_FEVER (`37.6–37.9`) and FEVER (`>= 38.0`, i.e.
+  `FEVER_C`), always from the value **as displayed** — rounded to one decimal first — so a pill can never
+  disagree with the number beside it (`37.99` prints `38.0` and is therefore a fever). `TemperatureBadge`
+  gives the three non-normal bands ONE geometry so no row shifts: FEVER is filled `feverOnCard` with the
+  word in `onAccent` ("Fever"), MILD_FEVER and LOW are outlined ~1.5dp in `feverOnCard` with the word in
+  `feverOnCard` ("Mild", "Low"). Only FEVER moves the number off `textPrimary` — one strong cue per row.
+  `danger` is NOT usable on a tinted card: it measures 3.76:1 on the 26% tint, below AA — so
+  `feverOnCard` exists for tinted surfaces (fill and outline both 5.71:1 on the Health card, 4.80:1 worst
+  of the six; 10.39:1 for the word on the fill). A tinted number was measured legible at 5.20:1 and was
+  still invisible on the phone, which is why the marker has a shape and the word inside it.
 - **Each card is watermarked with its activity's OWN GLYPH, tiled tone-on-tone.** Six stroke drawables
   (`res/drawable/ic_glyph_*`) go through `EventType.glyphRes()`; `Modifier.activityPattern()` fills the card
   with the glyph repeated at 26dp on a 64dp pitch, alternate rows offset half a pitch, and the same glyphs
@@ -186,7 +192,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-409 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+417 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -210,8 +216,10 @@ only, and `1.0.0` is the first release.
 | 7 Settings | `0.3.0` | 12 Trends | `0.8.0` |
 | 8 Summary | `0.4.0` | 13 two accounts | `0.9.0` |
 | 9 daily-use polish | `0.4.1` | 13.1 time/temp preferences | `0.10.0` |
-| | | 13.2 dataset channel | `0.11.0` |
-| | | 13.3 reset to defaults | `0.12.0` |
+| | | 13.1.1 twelve-hour default | `0.10.1` |
+| | | 13.2 temperature bands | `0.11.0` |
+| | | 13.3 dataset channel | `0.12.0` |
+| | | 13.4 reset to defaults | `0.13.0` |
 | | | 14/15 release | `1.0.0` |
 
 - **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever
