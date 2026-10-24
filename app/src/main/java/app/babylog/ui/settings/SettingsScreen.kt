@@ -1,5 +1,8 @@
 package app.babylog.ui.settings
 
+import app.babylog.domain.TimeFormat
+import app.babylog.domain.TemperatureUnit
+import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -63,7 +66,10 @@ private const val MIN_GESTATION_DAYS = 140
 private const val MAX_PRESET_ML = 1000
 
 /** "18:00" — the night window is hour-granular, so minutes would be false precision. */
-private fun hourLabel(hour: Int): String = String.format(Locale.ENGLISH, "%02d:00", hour)
+@Composable
+private fun hourLabel(hour: Int): String = java.time.LocalTime.of(hour, 0).format(
+    java.time.format.DateTimeFormatter.ofPattern(
+        if (LocalTimeFormat.current == TimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm", Locale.ENGLISH))
 
 /**
  * Settings, one CARD per section.
@@ -93,6 +99,8 @@ fun SettingsScreen(
     onLengthUnit: (LengthUnit) -> Unit,
     onWeightUnit: (WeightUnit) -> Unit,
     onVolumeUnit: (VolumeUnit) -> Unit,
+    onTemperatureUnit: (TemperatureUnit) -> Unit = {},
+    onTimeFormat: (TimeFormat) -> Unit = {},
     onNightStart: (Int) -> Unit,
     onNightEnd: (Int) -> Unit,
     onAddPreset: (Int) -> Unit,
@@ -203,12 +211,13 @@ fun SettingsScreen(
                     labelOf = { if (it == VolumeUnit.FLUID_OUNCES) "fl oz" else "ml" },
                     onSelect = onVolumeUnit,
                 )
-                Text(
-                    text = "Temperature is always Celsius \u2014 there is no Fahrenheit option, on purpose.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                ChipRow(label = "Temperature", options = TemperatureUnit.entries,
+                    selected = units.temperature, accent = selection,
+                    labelOf = { it.label }, onSelect = onTemperatureUnit)
+                ChipRow(label = "Time format", options = TimeFormat.entries,
+                    selected = LocalTimeFormat.current, accent = selection,
+                    labelOf = { if (it == TimeFormat.TWELVE_HOUR) "12-hour" else "24-hour" },
+                    onSelect = onTimeFormat)
             }
         }
 

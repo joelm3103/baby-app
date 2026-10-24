@@ -1,5 +1,8 @@
 package app.babylog.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import app.babylog.domain.TimeFormat
+import app.babylog.domain.UnitPreferences
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,6 +15,8 @@ import app.babylog.ui.theme.BabyLogTheme
 @Composable
 fun AppRoot(container: AppContainer) {
     val themeMode by container.settings.theme.collectAsState(initial = ThemeMode.SYSTEM)
+    val timeFormat by container.settings.timeFormat.collectAsState(initial = TimeFormat.TWENTY_FOUR_HOUR)
+    val units by container.settings.units.collectAsState(initial = UnitPreferences())
     val dark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.DARK -> true
@@ -30,6 +35,8 @@ fun AppRoot(container: AppContainer) {
     }
 
     BabyLogTheme(darkTheme = dark) {
-        AppScaffold(container)
+        CompositionLocalProvider(LocalTimeFormat provides timeFormat, LocalTemperatureUnit provides units.temperature) {
+            AppScaffold(container)
+        }
     }
 }

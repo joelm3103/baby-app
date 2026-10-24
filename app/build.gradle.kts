@@ -37,10 +37,10 @@ android {
         applicationId = "app.babylog"
         minSdk = 26
         targetSdk = 36
-        // 0.9.1: the per-activity glyphs. Polish on the 0.9.0 rung, so a PATCH bump and the next
-        // versionCode - the ladder's next capability rung is still 0.10.0 (Phase 13.1).
-        versionCode = 12
-        versionName = "0.9.1"
+        // Phase 13.1: explicit 12/24-hour and Celsius/Fahrenheit display preferences.
+        // Storage stays canonical; this is the next capability rung after 0.9.1.
+        versionCode = 13
+        versionName = "0.10.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

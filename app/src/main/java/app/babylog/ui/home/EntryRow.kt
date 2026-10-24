@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,7 +85,7 @@ internal fun EntryRow(
             if (fever) FeverBadge()
         }
         Text(
-            text = clockTime(event.startedAt, zone),
+            text = clockTime(event.startedAt, zone, LocalTimeFormat.current),
             style = MaterialTheme.typography.bodySmall,
             color = if (onCard) colors.textOnCard else colors.textSecondary,
             maxLines = 1,

@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.domain.TemperatureUnit
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.UnitPreferences
@@ -42,7 +43,7 @@ fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = 
         formatLength(mm.toDouble(), units.length).let { v -> v.substringBeforeLast(" ") to v.substringAfterLast(" ") }
     }
     EventType.HEALTH -> event.temperatureC?.let { c ->
-        formatTemperature(c).removeSuffix(" \u00b0C") to "\u00b0C"
+        formatTemperature(c, units.temperature).removeSuffix(" ${units.temperature.label}") to units.temperature.label
     }
 }
 
@@ -178,7 +179,7 @@ fun recentRowLabel(event: BabyEvent, units: UnitPreferences): String = when (eve
     // row read "Health" and looked identical to a vaccine - while the temperature itself was the card's
     // headline and never appeared in the list. The rows and the headline now agree, which is the rule
     // `PLAN.md`'s Phase 9.1 set for every other card.
-    EventType.HEALTH -> healthRecordLine(event)
+    EventType.HEALTH -> healthRecordLine(event, units.temperature)
         .ifEmpty { event.vaccineName?.let(::vaccineLabel) ?: "Health" }
     else -> detailLine(event, units)
 }
@@ -222,15 +223,15 @@ fun healthLatest(entries: List<BabyEvent>): HealthLatest {
  * [fever] on a line is what the card turns into the `Fever` pill, so the marker travels with the reading
  * rather than being re-derived by the renderer.
  */
-fun healthLines(latest: HealthLatest): List<ChildLine> {
+fun healthLines(latest: HealthLatest, unit: TemperatureUnit = TemperatureUnit.CELSIUS): List<ChildLine> {
     val temperature = latest.temperature
     val medication = latest.medication
     val sameRecord = temperature != null && medication != null && temperature.id == medication.id
     return listOfNotNull(
         when {
-            sameRecord -> ChildLine(healthRecordLine(temperature!!), fever = isFever(temperature.temperatureC))
+            sameRecord -> ChildLine(healthRecordLine(temperature!!, unit), fever = isFever(temperature.temperatureC))
             temperature != null -> ChildLine(
-                formatTemperature(temperature.temperatureC!!),
+                formatTemperature(temperature.temperatureC!!, unit),
                 fever = isFever(temperature.temperatureC),
             )
             else -> null
@@ -248,8 +249,8 @@ fun healthLines(latest: HealthLatest): List<ChildLine> {
  * it was for, so the row carries both while the card's detail line stays free of the number the headline
  * already shows.
  */
-fun healthRecordLine(event: BabyEvent): String = listOfNotNull(
-    event.temperatureC?.let { formatTemperature(it) },
+fun healthRecordLine(event: BabyEvent, unit: TemperatureUnit = TemperatureUnit.CELSIUS): String = listOfNotNull(
+    event.temperatureC?.let { formatTemperature(it, unit) },
     medicationWithDose(event),
 ).joinToString(" \u00b7 ")
 
@@ -263,12 +264,12 @@ fun vaccineLabel(name: String): String =
 /** One child's lines for the Both-mode Health card. [hasData] false means show the empty line instead. */
 data class ChildHealth(val childId: String, val lines: List<ChildLine>, val hasData: Boolean)
 
-fun healthByChild(entries: List<BabyEvent>, childIds: List<String>): List<ChildHealth> =
+fun healthByChild(entries: List<BabyEvent>, childIds: List<String>, unit: TemperatureUnit = TemperatureUnit.CELSIUS): List<ChildHealth> =
     childIds.map { childId ->
         val latest = healthLatest(entries.filter { it.childId == childId })
         ChildHealth(
             childId = childId,
-            lines = healthLines(latest),
+            lines = healthLines(latest, unit),
             hasData = !latest.isEmpty,
         )
     }
@@ -298,7 +299,7 @@ fun cardColumns(
 ): List<ChildColumn>? = when (type) {
     EventType.GROWTH -> growthByChild(entries, childIds, units)
         .map { column -> ChildColumn(column.childId, column.lines.map { ChildLine(it) }, column.hasData) }
-    EventType.HEALTH -> healthByChild(entries, childIds)
+    EventType.HEALTH -> healthByChild(entries, childIds, units.temperature)
         .map { column ->
             ChildColumn(
                 childId = column.childId,

@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -194,7 +195,7 @@ fun TimeRow(
 ) {
     var picking by remember { mutableStateOf(false) }
     InputRow(label = label, onClick = { picking = true }) {
-        InputValue(clockTime(instantMs, zone))
+        InputValue(clockTime(instantMs, zone, LocalTimeFormat.current))
     }
     if (picking) {
         TimeOfDayDialog(
@@ -218,11 +219,11 @@ private fun TimeOfDayDialog(
     onConfirm: (Int, Int) -> Unit,
 ) {
     val local = Instant.ofEpochMilli(instantMs).atZone(zone).toLocalTime()
-    // 24-hour, matching clockTime()'s HH:mm so the picker and the row never disagree.
+    // Match the selected clock format in both the picker and the row.
     val state = rememberTimePickerState(
         initialHour = local.hour,
         initialMinute = local.minute,
-        is24Hour = true,
+        is24Hour = LocalTimeFormat.current == app.babylog.domain.TimeFormat.TWENTY_FOUR_HOUR,
     )
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -53,6 +53,17 @@ class SettingsRepositoryTest {
         tempDir.deleteRecursively()
     }
 
+    @Test
+    fun `display preferences persist independently of unit presets`() = runBlocking {
+        assertEquals(app.babylog.domain.TimeFormat.TWENTY_FOUR_HOUR, settings.timeFormat.first())
+        assertEquals(app.babylog.domain.TemperatureUnit.CELSIUS, settings.units.first().temperature)
+        settings.setTimeFormat(app.babylog.domain.TimeFormat.TWELVE_HOUR)
+        settings.setTemperatureUnit(app.babylog.domain.TemperatureUnit.FAHRENHEIT)
+        settings.setUnitSystem(app.babylog.domain.UnitSystem.IMPERIAL)
+        assertEquals(app.babylog.domain.TimeFormat.TWELVE_HOUR, settings.timeFormat.first())
+        assertEquals(app.babylog.domain.TemperatureUnit.FAHRENHEIT, settings.units.first().temperature)
+    }
+
     // ---- night window ------------------------------------------------------
 
     @Test

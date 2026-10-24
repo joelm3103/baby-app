@@ -1,5 +1,7 @@
 package app.babylog.ui.home
 
+import app.babylog.domain.TemperatureUnit
+import app.babylog.domain.toCelsius
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
@@ -15,9 +17,8 @@ import app.babylog.domain.formatTemperature
  * composable, a device or a screenshot: the plausibility range, both "at least one field" rules, and
  * the rule that an untouched prefill keeps its stored value.
  *
- * A temperature is stored exactly as typed — Celsius, the only unit this app has. The range guard is
- * the reason: a Fahrenheit reading (100.4) typed into the Celsius box is outside 30.0-45.0 and is
- * refused rather than stored, which is the difference between a wrong number and a saved wrong number.
+ * Temperature input uses the selected unit, validates the canonical Celsius range, and
+ * preserves an untouched stored value rather than rounding it through the display.
  */
 
 /** Below and above these a temperature is a typo, or a Fahrenheit reading in a Celsius box. */
@@ -57,7 +58,13 @@ data class HealthValues(
  * "38.2.1" is a typo, not a temperature. A blank sheet is not an error: it is an incomplete one, and
  * the sheet says so in words rather than leaving a dead button unexplained.
  */
-data class HealthRead(val values: HealthValues, val error: String?)
+data class HealthRead(
+    val values: HealthValues,
+    val temperatureError: String?,
+    val doseError: String?,
+) {
+    val error: String? get() = temperatureError ?: doseError
+}
 
 /** What the parent typed on the vaccine sheet. */
 data class VaccineFields(val vaccineName: String = "")
@@ -71,11 +78,11 @@ data class VaccineRead(val vaccineName: String?, val error: String? = null)
  * Derived from `formatTemperature` rather than formatted again here, so the sheet opens on exactly the
  * number the card shows — a second formatting rule is how the two drift apart.
  */
-fun editableTemperature(celsius: Double): String = formatTemperature(celsius).removeSuffix(" \u00b0C")
+fun editableTemperature(celsius: Double, unit: TemperatureUnit = TemperatureUnit.CELSIUS): String = formatTemperature(celsius, unit).removeSuffix(" ${unit.label}")
 
 /** The fields a stored row opens with. Also the text that counts as "untouched". */
-fun healthFieldsFor(values: HealthValues): HealthFields = HealthFields(
-    temperature = values.temperatureC?.let(::editableTemperature).orEmpty(),
+fun healthFieldsFor(values: HealthValues, unit: TemperatureUnit = TemperatureUnit.CELSIUS): HealthFields = HealthFields(
+    temperature = values.temperatureC?.let { editableTemperature(it, unit) }.orEmpty(),
     medication = values.medication.orEmpty(),
     dose = values.doseAmount?.let(::editableDose).orEmpty(),
     doseUnit = values.doseUnit,
@@ -96,9 +103,9 @@ fun editableDose(amount: Double): String = doseNumber(amount)
  * is the Phase-9 defect that rewrote a bottle's 90 ml as 89 ml, closed here the same way
  * `readGrowth` closes it.
  */
-fun readHealth(fields: HealthFields, initial: HealthValues? = null): HealthRead {
-    val seed = initial?.let(::healthFieldsFor)
-    val temperature = readTemperature(fields.temperature, seed?.temperature, initial?.temperatureC)
+fun readHealth(fields: HealthFields, initial: HealthValues? = null, unit: TemperatureUnit = TemperatureUnit.CELSIUS): HealthRead {
+    val seed = initial?.let { healthFieldsFor(it, unit) }
+    val temperature = readTemperature(fields.temperature, seed?.temperature, initial?.temperatureC, unit)
     val dose = readDose(fields.dose, fields.doseUnit, seed?.dose, initial)
     return HealthRead(
         values = HealthValues(
@@ -107,7 +114,8 @@ fun readHealth(fields: HealthFields, initial: HealthValues? = null): HealthRead 
             doseAmount = dose.first,
             doseUnit = dose.second,
         ),
-        error = temperature.second ?: dose.third,
+        temperatureError = temperature.second,
+        doseError = dose.third,
     )
 }
 
@@ -182,15 +190,17 @@ private fun readTemperature(
     text: String,
     seedText: String?,
     initialCelsius: Double?,
+    unit: TemperatureUnit,
 ): Pair<Double?, String?> {
     if (text.isBlank()) return null to null
     if (seedText != null && text == seedText && initialCelsius != null) return initialCelsius to null
-    val celsius = text.trim().toDoubleOrNull()
+    val value = text.trim().toDoubleOrNull()
         ?: return null to "Check the temperature \u2014 \"$text\" is not a number."
-    if (celsius < MIN_TEMPERATURE_C || celsius > MAX_TEMPERATURE_C) {
+    val celsius = toCelsius(value, unit)
+    if (!celsius.isFinite() || celsius < MIN_TEMPERATURE_C || celsius > MAX_TEMPERATURE_C) {
         return null to "Temperature must be between " +
-            "${editableTemperature(MIN_TEMPERATURE_C)} and ${editableTemperature(MAX_TEMPERATURE_C)} " +
-            "\u00b0C \u2014 this app records Celsius only."
+            "${editableTemperature(MIN_TEMPERATURE_C, unit)} and ${editableTemperature(MAX_TEMPERATURE_C, unit)} " +
+            "${unit.label}."
     }
     return celsius to null
 }

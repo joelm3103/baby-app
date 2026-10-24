@@ -106,7 +106,7 @@ fun totalsFor(
         EventType.SOLIDS -> solidsTotal(forType, children)
         EventType.SLEEP -> sleepTotal(forType, children)
         EventType.GROWTH -> growthTotal(forType, children, units, zone)
-        EventType.HEALTH -> healthTotal(forType, children, zone)
+        EventType.HEALTH -> healthTotal(forType, children, zone, units)
     }
 }
 
@@ -248,7 +248,7 @@ private fun growthTotal(
     )
 }
 
-private fun healthTotal(events: List<BabyEvent>, children: List<Child>, zone: ZoneId): ActivityTotal {
+private fun healthTotal(events: List<BabyEvent>, children: List<Child>, zone: ZoneId, units: UnitPreferences): ActivityTotal {
     val ordered = events.sortedByDescending { it.startedAt }
     val latestReading = ordered.firstOrNull { it.temperatureC != null }
     val latestMedication = ordered.firstOrNull { it.medication != null }
@@ -269,8 +269,8 @@ private fun healthTotal(events: List<BabyEvent>, children: List<Child>, zone: Zo
     }
     return ActivityTotal(
         type = EventType.HEALTH,
-        headline = latestReading?.temperatureC?.let { formatTemperature(it).removeSuffix(" \u00b0C") } ?: DASH,
-        unit = if (latestReading != null) "\u00b0C" else null,
+        headline = latestReading?.temperatureC?.let { formatTemperature(it, units.temperature).removeSuffix(" ${units.temperature.label}") } ?: DASH,
+        unit = if (latestReading != null) units.temperature.label else null,
         rows = rows,
         perChild = children.map { child ->
             TotalRow(child.name, events.count { it.childId == child.id }.toString())

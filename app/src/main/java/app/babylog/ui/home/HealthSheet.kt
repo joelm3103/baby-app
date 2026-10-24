@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.ui.LocalTemperatureUnit
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -71,6 +72,7 @@ fun HealthSheet(
     initial: BabyEvent? = null,
 ) {
     val colors = BabyLogTheme.colors
+    val temperatureUnit = LocalTemperatureUnit.current
     val initialValues = HealthValues(
         temperatureC = initial?.temperatureC,
         medication = initial?.medication,
@@ -78,7 +80,7 @@ fun HealthSheet(
         doseUnit = initial?.doseUnit,
     )
     // The stored row, rendered for the fields — and the text that counts as "untouched".
-    val seed = remember(initial) { healthFieldsFor(initialValues) }
+    val seed = remember(initial, temperatureUnit) { healthFieldsFor(initialValues, temperatureUnit) }
 
     var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
     var fields by remember(seed) { mutableStateOf(seed) }
@@ -104,7 +106,7 @@ fun HealthSheet(
         }
     }
 
-    val read = readHealth(fields, initialValues)
+    val read = readHealth(fields, initialValues, temperatureUnit)
     val hints = lastDoses(fields.medication)
 
     ActivitySheet(
@@ -136,12 +138,21 @@ fun HealthSheet(
         TimeRow(instantMs = startedAt, zone = zone, onChange = { startedAt = it })
 
         TextFieldRow(
-            label = "Temperature (\u00b0C)",
+            label = "Temperature (${temperatureUnit.label})",
             value = fields.temperature,
             onValueChange = { typed -> fields = fields.copy(temperature = decimalInput(typed)) },
             placeholder = "e.g. 38.2",
             keyboardType = KeyboardType.Decimal,
         )
+
+        read.temperatureError?.let { error ->
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.danger,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
 
         InputRow(label = "Medication", onClick = { medicationMenu = true }) {
             InputValue(fields.medication.ifBlank { "Choose or type" })
@@ -249,14 +260,14 @@ fun HealthSheet(
             modifier = Modifier.padding(top = 8.dp),
         )
 
-        if (read.error != null) {
+        if (read.doseError != null) {
             Text(
-                text = read.error,
+                text = read.doseError,
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.danger,
                 modifier = Modifier.padding(top = 12.dp),
             )
-        } else if (read.values.isEmpty) {
+        } else if (read.error == null && read.values.isEmpty) {
             // Save is disabled in this state; say why rather than leaving a dead button.
             Text(
                 text = "Enter a temperature or a medication.",

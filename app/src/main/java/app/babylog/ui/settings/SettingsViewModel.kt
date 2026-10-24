@@ -90,6 +90,9 @@ class SettingsViewModel(
 
     fun setWeightUnit(unit: WeightUnit) = viewModelScope.launch { settings.setWeightUnit(unit) }
 
+    fun setTemperatureUnit(unit: app.babylog.domain.TemperatureUnit) = viewModelScope.launch { settings.setTemperatureUnit(unit) }
+    fun setTimeFormat(format: app.babylog.domain.TimeFormat) = viewModelScope.launch { settings.setTimeFormat(format) }
+
     fun setVolumeUnit(unit: VolumeUnit) = viewModelScope.launch { settings.setVolumeUnit(unit) }
 
     fun setNightStartHour(hour: Int) = viewModelScope.launch { settings.setNightStartHour(hour) }

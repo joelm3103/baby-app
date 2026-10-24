@@ -1,5 +1,7 @@
 package app.babylog.data.repo
 
+import app.babylog.domain.TemperatureUnit
+import app.babylog.domain.TimeFormat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -35,8 +37,16 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             length = enumOrDefault(prefs[KEY_LENGTH], LengthUnit.CENTIMETRES),
             weight = enumOrDefault(prefs[KEY_WEIGHT], WeightUnit.KILOGRAMS),
             volume = enumOrDefault(prefs[KEY_VOLUME], VolumeUnit.MILLILITRES),
+            temperature = enumOrDefault(prefs[KEY_TEMPERATURE], TemperatureUnit.CELSIUS),
         )
     }
+
+    val timeFormat: Flow<TimeFormat> = dataStore.data.map {
+        enumOrDefault(it[KEY_TIME_FORMAT], TimeFormat.TWENTY_FOUR_HOUR)
+    }
+
+    suspend fun setTimeFormat(format: TimeFormat) = dataStore.edit { it[KEY_TIME_FORMAT] = format.name }
+    suspend fun setTemperatureUnit(unit: TemperatureUnit) = dataStore.edit { it[KEY_TEMPERATURE] = unit.name }
 
     val selectedChild: Flow<ChildSelection> =
         dataStore.data.map { decodeChildSelection(it[KEY_SELECTED_CHILD]) }
@@ -181,6 +191,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     private companion object {
         val KEY_LENGTH = stringPreferencesKey("units.length")
         val KEY_WEIGHT = stringPreferencesKey("units.weight")
+        val KEY_TEMPERATURE = stringPreferencesKey("units.temperature")
+        val KEY_TIME_FORMAT = stringPreferencesKey("time.format")
         val KEY_VOLUME = stringPreferencesKey("units.volume")
         val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
         val KEY_THEME = stringPreferencesKey("ui.theme")

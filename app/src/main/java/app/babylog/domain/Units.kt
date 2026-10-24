@@ -11,8 +11,7 @@ import kotlin.math.roundToInt
  * (percentiles, totals, comparisons) on one unit system and makes setting changes
  * non-destructive: flipping to imperial never rewrites stored values.
  *
- * **Temperature has no imperial option, deliberately.** Celsius only, no setting, no
- * conversion path. See `.hermes/skills/babylog-ui/references/style-guide.md`.
+ * Temperature is independently selectable; storage and fever comparisons remain Celsius.
  *
  * Exact factors (all defined, not approximated):
  *  - 1 inch          = 25.4 mm
@@ -27,6 +26,8 @@ import kotlin.math.roundToInt
 enum class LengthUnit { INCHES, CENTIMETRES }
 enum class WeightUnit { POUNDS_OUNCES, KILOGRAMS }
 enum class VolumeUnit { FLUID_OUNCES, MILLILITRES }
+
+enum class TemperatureUnit(val label: String) { CELSIUS("°C"), FAHRENHEIT("°F") }
 
 enum class UnitSystem { IMPERIAL, METRIC, CUSTOM }
 
@@ -47,11 +48,12 @@ data class UnitPreferences(
     val length: LengthUnit = LengthUnit.CENTIMETRES,
     val weight: WeightUnit = WeightUnit.KILOGRAMS,
     val volume: VolumeUnit = VolumeUnit.MILLILITRES,
+    val temperature: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) {
     val system: UnitSystem
         get() = when {
-            this == Imperial -> UnitSystem.IMPERIAL
-            this == Metric -> UnitSystem.METRIC
+            copy(temperature = TemperatureUnit.CELSIUS) == Imperial -> UnitSystem.IMPERIAL
+            copy(temperature = TemperatureUnit.CELSIUS) == Metric -> UnitSystem.METRIC
             else -> UnitSystem.CUSTOM
         }
 
@@ -94,11 +96,16 @@ fun formatVolume(millilitres: Double, unit: VolumeUnit): String = when (unit) {
 }
 
 /**
- * Always Celsius, always one decimal. There is no Fahrenheit path in this app — a
- * temperature in °F is not a unit preference, it is a different number waiting to be
- * misread during a fever.
+ * Convert temperature at the input/display boundary only.
  */
-fun formatTemperature(celsius: Double): String = "${trimZero(celsius, 1)} °C"
+fun fromCelsius(celsius: Double, unit: TemperatureUnit): Double =
+    if (unit == TemperatureUnit.FAHRENHEIT) celsius * 9.0 / 5.0 + 32.0 else celsius
+
+fun toCelsius(value: Double, unit: TemperatureUnit): Double =
+    if (unit == TemperatureUnit.FAHRENHEIT) (value - 32.0) * 5.0 / 9.0 else value
+
+fun formatTemperature(celsius: Double, unit: TemperatureUnit = TemperatureUnit.CELSIUS): String =
+    "${trimZero(fromCelsius(celsius, unit), 1)} ${unit.label}"
 
 // ---------------------------------------------------------------- input → canonical
 

@@ -1,5 +1,8 @@
 package app.babylog.ui.trends
 
+import app.babylog.ui.LocalTemperatureUnit
+import app.babylog.ui.LocalTimeFormat
+import app.babylog.domain.clockTime
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -175,7 +178,7 @@ private fun ReadingRow(reading: FeverReading, zone: ZoneId, showChild: Boolean, 
             }
         }
         Text(
-            text = formatTemperature(reading.temperatureC),
+            text = formatTemperature(reading.temperatureC, LocalTemperatureUnit.current),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = colors.textPrimary,
@@ -211,10 +214,10 @@ private fun DataRow(label: String, value: String) {
     }
 }
 
-private val readingFormat: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.ENGLISH)
-
+@Composable
 private fun readingLabel(at: Long, zone: ZoneId): String =
-    Instant.ofEpochMilli(at).atZone(zone).format(readingFormat)
+    Instant.ofEpochMilli(at).atZone(zone).format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)) +
+        " " + clockTime(at, zone, LocalTimeFormat.current)
 
-private fun formatThreshold(): String = formatTemperature(FEVER_C)
+@Composable
+private fun formatThreshold(): String = formatTemperature(FEVER_C, LocalTemperatureUnit.current)

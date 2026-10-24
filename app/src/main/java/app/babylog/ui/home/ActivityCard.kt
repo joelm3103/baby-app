@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -246,7 +247,7 @@ fun ActivityCard(
                             ) {
                                 ChildBadge(initials = childInitials[headline.childId] ?: "?", size = Spacing.rowBadge)
                                 Text(
-                                    text = clockTime(headline.startedAt, zone),
+                                    text = clockTime(headline.startedAt, zone, LocalTimeFormat.current),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.textOnCard,
                                 )

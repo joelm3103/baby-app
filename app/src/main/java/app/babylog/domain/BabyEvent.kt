@@ -69,7 +69,7 @@ enum class FoodReaction { LOVED_IT, ALLERGY_OR_SENSITIVITY }
  * sync paths for no benefit at this size.
  *
  * Timestamps are epoch millis UTC. Quantities are canonical metric — grams, millimetres, millilitres —
- * converted for display only. Temperature is Celsius, always.
+ * converted for display only. Temperature is stored in Celsius; display and input follow the preference.
  */
 data class BabyEvent(
     val id: String,

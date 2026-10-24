@@ -57,7 +57,7 @@ Shaped by 15 real screenshots of an existing tracker plus three bugs reported fr
 | 9 | **Summary** | 1d / 7d / 14d totals per activity, with activity filter chips and one `All` / `None` bulk chip |
 | 10 | **Trends** | Charts over time: bottle volume, solids, diapers and sleep per day (7d / 14d / 30d), one line per child; Growth's percentiles keep their own tab, and Health is a dated fever table |
 | 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |
-| 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature is **always °C** |
+| 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature has an independent °C / °F preference, and time has an independent 12 / 24-hour preference |
 | 12 | **Three tabs** | Activity · Summary · Trends. Settings is a header icon |
 | 13 | **Follow the system theme** | Dark (sampled from real screenshots) and light (designed) |
 | 14 | **Two accounts, one shared log**, offline-first | Local DB is the source of truth |

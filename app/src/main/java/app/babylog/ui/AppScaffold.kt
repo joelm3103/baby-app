@@ -413,6 +413,8 @@ fun AppScaffold(container: AppContainer) {
                     onLengthUnit = settingsVm::setLengthUnit,
                     onWeightUnit = settingsVm::setWeightUnit,
                     onVolumeUnit = settingsVm::setVolumeUnit,
+                    onTemperatureUnit = settingsVm::setTemperatureUnit,
+                    onTimeFormat = settingsVm::setTimeFormat,
                     onNightStart = settingsVm::setNightStartHour,
                     onNightEnd = settingsVm::setNightEndHour,
                     onAddPreset = settingsVm::addBottlePreset,
