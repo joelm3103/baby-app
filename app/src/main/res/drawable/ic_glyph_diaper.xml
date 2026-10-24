@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Diaper: a waistband bar above a rounded pad. Outline line-art, tinted at runtime.
+
+  The first attempt drew the nappy as one silhouette — two tabs and a centre dip — and on the phone it
+  read as a letter M repeated down the card, not as an object. Two shapes instead: the bar is wider than
+  the pad, which is what says "nappy" (the tapes) rather than "bowl" (which is what the Solids glyph is).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- waistband, deliberately wider than the pad: the tapes -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.4,6.8 h15.2 v2.8 h-15.2 z" />
+    <!-- pad, rounded at the bottom -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M6.6,9.6 h10.8 v2.9 a5.4,5.4 0 0 1 -10.8,0 z" />
+</vector>

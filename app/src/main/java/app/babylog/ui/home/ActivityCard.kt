@@ -28,6 +28,7 @@ import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
 import app.babylog.domain.elapsed
 import app.babylog.ui.common.RelativeTimeText
+import app.babylog.ui.common.activityPattern
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
@@ -82,6 +83,11 @@ fun ActivityCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
             .background(colors.cardFor(accent))
+            // The activity's own glyph, tiled tone-on-tone behind everything below. Identity by shape
+            // as well as hue: the six tints are 12.5 dE apart, which identifies a section at a glance
+            // but not at arm's length in the dark. Drawn after the fill and before the padding, so it
+            // sits UNDER every label, value and row.
+            .activityPattern(card.type, accent)
             .padding(Spacing.cardPadding),
     ) {
         // 1. header: accent label, relative time of the last event

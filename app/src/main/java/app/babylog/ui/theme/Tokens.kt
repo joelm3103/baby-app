@@ -40,6 +40,13 @@ data class BabyLogColors(
      * Meta text (relative times, recent rows) rendered on a TINTED card. Distinct from
      * `textSecondary`, which is tuned for the plain background: at a 0.26 tint the six card fills
      * carry enough colour that `textSecondary` measures 3.06:1, below AA. This clears 4.5:1 on all six.
+     *
+     * LIFTED when the card got its glyph pattern: the pattern is drawn BEHIND this text, so the text
+     * must clear 4.5:1 against the pattern as well as against the plain tint, and the pattern is the
+     * lighter of the two. Dark `#C2C6D6` measured 3.2:1 on a pattern tile — a fail — so it moved to
+     * `#DCDEE7`, which is 4.5:1 on the worst tile and 5.9:1 on the plain tint. Light moved barely at
+     * all, `#41506B` to `#404E69` (4.5:1 on the worst tile, 5.5:1 on the plain tint), because a
+     * deepened accent tile does not lift a near-white card much. Pinned by `PatternPaletteTest`.
      */
     val textOnCard: Color,
     /**
@@ -92,7 +99,9 @@ val DarkColors = BabyLogColors(
     navInactive = Color(0xFF7E8598),
     navActive = Color(0xFFEAE9EC),
     onAccent = Color(0xFF181A26),
-    textOnCard = Color(0xFFC2C6D6),
+    // Lifted from #C2C6D6 for the card glyph pattern (see textOnCard): 4.5:1 on the worst pattern
+    // tile, 5.9:1 on the plain tint.
+    textOnCard = Color(0xFFDCDEE7),
     // 6.85:1 on background, 6.02:1 on surface; #181A26 text on this fill is 6.85:1.
     danger = Color(0xFFFF7A7A),
     // danger toward white 0.45: 5.71:1 on the Health tint, 4.80:1 worst of the six, 10.39:1 on background.
@@ -124,7 +133,8 @@ val LightColors = BabyLogColors(
     navInactive = Color(0xFF9AA0B4),
     navActive = Color(0xFF1F2333),
     onAccent = Color(0xFFFFFFFF),
-    textOnCard = Color(0xFF41506B),
+    // 4.5:1 on the worst pattern tile, 5.5:1 on the plain tint.
+    textOnCard = Color(0xFF404E69),
     // 6.19:1 on background, 6.54:1 on surface; white text on this fill is 6.54:1.
     danger = Color(0xFFB3261E),
     // danger toward black 0.30: 6.75:1 on the Health tint, 6.71:1 worst of the six, 9.75:1 on background.
@@ -158,6 +168,25 @@ val LocalBabyLogColors = staticCompositionLocalOf { DarkColors }
  * is a lighter cousin of the accent, not the accent itself.
  */
 fun BabyLogColors.cardFor(accent: Color): Color = blend(surface, accent, 0.26f)
+
+/**
+ * How far the card's glyph pattern sits from the card fill: the fill moved this fraction further toward
+ * its own accent. Tone-on-tone, never white.
+ *
+ * Why not white, which is what the reference infographic uses: measured across the six accents and both
+ * themes, a WHITE pattern over our 26% tint fails in both directions. On dark it costs legibility the
+ * moment it is visible — at alpha 0.10 it measures dE 7.8 but drops `textOnCard` to 3.6:1, and at the
+ * alpha needed to match the reference's strength (0.16, dE 12.5) it is 3.1:1. On light it is barely
+ * there at all: white over a near-white tint is dE 1-4 at every one of those alphas.
+ *
+ * 0.14 is the measured compromise. Across the six accents it is dE 7-11 on dark and 7-10 on light, so
+ * the texture is actually visible in both themes, and the one cost is [textOnCard], which was lifted to
+ * keep meta text at 4.5:1 on a tile.
+ */
+const val PATTERN_ALPHA = 0.14f
+
+/** The colour a card's glyph pattern is drawn in: its own hue, one step stronger than the fill. */
+fun BabyLogColors.patternFor(accent: Color): Color = blend(cardFor(accent), accent, PATTERN_ALPHA)
 
 /**
  * The activity label colour ON a tinted card. The raw accent is NOT legible there (3.4-4.3:1), so it

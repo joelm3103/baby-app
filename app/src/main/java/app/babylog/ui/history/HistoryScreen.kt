@@ -31,6 +31,8 @@ import app.babylog.domain.HistoryRange
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.home.ScreenHeader
 import app.babylog.ui.home.FeverBadge
+import app.babylog.ui.common.activityPattern
+import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
@@ -159,6 +161,8 @@ private fun FilterChips(
                     // The activity's OWN accent, matching the card this chip controls, so the filter row
                     // reads as the same colour code as the screen below it.
                     accent = colors.accentFor(type),
+                    // And its glyph, so the chip is the same picture as the card it shows and hides.
+                    icon = type.glyphPainter(),
                     onClick = { onToggle(type) },
                 )
             }
@@ -215,6 +219,9 @@ private fun TotalCard(total: ActivityTotal, showPerChild: Boolean) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
             .background(colors.cardFor(accent))
+            // The same glyph pattern as the dashboard card it totals, so the Summary card and the
+            // home card are recognisably the same activity.
+            .activityPattern(total.type, accent)
             .padding(Spacing.cardPadding),
     ) {
         Text(

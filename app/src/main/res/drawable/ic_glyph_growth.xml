@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Growth: a ruler with uneven ticks. Outline line-art, tinted at runtime.
+
+  A ruler rather than an upward arrow: the card logs a measurement, and "up and to the right" reads as
+  a goal, which is the one thing a percentile chart of a premature baby must not imply.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- body -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.2,8.8 h17.6 v6.4 h-17.6 z" />
+    <!-- ticks, long and short so it reads as a scale rather than a striped box -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M6.9,8.8 v2.2 M10.2,8.8 v3.4 M13.5,8.8 v2.2 M16.8,8.8 v3.4" />
+</vector>

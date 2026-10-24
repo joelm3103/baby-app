@@ -26,6 +26,7 @@ import app.babylog.ui.growth.GrowthChartPane
 import app.babylog.ui.growth.GrowthMetric
 import app.babylog.ui.growth.GrowthUiState
 import app.babylog.ui.home.ChoiceChip
+import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.displayName
@@ -97,6 +98,8 @@ fun TrendsScreen(
                     label = option.displayName(),
                     selected = option == type,
                     accent = colors.accentFor(option),
+                    // The same glyph the activity's card carries, so the tab and the card agree.
+                    icon = option.glyphPainter(),
                     onClick = { onSelectType(option) },
                 )
             }

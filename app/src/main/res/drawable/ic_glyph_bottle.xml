@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bottle feed. Outline line-art, the style the card pattern and the chips both use.
+
+  Stroke-only on a 24dp viewport, tinted at runtime (the accent on a chip, the tone-on-tone pattern
+  colour behind a card), so the colour never lives in the asset.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- teat -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M10.3,3.2 h3.4 v1.5 h-3.4 z" />
+    <!-- collar -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9.6,4.7 h4.8 v1.5 h-4.8 z" />
+    <!-- body, rounded at the bottom -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8.6,6.2 h6.8 v11.4 a2.6,2.6 0 0 1 -2.6,2.6 h-1.6 a2.6,2.6 0 0 1 -2.6,-2.6 z" />
+    <!-- the milk line: a plain bottle and a bottle with something in it are different objects -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M8.6,10.6 h6.8" />
+</vector>

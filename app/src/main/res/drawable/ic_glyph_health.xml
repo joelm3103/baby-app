@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Health: a thermometer. Outline line-art, tinted at runtime.
+
+  The bulb is filled on purpose — a hollow thermometer at 18dp is a lollipop. The fill is the same
+  white as the strokes, so the runtime tint recolours both and the glyph stays one colour.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- stem and bulb outline -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M14.6,13.8 V5.6 a2.6,2.6 0 0 0 -5.2,0 v8.2 a5,5 0 1 0 5.2,0 z" />
+    <!-- mercury in the bulb -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.1,15.5 a1.9,1.9 0 1 1 3.8,0 a1.9,1.9 0 1 1 -3.8,0 z" />
+</vector>

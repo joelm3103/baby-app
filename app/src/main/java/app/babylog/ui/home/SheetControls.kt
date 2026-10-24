@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -262,19 +263,41 @@ fun ChoiceChip(
     accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * An optional leading glyph. Null by default, so every existing chip — ranges, meal slots, diaper
+     * kinds, growth metrics — keeps exactly the metrics it had; only the activity chips pass one.
+     *
+     * Tinted with the RAW accent when the chip is off and `onAccent` when it is on: an accent glyph on
+     * `surfaceRaised` measures 5.1-8.4:1 dark and 4.2-6.5:1 light, above the 3:1 a graphic needs, while
+     * the accent-filled selected chip measures 6.7-11.2:1 dark and 4.7-7.3:1 light against `onAccent`.
+     */
+    icon: Painter? = null,
 ) {
     val colors = BabyLogTheme.colors
-    Text(
-        text = label,
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (selected) colors.onAccent else colors.textPrimary,
-        textAlign = TextAlign.Center,
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(Radius.pill))
             .background(if (selected) accent else colors.surfaceRaised)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (icon != null) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = if (selected) colors.onAccent else accent,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (selected) colors.onAccent else colors.textPrimary,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 /**
