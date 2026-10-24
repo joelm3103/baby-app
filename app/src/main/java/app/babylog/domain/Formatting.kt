@@ -51,7 +51,7 @@ private val dayFormatter: DateTimeFormatter =
 /** Absolute clock time for timeline rows, in the display zone. */
 enum class TimeFormat { TWENTY_FOUR_HOUR, TWELVE_HOUR }
 
-fun clockTime(instantMs: Long, zone: ZoneId, format: TimeFormat = TimeFormat.TWENTY_FOUR_HOUR): String =
+fun clockTime(instantMs: Long, zone: ZoneId, format: TimeFormat = TimeFormat.TWELVE_HOUR): String =
     Instant.ofEpochMilli(instantMs).atZone(zone).toLocalTime()
         .format(DateTimeFormatter.ofPattern(if (format == TimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm", Locale.ENGLISH))
 

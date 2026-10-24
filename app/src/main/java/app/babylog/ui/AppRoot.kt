@@ -15,7 +15,7 @@ import app.babylog.ui.theme.BabyLogTheme
 @Composable
 fun AppRoot(container: AppContainer) {
     val themeMode by container.settings.theme.collectAsState(initial = ThemeMode.SYSTEM)
-    val timeFormat by container.settings.timeFormat.collectAsState(initial = TimeFormat.TWENTY_FOUR_HOUR)
+    val timeFormat by container.settings.timeFormat.collectAsState(initial = TimeFormat.TWELVE_HOUR)
     val units by container.settings.units.collectAsState(initial = UnitPreferences())
     val dark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()

@@ -13,7 +13,7 @@ class DisplayPreferencesTest {
         assertEquals("12:00 AM", clockTime(at("00:00"), zone, TimeFormat.TWELVE_HOUR))
         assertEquals("12:00 PM", clockTime(at("12:00"), zone, TimeFormat.TWELVE_HOUR))
         assertEquals("9:05 PM", clockTime(at("21:05"), zone, TimeFormat.TWELVE_HOUR))
-        assertEquals("21:05", clockTime(at("21:05"), zone))
+        assertEquals("9:05 PM", clockTime(at("21:05"), zone))
     }
     @Test fun `Fahrenheit input converts to canonical Celsius and keeps fever boundary`() {
         val read = readHealth(HealthFields(temperature = "100.4"), unit = TemperatureUnit.FAHRENHEIT)

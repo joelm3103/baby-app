@@ -42,7 +42,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     val timeFormat: Flow<TimeFormat> = dataStore.data.map {
-        enumOrDefault(it[KEY_TIME_FORMAT], TimeFormat.TWENTY_FOUR_HOUR)
+        enumOrDefault(it[KEY_TIME_FORMAT], TimeFormat.TWELVE_HOUR)
     }
 
     suspend fun setTimeFormat(format: TimeFormat) = dataStore.edit { it[KEY_TIME_FORMAT] = format.name }
