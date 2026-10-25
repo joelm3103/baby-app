@@ -51,6 +51,13 @@ fun ActivitySheet(
     saveLabel: String = "Save",
     /** Shown under the title bar, e.g. "for both" — a sheet must say who it is about to log for. */
     subtitle: String? = null,
+    /**
+     * Delete THIS entry, offered inside the sheet when a row is being edited.
+     *
+     * Long-press on a row already deletes, but a parent who has opened a record to change it should not have to close
+     * it and hunt for the row again to remove it. Null for a new record, where there is nothing to delete.
+     */
+    onDelete: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = BabyLogTheme.colors
@@ -113,8 +120,16 @@ fun ActivitySheet(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Spacing.gutter),
-                content = content,
-            )
+            ) {
+                content()
+                if (onDelete != null) {
+                    DangerButton(
+                        label = "Delete this entry",
+                        onClick = onDelete,
+                        modifier = Modifier.padding(top = Spacing.sectionGap, bottom = Spacing.gutter),
+                    )
+                }
+            }
         }
     }
 }

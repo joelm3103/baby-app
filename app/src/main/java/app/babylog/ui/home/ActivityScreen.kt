@@ -32,6 +32,15 @@ fun ActivityScreen(
     onSeeAll: (app.babylog.domain.EventType) -> Unit,
     onEditEntry: (BabyEvent) -> Unit,
     onDeleteEntry: (BabyEvent) -> Unit,
+    /** The armed reminders, soonest first. Empty means the card is not drawn at all. */
+    upcoming: List<app.babylog.domain.UpcomingReminder> = emptyList(),
+    /** Tapping a row opens that activity's reminder sheet, for the child the row names. */
+    onOpenReminder: (app.babylog.domain.EventType, childId: String?) -> Unit = { _, _ -> },
+    /** Each card's reminders, one chip per child in scope, keyed by activity. */
+    reminderChips: Map<app.babylog.domain.EventType, List<app.babylog.domain.ReminderChip>> = emptyMap(),
+    /** The card's `⋮` menu. Growth and Sleep pass nothing, so they have no menu. */
+    onReminderAction: (app.babylog.domain.EventType, ReminderAction, childId: String?) -> Unit =
+        { _, _, _ -> },
     contentPadding: PaddingValues,
     listState: androidx.compose.foundation.lazy.LazyListState = androidx.compose.foundation.lazy.rememberLazyListState(),
     zone: ZoneId = ZoneId.systemDefault(),
@@ -56,6 +65,17 @@ fun ActivityScreen(
                 today = today,
                 modifier = Modifier.padding(top = 8.dp),
             )
+        }
+
+        // Above the cards, because it answers the question the screen is opened with: what is coming.
+        if (upcoming.isNotEmpty()) {
+            item(key = "upcoming-reminders") {
+                UpcomingRemindersCard(
+                    reminders = upcoming,
+                    onOpen = onOpenReminder,
+                    zone = zone,
+                )
+            }
         }
 
         if (state.children.isEmpty()) {
@@ -88,6 +108,13 @@ fun ActivityScreen(
                 onSeeAll = { onSeeAll(card.type) },
                 onEditEntry = onEditEntry,
                 onDeleteEntry = onDeleteEntry,
+                reminderChips = reminderChips[card.type].orEmpty(),
+                // Only the four reminder-capable cards get a menu at all.
+                onReminderAction = if (card.type in app.babylog.domain.REMINDER_TYPES) {
+                    { action, childId -> onReminderAction(card.type, action, childId) }
+                } else {
+                    null
+                },
             )
         }
     }

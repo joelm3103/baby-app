@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.displayName
 import app.babylog.domain.ActivityTotal
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
@@ -39,7 +40,6 @@ import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
-import app.babylog.ui.theme.displayName
 import app.babylog.ui.theme.labelFor
 import java.time.LocalDate
 import java.time.ZoneId

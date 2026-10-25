@@ -52,6 +52,8 @@ fun GrowthSheet(
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
+    /** Offered inside the sheet while editing; null for a new record. */
+    onDelete: (() -> Unit)? = null,
 ) {
     val colors = BabyLogTheme.colors
     val initialValues = GrowthValues(
@@ -75,6 +77,7 @@ fun GrowthSheet(
         subtitle = "for $childLabel",
         saveEnabled = read.error == null && !read.values.isEmpty,
         onDismiss = onDismiss,
+        onDelete = onDelete,
         onSave = {
             onSave(
                 EventDraft(

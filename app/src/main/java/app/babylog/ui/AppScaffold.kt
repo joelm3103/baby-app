@@ -48,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -65,6 +66,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.babylog.data.repo.EventDraft
 import app.babylog.di.AppContainer
+import app.babylog.domain.ChildSelection
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.ReminderKey
+import app.babylog.ui.reminders.ReminderSheet
+import app.babylog.domain.displayName
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.badgesFor
@@ -79,6 +85,7 @@ import app.babylog.ui.home.EventListOverlay
 import app.babylog.ui.home.GrowthSheet
 import app.babylog.ui.home.HealthSheet
 import app.babylog.ui.home.HomeViewModel
+import app.babylog.ui.home.ReminderAction
 import app.babylog.ui.home.SheetTarget
 import app.babylog.ui.home.SolidsSheet
 import app.babylog.ui.home.VaccineSheet
@@ -91,7 +98,6 @@ import app.babylog.BuildConfig
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.displayName
 import androidx.compose.runtime.collectAsState
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -100,6 +106,10 @@ import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 
 enum class Destination(val label: String, val icon: ImageVector) {
     ACTIVITY("Activity", Icons.Filled.Home),
@@ -184,6 +194,7 @@ fun AppScaffold(container: AppContainer) {
         viewModelFactory {
             initializer {
                 SettingsViewModel(
+                    container = container,
                     settings = container.settings,
                     children = container.children,
                     maintenance = container.maintenance,
@@ -194,6 +205,30 @@ fun AppScaffold(container: AppContainer) {
     }
     val settingsVm: SettingsViewModel = viewModel(factory = settingsFactory)
     val settingsChildren by settingsVm.childrenList.collectAsState()
+    val remindersUi by home.remindersUi.collectAsState()
+    val reminderConfigs by home.reminderConfigs.collectAsState()
+    val notificationsEnabled by home.notificationsEnabled.collectAsState()
+    // Which activity's reminder sheet is open, if any. Its own state rather than a ViewModel flow: it is a sheet,
+    // and every other sheet in this app is hosted the same way.
+    // Which activity's reminder sheet is open, and for which child: a chip knows its own child, and with both
+    // children on screen the second chip must open the second twin's rule.
+    var reminderSheet by remember { mutableStateOf<ReminderTarget?>(null) }
+
+    // Arm the reminders on the first frame. Not in Application.onCreate: the container is lazy so a process
+    // started for a broadcast does not open the database and preferences unless it needs them, and a boot
+    // receiver re-arms on its own path.
+    LaunchedEffect(Unit) { container.refreshReminders() }
+
+    // A reminder's tap: switch to Activity and open that activity's sheet FOR THAT CHILD. Collected here rather
+    // than read once in the activity, because the tap can arrive while the app is already on screen.
+    val pendingSheet by container.pendingSheetRequest.collectAsState()
+    LaunchedEffect(pendingSheet) {
+        pendingSheet?.let { request ->
+            destination = Destination.ACTIVITY
+            home.openSheetFor(request.type, request.childId)
+            container.pendingSheetRequest.value = null
+        }
+    }
     val settingsUnits by settingsVm.units.collectAsState()
     val settingsTheme by settingsVm.theme.collectAsState()
     val settingsNight by settingsVm.nightWindow.collectAsState()
@@ -219,6 +254,41 @@ fun AppScaffold(container: AppContainer) {
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
     // user chooses the destination, so the app never owns the file.
     val context = LocalContext.current
+
+    // The notification permission. Requested from the reminder sheet, not on launch: a permission dialog before the
+    // parent has asked for a reminder is the wrong order, and denying it must leave a working app.
+    //
+    // The ViewModel cannot ask this itself (NotificationManagerCompat needs a Context), so the two answers are
+    // handed to it here, where the Context already is.
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { home.refreshNotificationState() }
+    val onRequestNotifications: () -> Unit = {
+        val granted = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !granted) {
+            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // Already allowed, or the OS will no longer show the dialog: the system screen is the only place left
+            // that can change this.
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+        }
+        home.refreshNotificationState()
+    }
+    LaunchedEffect(Unit) {
+        home.checkNotificationsEnabled = {
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+        }
+        // The alarm side of a rule change lives on the container, so the ViewModel is given the one line that
+        // touches it rather than a Context.
+        home.onRemindersChanged = { container.refreshReminders() }
+        home.refreshNotificationState()
+    }
 
     // Google Sign-In, as the SECOND route into the same two accounts. It needs an OAuth web client id
     // and a registered signing-certificate SHA-1, which is why email/password is the primary one: a
@@ -372,7 +442,29 @@ fun AppScaffold(container: AppContainer) {
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
+                    // The Upcoming card names the child in its row, so it opens that child's rule too.
+                    onOpenReminder = { type, childId -> reminderSheet = ReminderTarget(type, childId) },
                     onSeeAll = home::openEntries,
+                    upcoming = remindersUi.upcoming,
+                    reminderChips = remindersUi.chips,
+                    onReminderAction = { type, action, childId ->
+                        when (action) {
+                            ReminderAction.SET -> reminderSheet = ReminderTarget(type, childId)
+                            ReminderAction.REMOVE -> {
+                                // Remove writes a disabled rule rather than deleting the key: "not set" and "set but
+                                // off" are the same thing to the parent, and a disabled rule keeps the interval for
+                                // next time. With no child named (the menu on a Both card) it clears every child in
+                                // scope, because that is what "remove this card's reminder" means when both are shown.
+                                val targets = childId?.let(::listOf) ?: state.childIds.ifEmpty {
+                                    listOfNotNull(settingsChildren.firstOrNull()?.id)
+                                }
+                                targets.forEach { home.removeReminder(type, it) }
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("${type.displayName()} reminder removed")
+                                }
+                            }
+                        }
+                    },
                     onEditEntry = home::editEntry,
                     onDeleteEntry = { pendingDelete = it },
                     contentPadding = padding,
@@ -462,6 +554,46 @@ fun AppScaffold(container: AppContainer) {
         }
     }
 
+        // The reminder sheet. Hosted here rather than inside the Settings destination so it covers the whole
+        // screen including the bottom bar, exactly like a logging sheet - and because the sheet host below is
+        // the one place that already knows how to stack a full-screen editor over anything.
+        // The reminder sheet, opened from a card's `⋮`. Per child only: when two children are on screen the
+        // sheet asks which one, defaulting to the single selected child when the switcher names one.
+        reminderSheet?.let { target ->
+            val type = target.type
+            key(type, target.childId) {
+                val kids = settingsChildren
+                // The chip's own child wins; otherwise the switcher's single child; otherwise the first.
+                val defaultChildId = target.childId
+                    ?: state.childIds.singleOrNull()
+                    ?: kids.firstOrNull()?.id
+                // Every child's rule, so the sheet can follow the child it is editing. `editing` inside the sheet is
+                // about whether a reminder is LIVE, not whether a row exists: removing one writes a disabled rule so
+                // the interval is remembered.
+                ReminderSheet(
+                    type = type,
+                    accent = colors.accentFor(type),
+                    children = kids,
+                    initialChildId = defaultChildId,
+                    configs = kids.mapNotNull { child ->
+                        reminderConfigs[ReminderKey(type, child.id)]?.let { child.id to it }
+                    }.toMap(),
+                    notificationsEnabled = notificationsEnabled,
+                    nightStartHour = settingsNight.startHour,
+                    nightEndHour = settingsNight.endHour,
+                    onDismiss = { reminderSheet = null },
+                    onSave = { childId, config ->
+                        home.saveReminder(type, childId, config)
+                        reminderSheet = null
+                        scope.launch {
+                            snackbarHostState.showSnackbar("${type.displayName()} reminder added")
+                        }
+                    },
+                    onAllowNotifications = onRequestNotifications,
+                )
+            }
+        }
+
         // The percentile chart lives in Trends' Growth tab now, so there is no Growth overlay to host here.
 
         // "See all": every entry of one activity for the current child/both selection. Drawn before the
@@ -509,13 +641,24 @@ fun AppScaffold(container: AppContainer) {
                 val sheetNow = remember(sheetType) { System.currentTimeMillis() }
                 val zone = remember { ZoneId.systemDefault() }
                 val accent = colors.accentFor(sheetType)
-                // Editing says who the row belongs to, which in Both mode is not the switcher's answer.
-                val sheetChildLabel = editingEvent?.let { state.childName(it.childId) } ?: state.childLabel
+                // Editing says who the row belongs to, which in Both mode is not the switcher's answer; a
+                // sheet opened from a reminder says who the REMINDER was about, which is a third answer.
+                val targetChildId = editingEvent?.childId ?: target.childId
+                val sheetChildLabel = targetChildId?.let(state::childName) ?: state.childLabel
+                val sheetChildIds = targetChildId?.let { listOf(it) } ?: state.childIds
                 val onSaveSheet: (EventDraft) -> Unit = { draft ->
-                    if (editingEvent != null) home.saveEdit(editingEvent, draft) else home.save(draft)
+                    if (editingEvent != null) home.saveEdit(editingEvent, draft) else home.save(draft, sheetChildIds)
                 }
                 val onDismissSheet: () -> Unit = {
                     if (editingEvent != null) home.dismissEdit() else home.dismissSheet()
+                }
+                // Delete from inside the sheet: close it, then run the same confirm + Undo path a long-press uses,
+                // so there is one delete story in the app rather than two.
+                val onDeleteEntry: (() -> Unit)? = editingEvent?.let { row ->
+                    {
+                        home.dismissEdit()
+                        pendingDelete = row
+                    }
                 }
                 when (sheetType) {
                     EventType.BOTTLE -> BottleSheet(
@@ -529,6 +672,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     )
                     EventType.DIAPER -> DiaperSheet(
                         accent = accent,
@@ -538,6 +682,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     )
                     EventType.SOLIDS -> SolidsSheet(
                         accent = accent,
@@ -549,6 +694,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     )
                     EventType.GROWTH -> GrowthSheet(
                         accent = accent,
@@ -559,6 +705,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     )
                     EventType.HEALTH -> if (target.vaccine) VaccineSheet(
                         accent = accent,
@@ -568,6 +715,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     ) else HealthSheet(
                         accent = accent,
                         childLabel = sheetChildLabel,
@@ -584,6 +732,7 @@ fun AppScaffold(container: AppContainer) {
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,
+                        onDelete = onDeleteEntry,
                     )
                     // Named rather than swallowed by an `else`, and this `when` has NO else on purpose: a new
                     // EventType must state what its sheet is, or the build fails. The bug this replaces was a
@@ -703,3 +852,6 @@ private fun RowScope.NavItem(
         ),
     )
 }
+
+/** A reminder sheet request: which activity, and which child's rule to open. */
+private data class ReminderTarget(val type: EventType, val childId: String?)

@@ -5,6 +5,11 @@ import androidx.lifecycle.viewModelScope
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.repo.SettingsRepository
+import app.babylog.domain.ChildSelection
+import app.babylog.domain.EventType
+import app.babylog.domain.REMINDER_TYPES
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.ReminderKey
 import app.babylog.data.sync.SyncRepository
 import app.babylog.data.sync.SyncState
 import app.babylog.domain.Child
@@ -21,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,6 +35,7 @@ import kotlinx.coroutines.launch
  * there is exactly one place that decides what a tap means.
  */
 class SettingsViewModel(
+    private val container: app.babylog.di.AppContainer,
     private val settings: SettingsRepository,
     private val children: ChildRepository,
     private val maintenance: MaintenanceRepository,

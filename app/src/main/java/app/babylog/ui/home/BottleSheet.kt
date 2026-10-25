@@ -56,6 +56,8 @@ fun BottleSheet(
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
+    /** Offered inside the sheet while editing; null for a new record. */
+    onDelete: (() -> Unit)? = null,
 ) {
     var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
     var brand by remember { mutableStateOf(initial?.formulaBrand.orEmpty()) }
@@ -85,6 +87,7 @@ fun BottleSheet(
         subtitle = "for $childLabel",
         saveEnabled = amountOk,
         onDismiss = onDismiss,
+        onDelete = onDelete,
         onSave = {
             onSave(
                 EventDraft(

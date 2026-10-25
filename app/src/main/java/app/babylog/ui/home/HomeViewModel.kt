@@ -12,7 +12,21 @@ import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.TimeFormat
+import app.babylog.domain.nextReminderAt
+import app.babylog.domain.reminderChipText
+import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.EventType
+import java.time.ZoneId
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import app.babylog.domain.upcomingReminders
+import app.babylog.domain.UpcomingReminder
+import app.babylog.domain.ReminderKey
+import app.babylog.domain.ReminderArm
+import app.babylog.domain.ReminderChip
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.NightWindow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -69,7 +83,18 @@ data class HomeUiState(
  *
  * [vaccine] is only meaningful for `EventType.HEALTH` and is ignored elsewhere.
  */
-data class SheetTarget(val type: EventType, val vaccine: Boolean = false)
+data class SheetTarget(
+    val type: EventType,
+    val vaccine: Boolean = false,
+    /**
+     * Set when the sheet was opened from a notification, and it is the whole point of that tap.
+     *
+     * The app's child switcher may be pointing at the OTHER twin - a reminder names one child, so the sheet
+     * must log for that child regardless of what the header says. Null means "whatever the switcher has", which
+     * is what every other way of opening a sheet wants.
+     */
+    val childId: String? = null,
+)
 
 /**
  * One screen's state. Built from a SINGLE events query over the selected children rather than six
@@ -128,6 +153,119 @@ class HomeViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
+    /**
+     * Everything the reminder UI needs: the "Upcoming reminders" card's rows, and the per-card chip.
+     *
+     * One flow rather than two, because both are the same question asked twice - "when is the next reminder?" -
+     * and two flows would compute the same anchors twice and could disagree for a frame.
+     *
+     * Computed here rather than in a composable because it needs the whole log (an anchor per activity and child,
+     * not just the selected child's rows) and the stored rules, and because "which reminders are armed" is a fact
+     * about the data that a test can pin.
+     */
+    val remindersUi: StateFlow<RemindersUiState> = combine(
+        children.observeAll(),
+        settings.reminders,
+        settings.nightWindow,
+        settings.timeFormat,
+        settings.selectedChild,
+    ) { kids, configs, night, format, selection ->
+        ReminderRules(kids, configs, night, format, selection)
+    }.flatMapLatest { rules ->
+        allChildrenEvents().map { all -> rules to all }
+    }.map { (rules, all) ->
+        // Newest event per (activity, child), in one pass: asking the database eight times for a value that is
+        // already in memory would be eight queries for the same list.
+        val newest = all.groupBy { it.type to it.childId }.mapValues { (_, rows) -> rows.maxOf { it.startedAt } }
+        val now = System.currentTimeMillis()
+        val zone = ZoneId.systemDefault()
+        val anchorFor: (EventType, String) -> Long? = { type, childId -> newest[type to childId] }
+
+        val upcoming = upcomingReminders(
+            configs = rules.configs,
+            children = rules.children,
+            anchorFor = anchorFor,
+            now = now,
+            zone = zone,
+            night = rules.night,
+        )
+
+        // The chips follow the SWITCHER, because the cards do: a card showing both children says one thing about
+        // both, and a card showing one child says that child's.
+        val inScope = rules.selection.resolve(rules.children.map { it.id })
+        val bothOnScreen = inScope.size > 1
+        val chips = REMINDER_TYPES.mapNotNull { type ->
+            // One chip per child in scope, each with its own next time. With both children on screen that is two
+            // chips, each carrying that child's badge, so which twin is due when needs no reading.
+            val perChild = inScope.mapNotNull { childId ->
+                val config = rules.configs[ReminderKey(type, childId)] ?: return@mapNotNull null
+                if (!config.enabled) return@mapNotNull null
+                val at = nextReminderAt(config, anchorFor(type, childId), now, zone, rules.night)
+                    ?: return@mapNotNull null
+                ReminderChip(
+                    childId = if (bothOnScreen) childId else null,
+                    text = reminderChipText(ReminderArm(config.intervalMinutes, at), zone, rules.format, now),
+                )
+            }
+            perChild.takeIf { it.isNotEmpty() }?.let { type to it }
+        }.toMap()
+
+        RemindersUiState(upcoming = upcoming, chips = chips)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RemindersUiState())
+
+    /** The stored rules, for the sheet to prefill from. */
+    val reminderConfigs: StateFlow<Map<ReminderKey, ReminderConfig>> = settings.reminders
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * Whether notifications are allowed.
+     *
+     * Sampled once per subscription rather than polled: the only ways it changes are the permission dialog this app
+     * raises and the system's own settings screen, and the sheet re-reads it every time it opens.
+     */
+    private val _notificationsEnabled = MutableStateFlow(true)
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
+
+    /** Re-read after the permission dialog or a trip to the system settings, both of which happen outside the app. */
+    fun refreshNotificationState() {
+        _notificationsEnabled.value = checkNotificationsEnabled()
+    }
+
+    /**
+     * Supplied by the caller because the answer lives on the container (NotificationManagerCompat needs a Context),
+     * and a ViewModel that reached for a Context would stop being testable.
+     */
+    var checkNotificationsEnabled: () -> Boolean = { true }
+
+    /** Save one child's rule, or clear it. Called from the card's menu. */
+    fun saveReminder(type: EventType, childId: String, config: ReminderConfig) = viewModelScope.launch {
+        // Stamp when the rule was set: it is the anchor for a child who has never had this activity logged, so a
+        // brand-new reminder rings once instead of never.
+        val stamped = if (config.enabled) config.copy(anchorAt = System.currentTimeMillis()) else config
+        settings.setReminder(ReminderKey(type, childId), stamped)
+        // An alarm has to be armed or cancelled the moment the rule changes, not at the next launch.
+        onRemindersChanged()
+    }
+
+    fun removeReminder(type: EventType, childId: String) = viewModelScope.launch {
+        settings.setReminder(ReminderKey(type, childId), ReminderConfig())
+        onRemindersChanged()
+    }
+
+    /**
+     * Re-arm after a rule change.
+     *
+     * A callback rather than a container reference: the ViewModel already knows how to write a rule, and the
+     * scheduler lives on the container, so the caller supplies the one line that touches it.
+     */
+    var onRemindersChanged: suspend () -> Unit = {}
+
+    /** Every child's rows, regardless of the switcher: an anchor belongs to a child, not to the selection. */
+    private fun allChildrenEvents() = children.observeAll()
+        .map { kids -> kids.map { it.id } }
+        .distinctUntilChanged()
+        .flatMapLatest { ids -> if (ids.isEmpty()) flowOf(emptyList()) else events.observeForChildren(ids) }
+
     init {
         // Keep the stored selection valid as children are added or removed. Only a selection that has
         // become IMPOSSIBLE is corrected — a deliberate single-child choice at two children is left
@@ -180,8 +318,8 @@ class HomeViewModel(
      * `log` call — so Both mode writes one row per child with an identical timestamp instead of the
      * sheet knowing (or caring) how many children are in scope.
      */
-    fun save(draft: EventDraft) {
-        val ids = state.value.childIds
+    fun save(draft: EventDraft, childIds: List<String> = state.value.childIds) {
+        val ids = childIds
         if (ids.isEmpty()) return
         viewModelScope.launch {
             events.log(ids, draft, createdBy = CREATED_BY)
@@ -200,6 +338,16 @@ class HomeViewModel(
      */
     fun openSheet(type: EventType) {
         _openSheet.value = SheetTarget(type)
+    }
+
+    /**
+     * Opens the sheet for one child, which is what a reminder's tap does.
+     *
+     * Separate from [openSheet] rather than an optional argument, so a caller that has a child id cannot forget
+     * it and quietly log for whoever the header happens to be showing.
+     */
+    fun openSheetFor(type: EventType, childId: String) {
+        _openSheet.value = SheetTarget(type, childId = childId)
     }
 
     /** The Health card's second action: the vaccine form, not the temperature one. */
@@ -253,3 +401,18 @@ class HomeViewModel(
         const val CREATED_BY = "local"
     }
 }
+
+/** What the reminder UI shows: the upcoming rows, and the per-card chips keyed by activity. */
+data class RemindersUiState(
+    val upcoming: List<UpcomingReminder> = emptyList(),
+    val chips: Map<EventType, List<ReminderChip>> = emptyMap(),
+)
+
+/** The five stored inputs the reminder computation needs, bundled so the `combine` stays readable. */
+private data class ReminderRules(
+    val children: List<Child>,
+    val configs: Map<ReminderKey, ReminderConfig>,
+    val night: NightWindow,
+    val format: TimeFormat,
+    val selection: ChildSelection,
+)

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -212,7 +213,7 @@ fun TimeRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimeOfDayDialog(
+internal fun TimeOfDayDialog(
     instantMs: Long,
     zone: ZoneId,
     onDismiss: () -> Unit,
@@ -365,6 +366,14 @@ fun StepperRow(
     value: String,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
+    /**
+     * A fixed width for the value slot, or null to size it to its text.
+     *
+     * The reminder interval needs it: `1h` and `1h 30m` are different widths, so without a slot the -/+ buttons
+     * shuffle sideways every time the value changes - which is exactly what the phone showed. A Settings stepper
+     * whose values are all one width does not need it.
+     */
+    valueWidth: androidx.compose.ui.unit.Dp? = null,
 ) {
     val colors = BabyLogTheme.colors
     InputRow(label = label) {
@@ -373,12 +382,17 @@ fun StepperRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             StepButton("\u2212", onDecrease)
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center,
-            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = if (valueWidth != null) Modifier.width(valueWidth) else Modifier,
+            ) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center,
+                )
+            }
             StepButton("+", onIncrease)
         }
     }

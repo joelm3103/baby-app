@@ -39,6 +39,8 @@ fun VaccineSheet(
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
+    /** Offered inside the sheet while editing; null for a new record. */
+    onDelete: (() -> Unit)? = null,
 ) {
     val colors = BabyLogTheme.colors
     var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
@@ -53,6 +55,7 @@ fun VaccineSheet(
         subtitle = "for $childLabel",
         saveEnabled = read.vaccineName != null,
         onDismiss = onDismiss,
+        onDelete = onDelete,
         onSave = {
             onSave(
                 EventDraft(

@@ -42,8 +42,10 @@ android {
         // 0.11.0 is Phase 13.2, the four temperature bands — a new capability, so a new MINOR rung.
         // 0.12.0 is Phase 13.3, diaper detail: two independent answers plus colour and consistency,
         // which is a new capability and a third schema version, so another MINOR rung.
-        versionCode = 16
-        versionName = "0.12.0"
+        // 0.13.0 is Phase 13.4, activity reminders: local notifications per activity and child, which is
+        // a new capability with no schema change.
+        versionCode = 17
+        versionName = "0.13.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

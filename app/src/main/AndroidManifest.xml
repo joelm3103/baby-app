@@ -5,6 +5,17 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Reminders (Phase 13.4). POST_NOTIFICATIONS is requested at runtime on API 33+; RECEIVE_BOOT_COMPLETED is
+      what lets the alarms be re-armed after a restart, because AlarmManager forgets them.
+
+      Deliberately ABSENT: SCHEDULE_EXACT_ALARM and USE_EXACT_ALARM. Reminders are inexact on purpose - a feed
+      nudge a few minutes late is worth not sending the parent to a special-access screen, and an exact-alarm
+      privilege belongs to alarm clocks, not to a log. See PLAN.md.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:name=".BabyLogApp"
         android:icon="@mipmap/ic_launcher"
@@ -17,12 +28,33 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="BabyLog"
-            android:theme="@style/Theme.BabyLog">
+            android:theme="@style/Theme.BabyLog"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          The alarm's receiver. Not exported: nothing outside this app may fire a reminder.
+        -->
+        <receiver
+            android:name=".data.reminders.ReminderReceiver"
+            android:exported="false" />
+
+        <!--
+          Re-arms every reminder after a reboot or an app update. Both broadcasts are delivered to this app only,
+          so exported="false" is correct for API 31+ where BOOT_COMPLETED is a protected broadcast.
+        -->
+        <receiver
+            android:name=".data.reminders.ReminderBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.displayName
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.markedBand
@@ -36,7 +37,6 @@ import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
-import app.babylog.ui.theme.displayName
 import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
 

@@ -11,12 +11,17 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.NightWindow
+import app.babylog.domain.EventType
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.ReminderKey
 import app.babylog.domain.ThemeMode
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.UnitSystem
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.WeightUnit
 import app.babylog.domain.decodeChildSelection
+import app.babylog.domain.decodeReminder
+import app.babylog.domain.encodeReminder
 import app.babylog.domain.encodeChildSelection
 import app.babylog.domain.enumOrDefault
 import kotlinx.coroutines.flow.Flow
@@ -188,6 +193,27 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setTheme(mode: ThemeMode) = dataStore.edit { it[KEY_THEME] = mode.name }
 
+    /**
+     * Every reminder rule on this phone, keyed by (activity, child).
+     *
+     * Read by scanning the preference map rather than by a fixed list of keys, because the keys are dynamic:
+     * a reminder only exists once a parent has touched it, and adding a child must not need a code change.
+     * Local only and never synced - a reminder is one phone's business, and the other parent's phone has its
+     * own ideas about when to be woken.
+     */
+    val reminders: Flow<Map<ReminderKey, ReminderConfig>> = dataStore.data.map { prefs ->
+        prefs.asMap().entries
+            .mapNotNull { (key, value) ->
+                val parsed = decodeReminderKey(key.name) ?: return@mapNotNull null
+                parsed to decodeReminder(value as? String)
+            }
+            .toMap()
+    }
+
+    suspend fun setReminder(key: ReminderKey, config: ReminderConfig) = dataStore.edit {
+        it[stringPreferencesKey(reminderKeyName(key))] = encodeReminder(config)
+    }
+
     private companion object {
         val KEY_LENGTH = stringPreferencesKey("units.length")
         val KEY_WEIGHT = stringPreferencesKey("units.weight")
@@ -243,6 +269,27 @@ private fun encodeMedicationPresets(values: List<String>): String = values.joinT
 /** Also the guard at the door: a newline in a preset would forge a second entry on the next read. */
 private fun sanitiseMedicationPreset(value: String): String =
     value.replace('\n', ' ').trim()
+
+/**
+ * A reminder's preference key is `reminder.<ACTIVITY>.<childId>`, and the type prefix is what makes the scan in
+ * [SettingsRepository.reminders] cheap: everything else in the file is ignored without parsing.
+ *
+ * The activity name is used rather than its ordinal on purpose - an enum reorder must not silently move a
+ * parent's feed reminder onto their sleep.
+ */
+private const val REMINDER_PREFIX = "reminder"
+
+private fun reminderKeyName(key: ReminderKey): String =
+    "${REMINDER_PREFIX}.${key.type.name}.${key.childId}"
+
+/** Null for any key that is not a reminder, and for a type this build does not know. */
+private fun decodeReminderKey(name: String): ReminderKey? {
+    val parts = name.split('.')
+    if (parts.size != 3 || parts[0] != REMINDER_PREFIX) return null
+    val type = EventType.entries.firstOrNull { it.name == parts[1] } ?: return null
+    if (parts[2].isEmpty()) return null
+    return ReminderKey(type, parts[2])
+}
 
 /** Common bottle sizes, so the chips are useful before anything has been configured. */
 private val DEFAULT_BOTTLE_PRESETS = listOf(60, 90, 120, 150)

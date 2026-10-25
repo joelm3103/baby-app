@@ -48,6 +48,25 @@ fun elapsed(ms: Long): String {
 private val dayFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 
+/**
+ * A COARSE elapsed span: `45m` · `3h` · `3h 5m` · `2d 3h`.
+ *
+ * The sibling of [elapsed], which is second-accurate because a running timer needs it. A countdown on a
+ * reminder card and the "since the last feed" line in a notification are neither: seconds there are noise
+ * that changes every second and makes the text twitch. One implementation, used by both.
+ */
+fun elapsedCoarse(ms: Long): String {
+    val minutes = ms / 60_000
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        days > 0 -> "${days}d ${hours % 24}h"
+        hours > 0 && minutes % 60 == 0L -> "${hours}h"
+        hours > 0 -> "${hours}h ${minutes % 60}m"
+        else -> "${minutes}m"
+    }
+}
+
 /** Absolute clock time for timeline rows, in the display zone. */
 enum class TimeFormat { TWENTY_FOUR_HOUR, TWELVE_HOUR }
 

@@ -6,11 +6,19 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import app.babylog.data.local.AppDatabase
+import app.babylog.data.local.toDomain
 import app.babylog.data.local.FoodCatalogueParser
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventRepository
 import app.babylog.data.repo.FoodRepository
 import app.babylog.data.repo.MaintenanceRepository
+import app.babylog.data.reminders.ReminderAnchors
+import app.babylog.data.reminders.ReminderChildren
+import app.babylog.data.reminders.ReminderDeps
+import app.babylog.data.reminders.ReminderNotifications
+import app.babylog.data.reminders.ReminderScheduler
+import app.babylog.data.reminders.ReminderStore
+import app.babylog.data.reminders.Reminders
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
@@ -26,6 +34,11 @@ import app.babylog.data.sync.UnconfiguredAuthenticator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import app.babylog.domain.EventType
+import app.babylog.domain.ReminderKey
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -52,6 +65,8 @@ class AppContainer(private val context: Context) {
             // A tap drains within a second when signed in; when signed out this is a no-op and the
             // intent waits, which is what offline-first means here.
             onQueued = { sync.requestDrain() },
+            // Every logged event can move an anchor, so the alarms are recomputed right after the write.
+            onLogged = { refreshReminders() },
         )
     }
 
@@ -135,6 +150,81 @@ class AppContainer(private val context: Context) {
         )
     }
 
+    // ---- reminders (Phase 13.4) -------------------------------------------
+
+    /**
+     * A reminder notification that was tapped, waiting for the UI to open the right sheet.
+     *
+     * A flow on the container rather than an Intent extra read inside Compose, because the tap can arrive while
+     * the activity is already running (`singleTop` + `onNewIntent`), which means the composable has to be TOLD
+     * rather than asked once at construction.
+     */
+    val pendingSheetRequest = MutableStateFlow<SheetRequest?>(null)
+
+    /**
+     * The reminder engine, wired to the same database and preferences the UI uses.
+     *
+     * The three adapters below exist so the engine can be tested without Room or DataStore (see
+     * [app.babylog.data.reminders.ReminderDeps]); on a phone they are just `first()` on the flows the app
+     * already observes.
+     */
+    val reminders: Reminders by lazy {
+        Reminders(
+            deps = ReminderDeps(
+                store = object : ReminderStore {
+                    override suspend fun configs() = settings.reminders.first()
+
+                    override suspend fun stampAnchor(key: ReminderKey, at: Long) {
+                        val config = settings.reminders.first()[key] ?: return
+                        if (config.anchorAt == null) settings.setReminder(key, config.copy(anchorAt = at))
+                    }
+
+                    override suspend fun toInterval(key: ReminderKey) {
+                        val config = settings.reminders.first()[key] ?: return
+                        settings.setReminder(
+                            key,
+                            config.copy(
+                                mode = app.babylog.domain.ReminderMode.AFTER_LAST,
+                                timesOfDay = emptyList(),
+                            ),
+                        )
+                    }
+                },
+                anchors = object : ReminderAnchors {
+                    override suspend fun latestAnchor(type: EventType, childId: String): Long? =
+                        database.eventDao().latestOnce(type.name, childId)?.startedAt
+                },
+                children = object : ReminderChildren {
+                    override suspend fun all() = database.childDao().all().map { it.toDomain() }
+                },
+                scheduler = ReminderScheduler(context),
+                night = { settings.nightWindow.first() },
+            ),
+            notifications = ReminderNotifications(context),
+            timeFormat = { settings.timeFormat.first() },
+        )
+    }
+
+    /**
+     * Arms every reminder. Called once per process start and after anything that moves an anchor.
+     *
+     * Fire-and-forget on the container's IO scope: nothing on screen depends on it, and a reminder that takes
+     * 20ms longer than the first frame is not a problem worth blocking the first frame for.
+     */
+    /** Called from `MainActivity` for a fresh intent and for `onNewIntent`. */
+    fun requestSheet(request: SheetRequest) {
+        pendingSheetRequest.value = request
+    }
+
+    fun refreshReminders() {
+        scope.launch {
+            runCatching {
+                reminders.ensureChannel()
+                reminders.refresh()
+            }
+        }
+    }
+
     private var cachedGrowth: GrowthReference? = null
     /**
      * The bundled growth reference, parsed once.
@@ -168,3 +258,6 @@ class AppContainer(private val context: Context) {
         ).also { cachedMedications = it }
     }
 }
+
+/** An activity's logging sheet, for one child, requested from outside the UI — a reminder's tap. */
+data class SheetRequest(val type: EventType, val childId: String)

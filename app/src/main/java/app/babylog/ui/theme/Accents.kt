@@ -15,14 +15,6 @@ fun BabyLogColors.accentFor(type: EventType): Color = when (type) {
     EventType.HEALTH -> accentHealth
 }
 
-fun EventType.displayName(): String = when (this) {
-    EventType.BOTTLE -> "Bottle feed"
-    EventType.SOLIDS -> "Solids"
-    EventType.SLEEP -> "Sleep"
-    EventType.DIAPER -> "Diaper"
-    EventType.GROWTH -> "Growth"
-    EventType.HEALTH -> "Health"
-}
 
 /**
  * The fill for a diaper colour (Phase 13.3). A literal colour, kept out of [BabyLogColors] on purpose:

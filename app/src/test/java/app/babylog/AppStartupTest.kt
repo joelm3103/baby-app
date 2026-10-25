@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import app.babylog.data.repo.EventDraft
 import app.babylog.di.AppContainer
 import app.babylog.domain.DiaperKind
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.ReminderKey
 import app.babylog.domain.EventType
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.UnitSystem
@@ -16,6 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -67,6 +70,24 @@ class AppStartupTest {
         )
         assertEquals(2, logged.size)
         assertEquals(2, container.events.observeForChildren(listOf("first-twin", "second-twin")).first().size)
+
+        // Reminders, end to end through the real wiring: a rule saved to DataStore, a real anchor read from
+        // Room, and a real alarm handed to AlarmManager. The Robolectric scheduler tests use fakes for the store
+        // and the anchors; this is the one place the container's own adapters are exercised.
+        container.settings.setReminder(
+            ReminderKey(EventType.BOTTLE, "first-twin"),
+            ReminderConfig(enabled = true, intervalMinutes = 180),
+        )
+        container.events.log(
+            listOf("first-twin"),
+            EventDraft(type = EventType.BOTTLE, startedAt = System.currentTimeMillis(), amountMl = 120),
+            createdBy = "test",
+        )
+        container.reminders.refresh()
+        val alarms = shadowOf(
+            context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager,
+        ).scheduledAlarms
+        assertEquals("one alarm for the one enabled rule", 1, alarms.size)
 
         // The bundled food catalogue seeds through the REAL asset path in the container, not a fixture.
         // A bad asset path or unparseable JSON would otherwise only surface on a phone.

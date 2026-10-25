@@ -49,6 +49,8 @@ fun DiaperSheet(
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
+    /** Offered inside the sheet while editing; null for a new record. */
+    onDelete: (() -> Unit)? = null,
 ) {
     var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
     var kind by remember { mutableStateOf(initial?.diaperKind ?: DiaperKind.WET) }
@@ -63,6 +65,7 @@ fun DiaperSheet(
         accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,
+        onDelete = onDelete,
         onSave = {
             onSave(
                 EventDraft(

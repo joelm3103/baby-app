@@ -53,6 +53,19 @@ interface EventDao {
     )
     fun observeRecentByType(type: String, childIds: List<String>, limit: Int): Flow<List<EventEntity>>
 
+    /**
+     * The newest non-deleted row of one type for ONE child, read once rather than observed.
+     *
+     * The reminder scheduler runs outside the UI (an alarm, a boot receiver), where there is no Flow to
+     * collect: it needs the answer now, not a stream of it. Per child, because each child's reminder is
+     * anchored on that child's own last feed - one twin's bottle must never reset the other's reminder.
+     */
+    @Query(
+        "SELECT * FROM events WHERE deleted = 0 AND type = :type AND childId = :childId " +
+            "ORDER BY startedAt DESC LIMIT 1",
+    )
+    suspend fun latestOnce(type: String, childId: String): EventEntity?
+
     @Query("SELECT * FROM events WHERE id = :id")
     suspend fun byId(id: String): EventEntity?
 

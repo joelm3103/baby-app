@@ -45,6 +45,8 @@ fun SolidsSheet(
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
+    /** Offered inside the sheet while editing; null for a new record. */
+    onDelete: (() -> Unit)? = null,
 ) {
     var startedAt by remember { mutableStateOf(initial?.startedAt ?: now) }
     var mealSlot by remember { mutableStateOf(initial?.mealSlot) }
@@ -58,6 +60,7 @@ fun SolidsSheet(
         accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,
+        onDelete = onDelete,
         onSave = {
             onSave(
                 EventDraft(

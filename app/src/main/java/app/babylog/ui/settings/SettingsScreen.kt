@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.dp
 import app.babylog.data.sync.SyncState
 import app.babylog.domain.Child
 import app.babylog.domain.LengthUnit
+import app.babylog.domain.EventType
+import app.babylog.domain.REMINDER_TYPES
+import app.babylog.domain.displayName
 import app.babylog.domain.NightWindow
 import app.babylog.domain.Sex
 import app.babylog.domain.TERM_GESTATION_DAYS
@@ -344,7 +347,7 @@ fun SettingsScreen(
         item {
             // Alternation follows the inserted section: Bottle presets is raised, so this one is not,
             // and Children flips below to keep the shades strictly alternating.
-            SectionCard("Children", alternate = true) {
+            SectionCard("Children") {
                 if (children.isEmpty()) {
                     Text(
                         text = "No children yet. Add one to start logging.",
@@ -371,7 +374,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard("Data") {
+            SectionCard("Data", alternate = true) {
                 InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
                 InputRow(label = "Import backup", onClick = onImport) { InputValue("Replaces everything") }
                 Text(
@@ -394,7 +397,7 @@ fun SettingsScreen(
 
         item {
             // Raised, so the alternation keeps working down the list (Data is plain, Growth is plain).
-            SectionCard("Sync", alternate = true) {
+            SectionCard("Sync") {
                 SyncSection(
                     state = syncState,
                     message = syncMessage,
@@ -410,7 +413,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard("Growth reference") {
+            SectionCard("Growth reference", alternate = true) {
                 Text(
                     text = growthReference ?: "Reading the bundled reference…",
                     style = MaterialTheme.typography.bodyMedium,

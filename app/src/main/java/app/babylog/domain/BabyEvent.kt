@@ -115,6 +115,21 @@ val EVENT_DISPLAY_ORDER: List<EventType> = listOf(
     EventType.SLEEP,
 )
 
+/**
+ * What an activity is called to a parent.
+ *
+ * In the domain rather than in the UI theme because the notification needs it too, and a second copy of these
+ * six strings is how a card ends up calling it "Bottle feed" while its notification says "Feeding".
+ */
+fun EventType.displayName(): String = when (this) {
+    EventType.BOTTLE -> "Bottle feed"
+    EventType.SOLIDS -> "Solids"
+    EventType.SLEEP -> "Sleep"
+    EventType.DIAPER -> "Diaper"
+    EventType.GROWTH -> "Growth"
+    EventType.HEALTH -> "Health"
+}
+
 enum class MealSlot { BREAKFAST, LUNCH, DINNER, SNACK }
 
 /** the reference app's exact wording for the solids reaction field. */

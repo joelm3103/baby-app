@@ -36,6 +36,14 @@ class EventRepository(
      * local write path in tests and on a build with no sync configured.
      */
     private val onQueued: suspend () -> Unit = {},
+    /**
+     * Called after every write, queued or not, so the reminder alarms can be recomputed.
+     *
+     * Separate from [onQueued] on purpose: [onQueued] means "there is something for the sync queue", which is
+     * a different question from "an anchor moved". A reminder must re-arm even on a build with no sync
+     * configured, and the two callbacks fire in the same place but for different reasons.
+     */
+    private val onLogged: suspend () -> Unit = {},
 ) {
     private fun now(): Long = clock.millis()
 
@@ -149,5 +157,6 @@ class EventRepository(
             ),
         )
         onQueued()
+        onLogged()
     }
 }

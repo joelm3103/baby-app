@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.displayName
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.TemperatureBand
 import app.babylog.domain.DiaperKind
@@ -38,9 +41,21 @@ import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
-import app.babylog.ui.theme.displayName
 import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 /**
  * The core component. Anatomy from the approved mockup: activity name in its accent hue with the last
@@ -64,6 +79,7 @@ import java.time.ZoneId
  */
 internal val DIAPER_QUICK_KINDS: List<DiaperKind> = listOf(DiaperKind.WET, DiaperKind.DIRTY)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ActivityCard(
     card: CardUi,
@@ -86,6 +102,22 @@ fun ActivityCard(
     onSeeAll: () -> Unit,
     onEditEntry: (BabyEvent) -> Unit,
     onDeleteEntry: (BabyEvent) -> Unit,
+    /**
+     * This card's reminders, one chip per child in scope, e.g. `Every 3h (1:00 PM)`. Empty when there is none.
+     *
+     * Chips under the actions rather than in the header: a reminder is a standing instruction, and the header is where
+     * the last event's relative time lives. With both children on screen there are two chips, each with that child's
+     * badge, so "whose 2:30 PM" needs no reading.
+     */
+    reminderChips: List<app.babylog.domain.ReminderChip> = emptyList(),
+    /**
+     * Null when this activity cannot carry a reminder (Growth and Sleep), so no menu is drawn at all rather than a
+     * menu with a disabled item explaining itself.
+     *
+     * The second argument is WHICH child the action is about: a chip knows its own child, and the menu passes null
+     * because a card showing both children has no single one in mind.
+     */
+    onReminderAction: ((ReminderAction, childId: String?) -> Unit)? = null,
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(card.type)
@@ -114,8 +146,16 @@ fun ActivityCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.labelFor(accent),
             )
-            if (last != null && card.running == null) {
-                RelativeTimeText(then = last.startedAt, now = now)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (last != null && card.running == null) {
+                    RelativeTimeText(then = last.startedAt, now = now)
+                }
+                if (onReminderAction != null) {
+                    ReminderMenu(
+                        hasReminder = reminderChips.isNotEmpty(),
+                        onAction = { action -> onReminderAction(action, null) },
+                    )
+                }
             }
         }
 
@@ -387,6 +427,61 @@ fun ActivityCard(
             }
         }
 
+        // The reminder, if this child has one: a standing instruction, so it sits under the actions rather than
+        // in the header. The bell is the same mark the notification uses.
+        if (reminderChips.isNotEmpty()) {
+            // FlowRow: two chips with a badge and a time are wider than half a phone at 1.3x font scale, and a row
+            // that clips the second one is a reminder the parent cannot read.
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                // Tight, because both children's chips should sit on ONE row: a badge, a bell, `Every 3h (4:45 PM)`
+                // twice, inside the 328dp a 360dp phone leaves after the card's padding.
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                reminderChips.forEach { chip ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(Radius.pill))
+                            .background(colors.surface)
+                            // Tapping a chip EDITS that reminder. It is the thing showing the rule, so it is the
+                            // thing to tap; going through the overflow menu for the same job was a step nobody needs.
+                            // The CHIP's child, not the card's: with both children on screen the second chip belongs
+                            // to the second twin, and opening the first twin's rule from it was a bug on the phone.
+                            .clickable(enabled = onReminderAction != null) {
+                                onReminderAction?.invoke(ReminderAction.SET, chip.childId)
+                            }
+                            // Measured: at 9dp of side padding, labelMedium and a 12dp bell each chip was 458px, and
+                            // two of them plus the gap (933) did not fit the 900px inside the card's padding - so they
+                            // wrapped onto two rows. These numbers bring a chip to ~420px, which does fit.
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        // The badge only in Both mode, the same rule the entry rows follow. 14dp, not the row's
+                        // 16dp: it is a marker inside a chip, not a row's identity.
+                        val initials = chip.childId?.let { childInitials[it] }
+                        if (initials != null) {
+                            ChildBadge(initials = initials, size = 14.dp)
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.Notifications,
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Text(
+                            text = chip.text,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+
         // 3. today's entries, the one behind the big number included
         val rows = cardRows(card.entries, now, zone)
         if (rows.shown.isNotEmpty()) {
@@ -421,6 +516,50 @@ fun ActivityCard(
                     .clickable(onClick = onSeeAll)
                     .padding(top = 10.dp, bottom = 2.dp),
             )
+        }
+    }
+}
+
+/** What a card's reminder menu can ask for. */
+enum class ReminderAction { SET, REMOVE }
+
+/**
+ * The card's `⋮` menu.
+ *
+ * Only on the four reminder-capable cards: Growth and Sleep pass no handler, so they have no menu at all - a menu
+ * whose only useful item is missing is worse than no menu. `Set reminder` becomes `Edit reminder` when this child
+ * already has one, and `Remove reminder` appears only then, because removing nothing is not an action.
+ */
+@Composable
+private fun ReminderMenu(hasReminder: Boolean, onAction: (ReminderAction) -> Unit) {
+    val colors = BabyLogTheme.colors
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = "Reminder options",
+                tint = colors.textOnCard,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text(if (hasReminder) "Edit reminder" else "Set reminder") },
+                onClick = {
+                    open = false
+                    onAction(ReminderAction.SET)
+                },
+            )
+            if (hasReminder) {
+                DropdownMenuItem(
+                    text = { Text("Remove reminder") },
+                    onClick = {
+                        open = false
+                        onAction(ReminderAction.REMOVE)
+                    },
+                )
+            }
         }
     }
 }

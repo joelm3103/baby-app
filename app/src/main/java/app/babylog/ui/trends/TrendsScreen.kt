@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.displayName
 import app.babylog.domain.EVENT_DISPLAY_ORDER
 import app.babylog.domain.EventType
 import app.babylog.domain.TrendRange
@@ -29,7 +30,6 @@ import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.displayName
 
 /**
  * Trends: one tab per activity, so every chart in the app has one home.
