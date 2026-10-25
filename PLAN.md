@@ -42,7 +42,8 @@ everything after it is additive.**
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
 | 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. Two open findings: "Sync now" is silent offline, and the first-sign-in seed sits queued until a drain is triggered |
-| 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green; `0.10.1` makes 12-hour the default |
+| 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green |
+| 13.1.1 — Twelve-hour default | **DONE, device-verified** — fresh installs and no-choice fallbacks use 12-hour time without migrating an existing saved choice; `0.10.1`; 409 tests green |
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Growth dataset update channel | not started — split out of 13, `0.12.0` |
 | 13.4 — Reset to defaults | not started — scoped 2026-10-22, `0.13.0`; **not started in this session, by the owner's instruction** |
@@ -951,6 +952,55 @@ came from the matching node or clickable ancestor in a fresh `uiautomator dump`.
 | System back | Back from Trends returned to Activity without leaving the app; back with the Health sheet open dismissed the sheet and kept Activity foreground. |
 | Test-row cleanup | Six close-out readings (the four bands plus 37.94/37.99) were long-pressed and confirmed through the app. No matching live row remained; the latest six rows were soft-deleted tombstones. Ten matching tombstones existed in total because the earlier exploratory device pass had already created and removed the same four-band set. |
 | No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
+
+## Phase 13.1.1 — Twelve-hour default — DONE, device-verified (`0.10.1`)
+
+**As built — 2026-10-24.** The owner's preferred clock became the fallback for a fresh install or any
+installation with no saved `time.format`: `SettingsRepository`, the no-argument `clockTime()` path,
+`AppRoot`'s first composition and `LocalTimeFormat` all default to `TWELVE_HOUR`. Timestamps remain epoch
+milliseconds, Celsius remains the temperature default, and a user who already saved 24-hour time keeps it.
+`SettingsRepositoryTest` and `DisplayPreferencesTest` changed their expectations without adding test
+methods, so the phase landed with the same 409-test suite as Phase 13.1.
+
+### As built, where it differed from the plan
+
+- Phase 13.1 originally shipped with a 24-hour fallback because that matched the app's earlier formatting.
+  The owner override made 12-hour the default the following day; this is a fallback correction, not a new
+  preference, migration or storage-format change.
+- The four fallback sites moved together. Changing only DataStore would still show 24-hour during the first
+  composition, while changing only `clockTime()` would leave persisted no-choice flows inconsistent.
+- This is a `0.PATCH` rung (`0.10.1` / versionCode 14), not another capability. The setting itself already
+  existed in `0.10.0`.
+- Commit `123062b` was created while closing the following temperature-band branch, so the dedicated
+  `feat/twelve-hour-default` branch was later fast-forwarded to that history rather than duplicating the
+  code. This close-out adds the phase's own record and device evidence only.
+
+**Validation:** the landing suite remained **409/409** because the two existing preference tests changed
+expectations rather than adding methods. The current full-suite artifact and counts are recorded in the
+live `Verified:` line above after the close-out build.
+
+### Device pass — 2026-10-24
+
+Samsung S23 Ultra (`<handset>`), Android 16. The APK was installed in place with the native Windows
+ADB path. `topResumedActivity` showed `app.babylog/.MainActivity` before every input sequence, and each tap
+came from a fresh `uiautomator dump` node or its clickable ancestor (the Settings icon exposes
+`content-desc`, not `text`).
+
+| Check | What the phone showed |
+|---|---|
+| APK identity | `install -r` succeeded. Package Manager reported `versionName=0.11.0`, `versionCode=15` — the branch was fast-forwarded to `main` before this close-out, so the installed APK carries the later Phase 13.2 rung while containing this phase's `0.10.1` code change (commit `123062b`). |
+| No-choice fallback | The `time.format` key was stripped from `settings.preferences_pb` (four other keys preserved). On relaunch, Settings → Time format showed both chips and the Day & night labels read `Night starts 6:00 PM` / `Night ends 6:00 AM` — the 12-hour fallback, not `18:00` / `06:00`. |
+| Clock surfaces | The Health sheet's time row read `8:28 PM` on the same no-choice install, confirming the fallback reaches the sheet time row as well as Settings' night-window labels. |
+| Saved choice not migrated | Tapping `24-hour` immediately changed the night window to `18:00` / `06:00`. Force-stop + relaunch showed `18:00` / `06:00` and `settings.preferences_pb` held `TWENTY_FOUR_HOUR` — the new default did not overwrite a user's saved choice. |
+| Preference round-trip | Tapping `12-hour` immediately restored `6:00 PM` / `6:00 AM`; force-stop + relaunch kept `6:00 PM` / `6:00 AM` and `settings.preferences_pb` held `TWELVE_HOUR`. |
+| System back | Back from Settings returned to Activity with the app still foreground. Back with the Health sheet open dismissed the sheet and kept Activity foreground. Back on Activity's root screen exits to the launcher, which is expected Android behaviour for a root screen and not a defect. |
+| No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
+
+**Note on the fallback test method.** The first attempt to strip `time.format` from the protobuf matched the
+map entry's inner header instead of its outer length-delimited wrapper, truncating the file and crashing the
+app on launch (`InvalidProtocolBufferException`). The original file was restored byte-for-byte from a local
+copy, the parser was corrected to span the full 30-byte outer entry, and the test re-ran cleanly. The
+crash buffer was cleared before the final check; the incident was a test-method error, not an app defect.
 
 ## Phase 13.1 — Time and temperature preferences — DONE, device-verified (`0.10.0`)
 

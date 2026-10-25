@@ -50,7 +50,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 - `SettingsRepository`, `clockTime`, `AppRoot` and `LocalTimeFormat` now default to `TWELVE_HOUR` when no
   choice has been stored. `SettingsRepositoryTest` and `DisplayPreferencesTest` pin the fallback; existing
-  installs with a stored choice are not migrated.
+  installs with a stored choice are not migrated. **Recorded retrospectively on 2026-10-24:** the code
+  landed earlier that day in commit `123062b`, before the dedicated `feat/twelve-hour-default` close-out.
+- The fallback was driven on a real phone (`<handset>`): with the `time.format` key stripped from the
+  DataStore, Settings' night window read `6:00 PM` / `6:00 AM` and the Health sheet's time row read
+  `8:28 PM`; toggling to `24-hour` switched the labels to `18:00` / `06:00` and survived a relaunch, and
+  toggling back to `12-hour` did the same in reverse. System back from Settings and from the Health sheet
+  both returned to Activity without leaving the app. The final `logcat -b crash -d` held **0**
+  `FATAL EXCEPTION` entries.
 - The boolean `fever` flag became a nullable `TemperatureBand` through `ChildLine`, `ActivityTotal`,
   `EntryRow`, `FeverReading`, Activity, Summary, the entry list and Trends. NORMAL collapses to null at the
   source because a normal reading has no pill; only FEVER recolours the number.
