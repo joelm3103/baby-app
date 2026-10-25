@@ -204,7 +204,7 @@ class HomeViewModel(
                     ?: return@mapNotNull null
                 ReminderChip(
                     childId = if (bothOnScreen) childId else null,
-                    text = reminderChipText(ReminderArm(config.intervalMinutes, at), zone, rules.format, now),
+                    text = reminderChipText(config, at, zone, rules.format, now),
                 )
             }
             perChild.takeIf { it.isNotEmpty() }?.let { type to it }

@@ -211,11 +211,11 @@ class RemindersTest {
     fun `a chip says the interval and when it will ring`() {
         assertEquals(
             "Every 3h (1:00 PM)",
-            reminderChipText(arm(180, "13:00"), zone, TimeFormat.TWELVE_HOUR, chipNow),
+            reminderChipText(afterLast(), at("2026-10-25", "13:00"), zone, TimeFormat.TWELVE_HOUR, chipNow),
         )
         assertEquals(
             "Every 3h (13:00)",
-            reminderChipText(arm(180, "13:00"), zone, TimeFormat.TWENTY_FOUR_HOUR, chipNow),
+            reminderChipText(afterLast(), at("2026-10-25", "13:00"), zone, TimeFormat.TWENTY_FOUR_HOUR, chipNow),
         )
     }
 
@@ -223,7 +223,28 @@ class RemindersTest {
     fun `a reminder that is already due says so instead of showing a past time`() {
         assertEquals(
             "Every 3h (due now)",
-            reminderChipText(ReminderArm(180, chipNow), zone, TimeFormat.TWELVE_HOUR, chipNow),
+            reminderChipText(afterLast(), chipNow, zone, TimeFormat.TWELVE_HOUR, chipNow),
+        )
+    }
+
+    @Test
+    fun `a fixed-time chip says the time, not an interval`() {
+        // `At 1:00 PM` rather than `Every 1:00 PM`: a fixed-time rule has no interval to name.
+        val config = ReminderConfig(enabled = true, mode = ReminderMode.FIXED_TIMES, timesOfDay = listOf(13 * 60))
+
+        assertEquals(
+            "At 1:00 PM",
+            reminderChipText(config, at("2026-10-25", "13:00"), zone, TimeFormat.TWELVE_HOUR, chipNow),
+        )
+    }
+
+    @Test
+    fun `a fixed time that has just come round reads as due`() {
+        val config = ReminderConfig(enabled = true, mode = ReminderMode.FIXED_TIMES, timesOfDay = listOf(13 * 60))
+
+        assertEquals(
+            "Due now",
+            reminderChipText(config, chipNow, zone, TimeFormat.TWELVE_HOUR, chipNow),
         )
     }
 

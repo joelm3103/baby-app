@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,11 +29,17 @@ import app.babylog.domain.EventType
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.ReminderMode
 import app.babylog.domain.displayName
+import app.babylog.domain.clockLabel
 import app.babylog.domain.intervalLabel
+import app.babylog.ui.LocalTimeFormat
 import app.babylog.ui.home.ActivitySheet
 import app.babylog.ui.home.InputRow
 import app.babylog.ui.home.InputValue
+import app.babylog.ui.home.ChipRow
+import app.babylog.ui.home.InputRow
+import app.babylog.ui.home.SecondaryButton
 import app.babylog.ui.home.StepperRow
+import app.babylog.ui.home.TimeOfDayDialog
 import app.babylog.ui.home.SwitchRow
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
@@ -58,6 +65,8 @@ fun ReminderSheet(
     accent: Color,
     children: List<Child>,
     initialChildId: String?,
+    /** Needed to turn a minute-of-day into the instant the shared time picker wants. */
+    zone: java.time.ZoneId,
     /**
      * Every stored rule for this activity, keyed by child id.
      *
@@ -78,20 +87,14 @@ fun ReminderSheet(
     var childId by remember {
         mutableStateOf(initialChildId ?: children.firstOrNull()?.id.orEmpty())
     }
-    // The sheet edits an INTERVAL, so a stored rule is shown (and saved) as one. A config left in the old
-    // fixed-times mode by an earlier build could never fire and had no UI left to fix it; opening it here converts
-    // it, keeping its interval.
-    fun editable(config: ReminderConfig?) = (config ?: ReminderConfig()).copy(
-        mode = ReminderMode.AFTER_LAST,
-        timesOfDay = emptyList(),
-    )
-
-    var config by remember { mutableStateOf(editable(configs[childId])) }
+    var config by remember { mutableStateOf(configs[childId] ?: ReminderConfig()) }
+    // Which time-of-day row's picker is open, in minutes since midnight. Null means none.
+    var pickingMinute by remember { mutableStateOf<Int?>(null) }
     // Switching child loads THAT child's rule, rather than carrying the previous one across and writing it back.
     var loadedFor by remember { mutableStateOf(childId) }
     if (childId != loadedFor) {
         loadedFor = childId
-        config = editable(configs[childId])
+        config = configs[childId] ?: ReminderConfig()
     }
     val editing = configs[childId]?.enabled == true
 
@@ -121,26 +124,93 @@ fun ReminderSheet(
             )
         }
 
-        // `valueWidth` is the standardisation: 1h and 1h 30m are different widths, and without a fixed slot the
-        // buttons step sideways as the value changes.
-        StepperRow(
-            label = "Time",
-            value = intervalLabel(config.intervalMinutes),
-            onDecrease = {
-                config = config.copy(intervalMinutes = stepInterval(config.intervalMinutes, -1))
+        // `Remind in` counts from that child's last log; `Remind at` rings at clock times. Both are asked for:
+        // the interval is the 3am case, fixed times are for a day that already has a rhythm.
+        ChipRow(
+            label = "Mode",
+            options = listOf(ReminderMode.AFTER_LAST, ReminderMode.FIXED_TIMES),
+            selected = config.mode,
+            accent = accent,
+            labelOf = { if (it == ReminderMode.AFTER_LAST) "Remind in" else "Remind at" },
+            onSelect = { mode ->
+                config = config.copy(
+                    mode = mode,
+                    // Give a fixed-times rule somewhere to start rather than an empty screen with a button.
+                    timesOfDay = if (mode == ReminderMode.FIXED_TIMES && config.timesOfDay.isEmpty()) {
+                        listOf(DEFAULT_REMINDER_MINUTE)
+                    } else {
+                        config.timesOfDay
+                    },
+                )
             },
-            onIncrease = {
-                config = config.copy(intervalMinutes = stepInterval(config.intervalMinutes, 1))
-            },
-            valueWidth = 88.dp,
         )
-        Text(
-            text = "After the last ${type.displayName().lowercase()} logged for " +
-                (children.firstOrNull { it.id == childId }?.name ?: "this child") + ".",
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
+
+        when (config.mode) {
+            ReminderMode.AFTER_LAST -> {
+                // `valueWidth` is the standardisation: 1h and 1h 30m are different widths, and without a fixed
+                // slot the buttons step sideways as the value changes.
+                StepperRow(
+                    label = "Time",
+                    value = intervalLabel(config.intervalMinutes),
+                    onDecrease = {
+                        config = config.copy(intervalMinutes = stepInterval(config.intervalMinutes, -1))
+                    },
+                    onIncrease = {
+                        config = config.copy(intervalMinutes = stepInterval(config.intervalMinutes, 1))
+                    },
+                    valueWidth = 88.dp,
+                )
+                Text(
+                    text = "After the last ${type.displayName().lowercase()} logged for " +
+                        (children.firstOrNull { it.id == childId }?.name ?: "this child") + ".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+
+            ReminderMode.FIXED_TIMES -> {
+                config.timesOfDay.sorted().forEach { minute ->
+                    // Tapping a time EDITS it, through the same picker every other sheet uses.
+                    InputRow(
+                        label = clockLabel(minute, LocalTimeFormat.current),
+                        onClick = { pickingMinute = minute },
+                        chevron = false,
+                    ) {
+                        TextButton(onClick = {
+                            config = config.copy(timesOfDay = config.timesOfDay - minute)
+                        }) { Text("Remove") }
+                    }
+                }
+                pickingMinute?.let { minute ->
+                    val day = java.time.LocalDate.now(zone)
+                    TimeOfDayDialog(
+                        instantMs = day.atTime(minute / 60, minute % 60).atZone(zone).toInstant().toEpochMilli(),
+                        zone = zone,
+                        onDismiss = { pickingMinute = null },
+                        onConfirm = { hour, newMinute ->
+                            val updated = (hour * 60 + newMinute).coerceIn(0, 24 * 60 - 1)
+                            config = config.copy(
+                                timesOfDay = (config.timesOfDay - minute + updated).distinct().sorted(),
+                            )
+                            pickingMinute = null
+                        },
+                    )
+                }
+                SecondaryButton(
+                    label = "+ Add time",
+                    onClick = { config = config.copy(timesOfDay = nextFreeTime(config.timesOfDay)) },
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                if (config.timesOfDay.isEmpty()) {
+                    Text(
+                        text = "No times yet, so nothing will fire.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
+        }
 
         SwitchRow(
             label = "Notify",
@@ -278,3 +348,13 @@ internal fun stepInterval(current: Int, direction: Int): Int {
 private fun hourLabel(hour: Int): String = java.time.LocalTime.of(hour, 0).format(
     java.time.format.DateTimeFormatter.ofPattern("h:00 a", java.util.Locale.US),
 )
+
+/** The next time of day to add: 30 minutes after the last one, or 08:00 for the first. */
+internal fun nextFreeTime(existing: List<Int>): List<Int> {
+    val base = existing.maxOrNull() ?: (DEFAULT_REMINDER_MINUTE - 30)
+    val candidate = (base + 30).coerceAtMost(23 * 60)
+    return (existing + candidate).distinct().sorted()
+}
+
+/** 08:00 - the first fixed time, because it is when a day of feeds usually starts. */
+private const val DEFAULT_REMINDER_MINUTE = 8 * 60

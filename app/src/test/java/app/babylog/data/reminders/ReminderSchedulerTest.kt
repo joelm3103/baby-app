@@ -14,6 +14,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,6 +56,7 @@ class ReminderSchedulerTest {
         children: List<Child> = listOf(first, second),
         anchors: Map<Pair<EventType, String>, Long> = emptyMap(),
         night: NightWindow = NightWindow(18, 6),
+        scheduler: ReminderScheduler = ReminderScheduler(context),
     ): Reminders {
         val deps = ReminderDeps(
             store = object : ReminderStore {
@@ -80,7 +82,7 @@ class ReminderSchedulerTest {
             children = object : ReminderChildren {
                 override suspend fun all() = children
             },
-            scheduler = ReminderScheduler(context),
+            scheduler = scheduler,
             night = { night },
             clock = Clock.fixed(Instant.ofEpochMilli(now), zone),
             zone = zone,
@@ -228,6 +230,40 @@ class ReminderSchedulerTest {
         assertEquals("DIAPER", intent.getStringExtra(ReminderReceiver.EXTRA_TYPE))
         assertEquals(second.id, intent.getStringExtra(ReminderReceiver.EXTRA_CHILD_ID))
     }
+
+    @Test
+    fun `the alarm is EXACT when the system permits it`() = kotlinx.coroutines.runBlocking {
+        // The reversal: `window=+37m47s` on the phone meant "a few minutes late" could be most of an hour. Robolectric
+        // records how the alarm was set, and `allowWhileIdle` stays true either way - so the check is the one that
+        // distinguishes them, `ScheduledAlarm.allowWhileIdleExact` being absent from the shadow's API: the scheduler
+        // must report that it CAN be exact, and the alarm must still be armed through Doze.
+        val scheduler = ReminderScheduler(context) { true }
+        assertTrue("expected exact alarms to be available", scheduler.canBeExact())
+
+        engine(
+            configs = mapOf(ReminderKey(EventType.BOTTLE, first.id) to ReminderConfig(enabled = true)),
+            anchors = mapOf((EventType.BOTTLE to first.id) to anchor),
+            scheduler = scheduler,
+        ).refresh()
+
+        assertEquals(1, scheduledCount())
+        assertTrue(shadowOf(alarmManager()).nextScheduledAlarm!!.allowWhileIdle)
+    }
+
+    @Test
+    fun `with exact alarms revoked the reminder is still armed, late rather than silent`() =
+        kotlinx.coroutines.runBlocking {
+            val scheduler = ReminderScheduler(context) { false }
+            assertFalse("expected exact alarms to be unavailable", scheduler.canBeExact())
+
+            engine(
+                configs = mapOf(ReminderKey(EventType.BOTTLE, first.id) to ReminderConfig(enabled = true)),
+                anchors = mapOf((EventType.BOTTLE to first.id) to anchor),
+                scheduler = scheduler,
+            ).refresh()
+
+            assertEquals("late is better than silent", 1, scheduledCount())
+        }
 
     @Test
     fun `the alarm is inexact, so the app never asks for an exact-alarm privilege`() = kotlinx.coroutines.runBlocking {

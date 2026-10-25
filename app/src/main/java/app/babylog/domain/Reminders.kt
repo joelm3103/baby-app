@@ -285,17 +285,24 @@ data class ReminderArm(val intervalMinutes: Int, val at: Long)
 data class ReminderChip(val childId: String?, val text: String)
 
 /**
- * The words on one chip: `Every 3h (1:00 PM)`, or `Every 3h (due now)` once the target has passed.
+ * The words on one chip: `Every 3h (1:00 PM)` for an interval rule, `At 1:00 PM` for a fixed-time one, and
+ * `due now` once the target has passed.
  *
  * The TIME is the point — a chip that says only `Every 3h` tells the parent the rule but not when they will be
  * interrupted, which is what they actually want to know.
  */
 fun reminderChipText(
-    arm: ReminderArm,
+    config: ReminderConfig,
+    at: Long,
     zone: ZoneId,
     format: TimeFormat,
     now: Long,
 ): String {
-    val when_ = if (arm.at - now <= OVERDUE_RING_DELAY_MS * 2) "due now" else clockTime(arm.at, zone, format)
-    return "Every ${intervalLabel(arm.intervalMinutes)} ($when_)"
+    val due = at - now <= OVERDUE_RING_DELAY_MS * 2
+    return when (config.mode) {
+        // `At 1:00 PM` rather than `Every 1:00 PM`: a fixed-time rule has no interval to name.
+        ReminderMode.FIXED_TIMES -> if (due) "Due now" else "At ${clockTime(at, zone, format)}"
+        ReminderMode.AFTER_LAST ->
+            "Every ${intervalLabel(config.intervalMinutes)} (${if (due) "due now" else clockTime(at, zone, format)})"
+    }
 }

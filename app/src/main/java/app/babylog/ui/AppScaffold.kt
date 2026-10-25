@@ -575,6 +575,7 @@ fun AppScaffold(container: AppContainer) {
                     accent = colors.accentFor(type),
                     children = kids,
                     initialChildId = defaultChildId,
+                    zone = ZoneId.systemDefault(),
                     configs = kids.mapNotNull { child ->
                         reminderConfigs[ReminderKey(type, child.id)]?.let { child.id to it }
                     }.toMap(),

@@ -9,12 +9,20 @@
       Reminders (Phase 13.4). POST_NOTIFICATIONS is requested at runtime on API 33+; RECEIVE_BOOT_COMPLETED is
       what lets the alarms be re-armed after a restart, because AlarmManager forgets them.
 
-      Deliberately ABSENT: SCHEDULE_EXACT_ALARM and USE_EXACT_ALARM. Reminders are inexact on purpose - a feed
-      nudge a few minutes late is worth not sending the parent to a special-access screen, and an exact-alarm
-      privilege belongs to alarm clocks, not to a log. See PLAN.md.
+      USE_EXACT_ALARM and SCHEDULE_EXACT_ALARM are BOTH declared, and that is a reversal of the first build.
+      The original decision was "inexact on purpose - a few minutes late is fine", and the phone disproved the
+      premise: the armed alarms carried window=+37m47s, so "a few minutes" could be most of an hour, and the
+      owner reported reminders arriving late. USE_EXACT_ALARM is granted at install and is honest here - this is
+      a reminder timer, not a mail client - and SCHEDULE_EXACT_ALARM covers API 31-32, where the first does not
+      exist. If the parent revokes it, ReminderScheduler falls back to an inexact alarm rather than dropping the
+      reminder. See PLAN.md.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
 
     <application
         android:name=".BabyLogApp"
