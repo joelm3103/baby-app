@@ -67,7 +67,9 @@ pushes do.
   drops the only reference to work that is not yet on the remote.
 - A phase's `CHANGELOG.md` entry and its `PLAN.md` update ride the same branch, in the same pass as the
   phase commit (see the table under *Where things are*).
-- `origin/Timothys-Take` is a collaborator's branch. It is not mine to merge, rebase, or delete.
+- **`main` is the only branch on `origin`.** A collaborator's branch, `Timothys-Take`, used to exist;
+  it was removed when the repo was sanitised — the history was rewritten and the fork deleted. Its
+  absence is that removal, not a deletion by an agent, and it is not to be recreated from an old clone.
 
 ## Verify on the device
 
