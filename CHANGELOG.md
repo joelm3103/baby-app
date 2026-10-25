@@ -28,11 +28,17 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   from the value rounded to the displayed decimal, so the word can never contradict the number beside it.
 - **Trends now lists Mild and Fever readings with their own words.** Low remains marked on Activity and
   Summary but stays out of the over-time table.
+- **A nappy now answers two questions that can both be true.** Wet / Dirty / Mixed became **Wet** and
+  **Dirty** toggles, and a dirty change can carry a **colour** (six filled circles) and a **consistency**
+  (seven silhouettes, multi-select). Both are optional: unrecorded stays empty, exactly like `rash`.
 
 ### Versions
 
+- `0.12.0` / `versionCode 16`. Phase 13.3 is diaper detail — two-part answers plus colour and consistency,
+  and a third schema version, so a capability rung. The dataset channel moves to `0.13.0` and
+  reset-to-defaults to `0.14.0`.
 - `0.11.0` / `versionCode 15`. Phase 13.2 adds the four temperature bands; the planned dataset channel
-  moves to `0.12.0` and reset-to-defaults to `0.13.0`.
+  moves to `0.12.0` and reset-to-defaults to `0.13.0` (both since moved one rung further by Phase 13.3).
 - `0.10.1` / `versionCode 14`. A `0.PATCH` bump for making 12-hour the fresh-install default before the
   Phase 13.2 capability rung.
 
@@ -45,6 +51,56 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - `TemperatureBandTest` adds six cases for every boundary and a 35.00–39.00 °C sweep; two new
   `TrendsTest` cases pin Mild-day counting and the displayed `37.54` / `37.56` boundary. The suite moves
   from 409 to **417**, with 0 failures, 0 errors and 0 skipped across 42 XML result files.
+
+### Added — Phase 13.3, diaper detail
+
+- `domain/BabyEvent.kt` — `DiaperColor` (Yellow, Brown, Black, Green, Red, White) and
+  `DiaperConsistency` (Solid, Mushy, Runny, Mucousy, Hard, Pebbles, Diarrhea), plus `DiaperKind.wet/dirty`,
+  `DiaperKind.of(wet, dirty)` and `DiaperKind.toggle(...)`. Storage is unchanged in meaning: `MIXED` is how
+  "both" is spelled, and it has meant that since schema v1.
+- `domain/CodedValues.kt` — `encodeCodes` / `decodeCodes`, the `FoodIds` pattern for a small ordered enum
+  set: empty encodes to NULL, and an unknown name from a newer build is dropped rather than failing the row.
+- Schema **v3**: two additive nullable columns (`diaperColoursCsv`, `diaperConsistencyCsv`), `MIGRATION_2_3`,
+  and `schemas/…/3.json` committed. No back-fill — a colour nobody recorded would be an invented
+  observation. `MigrationTest` gains a v2 → v3 case built from the committed `2.json`, and its v1 case now
+  asserts version 3.
+- The two fields travel: `Mappers`, `SyncDocuments` and `Backup`, each with a legacy-input test (a v2 row, a
+  document and a `0.11.0` export all read as "not recorded" rather than failing).
+- `ui/home/DiaperSheet.kt` rebuilt: **Contents** (two independent chips), **Colour** (`DiaperColorRow`) and
+  **Consistency** (`MultiChipRow`) — the last two absent while Dirty is off. `MultiChoiceChip` /
+  `MultiChipRow` are the multi-select siblings of `ChoiceChip` / `ChipRow`.
+- Seven filled silhouettes, `res/drawable/ic_stool_*.xml`, mapped by `DiaperConsistency.stoolRes()`.
+- `CardSummary.diaperDetail` / `diaperColors`, `DiaperColorDots`, and `DiaperSwatch` in `Tokens.kt`. The
+  suite moves from 417 to **444**, with 0 failures, 0 errors and 0 skipped.
+
+### Changed — Phase 13.3
+
+- **The Diaper card's quick pills are Wet and Dirty only.** "Both" now costs the sheet: one tap cannot
+  answer a two-part question, so `DIAPER_QUICK_KINDS` is an explicit two-item list and a test pins it
+  against the temptation of `DiaperKind.entries`.
+- **A diaper row reads `Wet + dirty`, not `Mixed`**, and carries its colour as small circles rather than a
+  colour name — the parent answered two questions, and "mixed" invited the reading "some wet, some dirty".
+  Two existing assertions were rewritten for the new words; no behaviour moved.
+- Every colour swatch carries a permanent 1dp hairline ring, and selection adds a ring rather than changing
+  a size. The ring is a dedicated per-theme colour because no single grey clears 3:1 against a fill set
+  running from black to white; `DiaperPaletteTest` asserts the edge rule for six fills × both themes.
+- **Driven on a real phone (`<handset>`, in-place `install -r`, `0.12.0` / `versionCode 16`).** Two quick
+  pills only and one tap logs; both chips can be on at once and the last one cannot be switched off; the
+  Colour and Consistency sections appear only with Dirty on; multi-select rings a swatch without moving it;
+  a wet-only row reopens with no detail; a dirty save reads `Wet + dirty · mushy, pebbles` with its dots on
+  both the headline and the row; `Black` is visible on the dark theme and `White` on the light one; a
+  `MIXED` row written by `0.11.0` opens with both chips on and no detail, which is the v2 → v3 migration on
+  the real database; the row ellipsises but keeps its dots and time at 130% font scale; and
+  `logcat -b crash -d` held **0** `FATAL EXCEPTION`.
+- **Open, found by that pass and kept open by the owner:** the `Mucousy` silhouette reads as a letter `T`
+  at 16dp, with `Solid`'s pointy peak the next weakest. Both ship as they are; the finding is recorded in
+  `PLAN.md` rather than fixed here. The screenshots are in
+  `../babylog-refshots/2026-10-25-diaper-reference/`, beside the repo.
+- **Recorded mistake, not an app defect:** while deleting the two test rows, the second long-press landed on
+  the row below because the first deletion had shifted the list, so the pre-existing `8:55 PM` nappy was
+  soft-deleted (a tombstone, recoverable) instead of the test row. **The owner chose to leave it deleted.**
+  `PLAN.md` records both the incident and the rule it teaches: re-dump after any change that removes a row,
+  before the next long-press.
 
 ### Changed
 

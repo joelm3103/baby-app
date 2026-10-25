@@ -134,6 +134,30 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   behind every word, `textOnCard` was lifted (`#DCDEE7` / `#404E69`) so meta text still clears 4.5:1 on a
   tile; `PatternPaletteTest` asserts all of it for six accents × both themes. Raising the alpha, retuning an
   accent, or lowering the tint goes through that test.
+- **A nappy's colour is a LITERAL colour, not an activity accent.** Yellow, Brown, Black, Green, Red and
+  White are what the parent SAW (`DiaperSwatch` in `Tokens.kt`), so the one-hue-per-activity rule does not
+  reach them — a brown stool is not "BabyLog's anything" — and `danger` (a destructive action) and
+  `background` (the app's own surface) are never reused as "red" and "black". The palette test asserts the
+  last part explicitly.
+- **Every colour swatch carries a permanent 1dp hairline ring.** Black against the dark surface is 1.10:1
+  and White against the light one 1.13:1: unringed, one of the two is a blank space in one of the two
+  themes. The ring is a dedicated per-theme colour (`#D5D8E2` dark, `#3C4350` light) and NOT
+  `textSecondary`, because no single grey clears 3:1 against a fill set that runs black to white (the
+  mid-greys measure 1.0–2.9:1 against the ends). `DiaperPaletteTest` enforces the rule that matters at each
+  edge — the fill clears 3:1 against the sheet OR the ring clears 3:1 against the fill — for six fills ×
+  both themes. **Selection adds a ring; it never changes a swatch's size**, so a row cannot shift as boxes
+  are ticked.
+- **Consistency is identified by SHAPE + word, never by colour** — the same rule the fever band follows, so
+  the field survives a colour-blind parent. Its seven silhouettes (`res/drawable/ic_stool_*`, mapped by
+  `DiaperConsistency.stoolRes()`) are FILLED, unlike the stroke line-art of the activity glyphs: at 16dp
+  inside a chip a 1.7dp outline muddies, and what these have to show is a form (pebbles are pebbles).
+- **`DiaperKind.MIXED` is how "both" is spelled**, and `DiaperKind.of(wet, dirty)` / `toggle(...)` are the
+  only places that decide it. The column has carried WET/DIRTY/MIXED since schema v1, so a two-part answer
+  costs no migration and no existing row, sync document or export changes meaning. A quick pill on the card
+  must never write `MIXED`: one tap cannot answer two questions (`DIAPER_QUICK_KINDS` is asserted for that).
+- **Colour and consistency are null unless the nappy was dirty**, like `rash` — "not recorded" is the truth
+  and the line says nothing rather than "unknown". The sheet clears both when Dirty is off, and
+  `diaperDetail` ignores them for a wet-only row so a synced row cannot disagree with its own card.
 
 ## Domain rules that already cost us
 
@@ -220,8 +244,9 @@ only, and `1.0.0` is the first release.
 | 9 daily-use polish | `0.4.1` | 13.1 time/temp preferences | `0.10.0` |
 | | | 13.1.1 twelve-hour default | `0.10.1` |
 | | | 13.2 temperature bands | `0.11.0` |
-| | | 13.3 dataset channel | `0.12.0` |
-| | | 13.4 reset to defaults | `0.13.0` |
+| | | 13.3 diaper detail | `0.12.0` |
+| | | 13.4 dataset channel | `0.13.0` |
+| | | 13.5 reset to defaults | `0.14.0` |
 | | | 14/15 release | `1.0.0` |
 
 - **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever

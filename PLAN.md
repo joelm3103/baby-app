@@ -45,8 +45,9 @@ everything after it is additive.**
 | 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green |
 | 13.1.1 — Twelve-hour default | **DONE, device-verified** — fresh installs and no-choice fallbacks use 12-hour time without migrating an existing saved choice; `0.10.1`; 409 tests green |
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
-| 13.3 — Growth dataset update channel | not started — split out of 13, `0.12.0` |
-| 13.4 — Reset to defaults | not started — scoped 2026-10-22, `0.13.0`; **not started in this session, by the owner's instruction** |
+| 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; two findings kept open by the owner (the `Mucousy` glyph reads as a `T` at 16dp); 444 tests green |
+| 13.4 — Growth dataset update channel | not started — split out of 13, `0.13.0` |
+| 13.5 — Reset to defaults | not started — scoped 2026-10-22, `0.14.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -61,9 +62,10 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds; `:app:testDebugUnitTest` is **417/417** with 0 failures, 0 errors
-and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` — the 409 of the time and
-temperature-preference close plus 8 temperature-band cases (`TemperatureBandTest` 6 and `TrendsTest` 2).
+Verified: `:app:assembleDebug` builds (0.12.0, versionCode 16); `:app:testDebugUnitTest` is **444/444**
+with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` —
+the 417 of the temperature-band close plus the 27 of Phase 13.3 (below). The 417 were the 409 of the time
+and temperature-preference close plus 8 temperature-band cases (`TemperatureBandTest` 6 and `TrendsTest` 2).
 The 409 were the 405 of the activity-glyph close plus 4 preference tests on 2026-10-23
 (`DisplayPreferencesTest` 3 and `SettingsRepositoryTest` 1). The 405 were the 398 of the Phase-13 close plus the 7 activity-glyph tests
 (`PatternPaletteTest` 5, `ActivityGlyphTest` 2); the 398 were
@@ -1053,7 +1055,124 @@ was confirmed foreground before every input sequence, and every tap coordinate c
 | Test-row cleanup | The synthetic row was soft-deleted through its long-press confirmation. It disappeared from the UI and remains only as the expected Room tombstone (`deleted = 1`) |
 | No crash | The final `logcat -b crash -d` buffer was empty: 0 `FATAL EXCEPTION` |
 
-## Phase 13.3 — the growth dataset update channel — not started (`0.12.0`)
+## Phase 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency — DONE, device-verified (`0.12.0`)
+
+**Status: built, green and driven on the phone** (`<handset>`, 2026-10-24). The pass is at the end of this
+section, including the two things it found and the owner chose to leave open.
+
+### What the owner asked for, 2026-10-24
+
+Three answers (Wet / Dirty / Mixed) become **two that can both be on**, plus two multi-select sub-answers
+for a dirty nappy: **colour** (Yellow, Brown, Black, Green, Red, White — filled circles) and
+**consistency** (Solid, Mushy, Runny, Mucousy, Hard, Pebbles, Diarrhea — a silhouette each).
+Reference captured from the incumbent tracker on `<handset>`:
+`../babylog-refshots/2026-10-25-diaper-reference/huckleberry-01.png` (beside the repo, not committed).
+
+Decisions taken with the owner at the same time:
+
+- **The card keeps one-tap pills, but only Wet and Dirty.** "Both" costs the sheet. `DIAPER_QUICK_KINDS`
+  is the list the pills iterate, and it is asserted (`DiaperQuickKindsTest`) because
+  `DiaperKind.entries` is the one-liner that would quietly put a third pill back and let a single tap
+  answer a two-part question.
+- **Colour and consistency are OPTIONAL**, like `rash`: unrecorded stays null, and the line says nothing
+  rather than printing "unknown".
+- **Rows show a short form** — kind, consistency words, rash — with the colour as the same small circles
+  the selector draws, never as a colour name.
+
+### Storage: no row changes meaning
+
+`diaperKind` keeps its three values and **`MIXED` is how "both" is spelled**. The column has carried those
+names since schema v1, so no row, sync document or export moves — and `DiaperKind.of(wet, dirty)` /
+`DiaperKind.toggle(...)` make the two-part answer a pure, tested function instead of a composable's side
+effect. Two additive nullable columns (`diaperColoursCsv`, `diaperConsistencyCsv`) arrive in
+**`MIGRATION_2_3`**, with `3.json` exported and committed and a v2 → v3 test built from `2.json` itself.
+No back-fill: every nappy written before this phase recorded neither, and a default colour would be an
+invented clinical observation.
+
+The v1 test's `assertEquals(2, version)` became `assertEquals(3, ...)`. It was **corrected, not deleted**:
+its claim — a v1 log survives every migration this build carries — is unchanged.
+
+`Mappers`, `SyncDocuments` and `Backup` each gained the two fields in both directions, and each has a test
+for the LEGACY input: a v2 row (NULL columns), a document from an older build (keys absent) and a
+`0.11.0` export (keys absent) all read as "not recorded" rather than failing.
+
+### UI
+
+- Sheet order: Date · Time · **Contents** · **Colour** · **Consistency** · Rash · Notes. The two detail
+  sections are **absent** while Dirty is off, not disabled, and the save writes both null in that case, so
+  unticking Dirty cannot smuggle a colour onto a wet-only row.
+- **Contents** is two independent `ChoiceChip`s. The last remaining one cannot be switched off
+  (`DiaperKind.toggle`), because "neither" has no encoding and a disabled Save would have to explain itself.
+- **Colour** is six 36dp circles, no text labels, in a `FlowRow`, each with a 44dp tap target and
+  `contentDescription` + `selected` semantics. 6 x 36dp + 5 x 10dp = 266dp inside the 328dp a 360dp phone
+  leaves after the gutter.
+- **THE RING.** Every swatch carries a permanent 1dp hairline, because Black measures 1.10:1 against the
+  dark surface and White 1.13:1 against the light one — unringed, one of the two disappears in one of the
+  two themes. The ring is a **dedicated colour per theme** (near-white `#D5D8E2` dark, near-black `#3C4350`
+  light) rather than `textSecondary`, and the reason is measured: a fill set spanning black to white has no
+  single grey that clears 3:1 against all six (mid-greys measured 1.0-2.9:1 against the ends). The rule
+  `DiaperPaletteTest` enforces is therefore **at each edge something clears 3:1** — either the fill against
+  the sheet or the ring against the fill — plus the ring against the sheet (10.67:1 dark, 9.95:1 light).
+  Only Brown (2.60:1 fill, 4.10:1 ring) and Black (1.10 / 11.74) rely on the ring on dark, and Yellow
+  (1.69 / 5.88) and White (1.13 / 8.81) on light.
+- Selection is a 2dp accent ring OUTSIDE the hairline and never a size change, so the row does not shift as
+  boxes are ticked — the rule the three temperature bands share one geometry for.
+- **Consistency** is seven `MultiChoiceChip`s in a `FlowRow`, each with a **filled** 16dp silhouette *and*
+  its word. Filled, not the 1.7dp stroke the activity glyphs use: at 16dp an outline muddies, and the point
+  of these seven is to show a FORM. Shape + word means the field never depends on colour.
+- `EntryRow` and the card's headline detail share one line: `diaperDetail()` (`Wet` / `Dirty` /
+  `Wet + dirty`, then `· mushy, pebbles`, then `· rash`) plus `diaperColors()` replayed as 8dp dots from
+  the SAME painter as the selector. "Both" reads **`Wet + dirty`**, not `Mixed`: the parent answered two
+  questions, and "mixed" invited the reading "some wet, some dirty", which was never what it meant.
+
+### Tests: 417 -> 444
+
+27 new cases: `DiaperKindTest` 5, `CodedValuesTest` 5, `DiaperPaletteTest` 4, `DiaperQuickKindsTest` 2,
+`CardSummaryTest` 4 (consistency without colour, nothing when unrecorded, dropped for a wet-only row, the
+dots' source), `MappersTest` 2, `MigrationTest` 2 (v2 -> v3 survives; the upgraded database accepts the new
+columns), `EventDraftTest` 2, `BackupTest` 2 (round trip; an older export still restores), `SyncDocumentsTest`
+2 (round trip; an older document reads as not recorded). Two existing assertions were rewritten because the
+displayed word changed from `Mixed` to `Wet + dirty`.
+
+### Device pass, 2026-10-24 — `<handset>`
+
+In-place `install -r` of the `0.12.0` debug APK (`versionCode=16` read back from `dumpsys package`), the
+foreground checked before the first tap. Screenshots are in `../babylog-refshots/2026-10-25-diaper-reference/`
+(`13.3-01` … `13.3-16`, beside the repo, not committed).
+
+| Check | What the phone showed |
+|---|---|
+| Two quick pills, one tap each | The card offers `Wet` and `Dirty` only. A tap on `Wet` logged it: the headline became `Wet` with `9:51 PM` and a new row appeared |
+| Both chips at once | Tapping `Dirty` with `Wet` on left BOTH filled, and the Colour and Consistency sections appeared |
+| The last one cannot be switched off | Tapping `Wet` off left `Dirty` on; tapping `Dirty` off then did nothing |
+| Sections only when dirty | With `Wet` alone the sheet is Date · Time · Contents · Rash · Notes — no Colour, no Consistency |
+| Multi-select, no shift | `Brown` + `Black` each gained an accent ring, and no circle moved; `Mushy` + `Pebbles` filled together |
+| A dirty save reads back | `Wet + dirty · mushy, pebbles` with two dots, on the card's headline detail AND on its row; the dots carry `contentDescription="Brown, Black"` |
+| A wet-only reopen | The `9:51 PM` row opened with `Wet` on, `Dirty` off, and neither section present |
+| An old row after the migration | The `8:55 PM` row (a `MIXED` row written by `0.11.0`) opened as "Edit diaper" with BOTH chips on and no colour or consistency — the v2 → v3 migration, on the real database |
+| Black on dark, White on light | Dark: `Black` reads as a ringed dark circle. Light: `White` reads as a ringed off-white circle on the white sheet. The ring is doing exactly what it was measured for |
+| 130% font scale, light theme | The headline detail holds one line; the row ellipsises to `Wet + dirty · mushy, pe…` and KEEPS its dots and its time, which is the rule the row was built to |
+| No crash | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the install, the sheet, both themes and both font scales |
+
+**Found on the phone, and NOT yet fixed:** the **Mucousy** silhouette reads as a letter `T` at 16dp — its
+bar and its stem plus the droplets merge into a glyph that looks like type rather than a stool. It needs
+redrawing (a wavy streak, or a blob with a single tail, would read as a form). Second weakest is **Solid**,
+whose peak is pointy enough to read as a plain triangle; `Mushy` and `Runny` are distinguishable but close.
+The rest — `Hard`, `Pebbles`, `Diarrhea` — read correctly at the size they are drawn.
+
+**A recorded mistake, not a defect in the app.** Cleaning the two test rows off the card afterwards, the
+second long-press landed on the wrong row: deleting the first row shifted the list up, so the `8:55 PM`
+original was soft-deleted instead of the `9:51 PM` test row, and the 10-second Undo had expired before the
+next dump was read. The row is a tombstone, not a hard delete, so it is still in the database and can be
+restored by flipping `deleted` back (or by re-logging the change at 8:55 PM). **The owner chose to leave it
+deleted (2026-10-24)** — it was a record made while testing the previous build — so the tombstone stands.
+The lesson belongs with the `uiautomator` trap Phase 9.2 recorded: **re-dump after any change that removes a
+row, before the next long-press.**
+
+**Owner's decisions on the two findings, 2026-10-24:** the glyphs **ship as they are**, with the `Mucousy`
+`T` kept as an open finding rather than redrawn now; and the soft-deleted `8:55 PM` row **stays deleted**.
+
+## Phase 13.4 — the growth dataset update channel — not started (`0.13.0`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -1068,7 +1187,7 @@ The Firebase project already exists by then, which is the only precondition this
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.4 — Reset to defaults — scoped 2026-10-22, not started (`0.13.0`)
+## Phase 13.5 — Reset to defaults — scoped 2026-10-22, not started (`0.14.0`)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
