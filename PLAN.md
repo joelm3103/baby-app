@@ -46,8 +46,9 @@ everything after it is additive.**
 | 13.1.1 — Twelve-hour default | **DONE, device-verified** — fresh installs and no-choice fallbacks use 12-hour time without migrating an existing saved choice; `0.10.1`; 409 tests green |
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; two findings kept open by the owner (the `Mucousy` glyph reads as a `T` at 16dp); 444 tests green |
-| 13.4 — Growth dataset update channel | not started — split out of 13, `0.13.0` |
-| 13.5 — Reset to defaults | not started — scoped 2026-10-22, `0.14.0`; **not started in this session, by the owner's instruction** |
+| 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and a notification that names the child and opens that child's sheet; 511 tests green |
+| 13.5 — Growth dataset update channel | not started — split out of 13, `0.14.0` |
+| 13.6 — Reset to defaults | not started — scoped 2026-10-22, `0.15.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
 | 15 — Ship | not started |
 
@@ -62,9 +63,11 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.12.0, versionCode 16); `:app:testDebugUnitTest` is **444/444**
-with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` —
-the 417 of the temperature-band close plus the 27 of Phase 13.3 (below). The 417 were the 409 of the time
+Verified: `:app:assembleDebug` builds (0.13.0, versionCode 17); `:app:testDebugUnitTest` is **511/511**
+with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(51 XML files) — the 444 of the Phase-13.3 close plus the 52 of Phase 13.4's first build and the 15 the
+reminder UI added while it was reshaped on the phone. The 444 were the 417 of the
+temperature-band close plus the 27 of Phase 13.3. The 417 were the 409 of the time
 and temperature-preference close plus 8 temperature-band cases (`TemperatureBandTest` 6 and `TrendsTest` 2).
 The 409 were the 405 of the activity-glyph close plus 4 preference tests on 2026-10-23
 (`DisplayPreferencesTest` 3 and `SettingsRepositoryTest` 1). The 405 were the 398 of the Phase-13 close plus the 7 activity-glyph tests
@@ -1172,7 +1175,211 @@ row, before the next long-press.**
 **Owner's decisions on the two findings, 2026-10-24:** the glyphs **ship as they are**, with the `Mucousy`
 `T` kept as an open finding rather than redrawn now; and the soft-deleted `8:55 PM` row **stays deleted**.
 
-## Phase 13.4 — the growth dataset update channel — not started (`0.13.0`)
+## Phase 13.4 — Activity reminders — DONE, device-verified (`0.13.0`)
+
+**Status: built, green, and driven on the phone** (`<handset>`, 2026-10-24 and 2026-10-25). The pass is recorded
+as a table at the end of this section, including the notification that fired unprompted and the three rounds of UI
+changes it produced.
+
+### What was asked for, 2026-10-24
+
+A local notification reminding a parent to log any of the six activities, decided with the owner in four
+questions:
+
+| Question | Answer |
+|---|---|
+| Which activities | **Four**: Bottle feed, Solids, Diaper, Health. Growth and Sleep were removed at the owner's instruction — a weigh-in is periodic and Sleep has its own running timer, so neither is something a parent forgets to log |
+| Rule shape | **Both modes**: `Remind in` (N after that child's last log) and `Remind at` (fixed times, several a day) |
+| Twins | **Separate reminder per child**; the notification names the child |
+| Extras | **Skip the night window**, **Su–Sa day chips**, **tap opens the logging sheet**. **No snooze** |
+| Repeat | **Fire once per anchor** — an ignored reminder does not nag |
+
+Reference: the incumbent tracker's *Feed reminders* screen, captured on `<handset>` at
+`../babylog-refshots/2026-10-24-reminders-reference/` (beside the repo, not committed) — `Remind at` / `Remind in`,
+an interval row, a night switch, day chips and an add-time list. The shape is copied because it is one a parent
+already knows; `For` is not, because this app has twins.
+
+### The rules, in one pure function
+
+`domain/Reminders.kt` — `nextReminderAt(config, anchorMs, now, zone, night)`. Everything else in the feature only
+asks it "when?", so the awkward cases are JVM tests rather than 3am discoveries. Null is a real answer four times
+over, and they are deliberately not collapsed:
+
+- the rule is **disabled**;
+- `AFTER_LAST` with **no anchor** — that child has never had this activity logged;
+- the fire time is **overdue**. A phone that was off for eight hours must not buzz the instant the app opens:
+  being in the app IS the reminder, and the next log re-anchors it;
+- `AFTER_LAST` landing on a **day that is switched off**. `FIXED_TIMES` never hits this because it walks forward
+  to a selected day instead — filtering the result afterwards would leave a selected day entirely unarmed.
+
+`skipNight` moves a fire time inside the existing Day & night window to the window's end (`NightWindow`, the same
+one Summary's day/night split uses, so there is no second notion of night). A reminder pushed to 06:00 says
+`7h since the last feed`, which is why a delayed reminder cannot be misread as a fresh one.
+
+### Storage and scheduling
+
+- Configs live in DataStore, one encoded string per `reminder.<ACTIVITY>.<childId>` (`domain/ReminderCodec.kt`,
+  forgiving decode: an unknown mode or day from a newer build falls back rather than throwing). **No Room
+  schema change and no migration**, and nothing goes in the outbox: a reminder is one phone's business, and the
+  other parent's phone has its own ideas about when to be woken.
+- `AlarmManager.setAndAllowWhileIdle`, one alarm per (activity, child) — at most twelve — with `FIXED_TIMES`
+  arming only the next occurrence so the ceiling holds.
+- **No exact-alarm privilege.** `SCHEDULE_EXACT_ALARM` would send the parent to a special-access screen and
+  `USE_EXACT_ALARM` belongs to alarm clocks; a feed nudge a few minutes late is worth neither. This is the app's
+  one accepted imprecision.
+- `Reminders.refresh()` is the single recompute path — app start, every event write (`EventRepository.onLogged`),
+  every rule save, `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`, because alarms survive neither a reboot nor an
+  update. Switching a rule off **cancels** its alarm rather than skipping it.
+- `Reminders.fire()` posts the notification and then arms the next `FIXED_TIMES` occurrence; `AFTER_LAST` arms
+  nothing, which is the no-nagging rule.
+
+### Where a reminder lives: on its activity's card, per child
+
+The first build put reminders in **Settings** and let one rule cover **Both** children. Both were wrong for this app
+and were replaced after the owner's second mockup (2026-10-25):
+
+- **The Settings section is gone.** A reminder belongs to the activity it is about, so it is set from that activity's
+  card: a `⋮` menu on the four reminder-capable cards (Bottle feed, Solids, Diaper, Health) holding `Set reminder`
+  (or `Edit reminder`) and `Remove reminder`. Growth and Sleep pass no handler and therefore have no menu at all — a
+  menu whose only useful item is missing is worse than no menu.
+- **Per child, never Both.** A reminder happens to a person: First Twin's 1:00 PM nappy is not Second Twin's, and a
+  shared rule hid which twin was actually overdue. When two children are on screen the sheet asks which one.
+- **The sheet is `Set reminder — Diaper`**: `For` (children only), `Time` (an interval), `Notify`, `Skip night` and
+  `Days`. The mockup's `Start`, `End` and `Snooze (10 min)` are dropped at the owner's instruction, and its `Repeat…`
+  item with them because a repeat is what an interval already is.
+- **The interval stepper is standardised**: `StepperRow` gained a `valueWidth`, so `1h` and `1h 30m` no longer shuffle
+  the −/+ buttons sideways as the value changes — found on the phone.
+- **The card shows its own reminder** as a chip under the actions: bell, `Every 3h · Next: 1:00 PM`, or
+  `Reminders differ` when the two children's intervals are not the same number (never one child's interval presented
+  as the twins').
+- **Saving confirms on the Activity screen** (`Diaper reminder added`) through the snackbar the delete flow already
+  uses, and `Remove reminder` writes a disabled rule rather than deleting the key, so the interval is still there next
+  time.
+
+### Three things the third round of phone testing changed
+
+- **The chip says WHEN it will ring**, `Every 3h (4:45 PM)`, not just the rule. A chip that said only `Every 3h` told
+  the parent the rule but not when they would be interrupted, which is the thing they wanted to know.
+- **Both children get a chip each, with their badge**: `[F] Every 3h (4:45 PM)` and `[S] Every 4h (5:45 PM)`, stacked
+  and wrapping rather than clipped. The first version said `Reminders differ` — announcing that something was different
+  without saying what — and the second squashed both into one sentence, which the parent had to read to work out which
+  twin was which. A badge per chip answers that at a glance, and follows the rule the entry rows already use: the badge
+  appears in Both mode only, because a badge on every row of a single-child card says nothing.
+- **The chips fit one row.** Measured: at 9dp of side padding, `labelMedium` and a 12dp bell each chip was 458px and
+  two of them plus the gap (933) did not fit the 900px inside the card's padding, so they wrapped. At 7dp, `labelSmall`
+  and an 11dp bell they are 387px and 385px and sit side by side.
+- **An Upcoming row opens the child it names.** The row carried only the activity, so `Bottle feed · Second Twin` opened
+  the first twin's rule — the same bug the chips had, in the other place.
+- **A chip opens ITS child's rule.** The chip carried only the action at first, so the sheet fell back to the first
+  child and the second twin's chip opened the first twin's reminder — found on the phone. The action now carries the
+  chip's child id, the sheet is keyed on (activity, child), and `Remove reminder` on a Both card clears every child in
+  scope rather than silently picking one.
+- **Tapping the chip edits the reminder.** It is the thing showing the rule, so it is the thing to tap; going through
+  the `⋮` menu for the same job was a step nobody needs.
+- **A reminder with nothing to measure from now has one.** Two separate holes, both found by a chip that showed a rule
+  with no time: a rule for an activity that child had never logged had no anchor at all, so it never armed; and an
+  interval whose target had passed returned null, so it stopped reminding exactly when it was most overdue. The rule
+  now stores `anchorAt` (stamped when it is set, and migrated once for rules written before the field existed), and an
+  overdue interval rings a minute later instead of vanishing.
+- **A rule left in the old fixed-times mode is rescued.** The sheet edits an interval now, so such a rule could
+  neither fire nor be corrected from the UI; the refresh converts it, keeping its interval.
+- **Delete from inside the edit sheet.** Long-press still deletes a row, but a parent who has opened a record to change
+  it should not have to close it and hunt for the row again: every editing sheet ends with `Delete this entry`, which
+  runs the same confirm-then-Undo path the long-press uses.
+
+### The "Upcoming reminders" card
+
+Asked for from the owner's mockup (2026-10-25) after the reminder sheet existed: the Activity screen's top card
+lists what is actually armed — bell, `Upcoming reminders (n)`, then one row per reminder with the activity's
+glyph in its accent, its name, the clock time in the parent's format and a coarse countdown
+(`Diaper  8:00 AM (in 19h 55m)`), each tapping through to that activity's reminder sheet.
+
+- It reads the SAME `nextReminderAt` the scheduler does, so the card cannot promise a reminder the alarm will not
+  make, and `upcomingReminders()` is a pure function with its own tests.
+- Absent when nothing is armed: a card saying "nothing" is what its absence already says.
+- Twins on the same rule are ONE row (`Diaper 8:00 AM`); twins on different rules are one row each, named; and a
+  rule only one child has is named too — an unnamed row reads as "both children", which the phone caught.
+- The countdown ticks every 30 seconds, not every second: it is written in minutes, so a faster tick would redraw
+  the same text. A row whose time has passed drops out on the next tick rather than reading `in 0m`.
+- **Collapsible**: tapping the header folds it, and the chevron points at what the tap will do. Expanded by default,
+  because the card exists to be read at a glance; the fold lasts for the session rather than being a stored setting.
+- Capped at five rows, and the count in the title is the number of rows, so the card can never say "(3)" over two.
+
+### Two things the device pass changed
+
+- **The four activities, not six.** Growth and Sleep had rows in Settings and rules in the engine; both were
+  removed at the owner's request, and `REMINDER_TYPES` is now the single list the engine, the Settings rows and
+  the summary read — so an activity cannot have a row the scheduler ignores, or an alarm with no row. A rule
+  that still exists for a removed activity is CANCELLED by the refresh rather than left armed.
+- **Reminder times follow the 12/24-hour preference.** The first build hardcoded `HH:mm` for the row and the
+  Settings summary while the picker and the notification used the preference, so one sheet showed `11:00 PM` in
+  the picker and `23:00` in the row beside it. Found on the phone, not by a build. `clockLabel(minutes, format)`
+  now formats exactly like `clockTime`, the summary takes the format from `SettingsViewModel`, and a rule with
+  more than two times names two and counts the rest (`7:00 AM, 1:00 PM +1`) so the row cannot run off the card.
+
+### The notification
+
+One channel, **Activity reminders**, `IMPORTANCE_DEFAULT` — not six channels for a two-parent app whose activities
+are already switchable in Settings. The small icon is a solid bell, not the activity glyph: those are 1.7dp
+stroke line-art and would be a smudge in a 24dp status bar, so the activity is carried by `setColor(accentFor)`
+and by the title. Ids are `type.ordinal * 31 + childId.hashCode()`, so two children due at once are two
+notifications rather than one replacing the other.
+
+**A health reminder says the activity and nothing else.** `Time to log a health entry`, never a medicine, never a
+dose — a reminder naming Calpol would be the app appearing to suggest one, which `AGENTS.md` forbids.
+`ReminderNotificationsTest` asserts that against every name in the bundled medicine catalogue, plus a
+number-with-a-unit dose pattern.
+
+Tapping it opens that activity's logging sheet **for that child** (`singleTop` + `onNewIntent` →
+`AppContainer.pendingSheetRequest` → `HomeViewModel.openSheetFor`), because the header may be showing the other
+twin and a sheet that logs for the wrong child is worse than no shortcut.
+
+### Tests: 444 -> 496
+
+52 new cases: `RemindersTest` 20 (every null, the night window including `start == end`, per-child anchors,
+fixed-time roll-over, day walking, the summary line), `ReminderCodecTest` 9, `ReminderSchedulerTest` 9
+(Robolectric `ShadowAlarmManager`: one alarm at the computed time, two children = two alarms from their own
+anchors, disabling cancels, fixed times, night window, the intent's extras, and that the alarm is the inexact
+one), `ReminderNotificationsTest` 6 (title, text, two children, fixed-time wording, the health rule against the
+real catalogue, channel and colour), `ReminderTextTest` 7, and one addition to `AppStartupTest` that drives the
+container's own adapters end to end — a rule in DataStore, an anchor from Room, an alarm in AlarmManager.
+
+### Device pass, 2026-10-25 — `<handset>`
+
+In-place `install -r` of the `0.13.0` debug APK (`versionCode=17` read back from `dumpsys package`), the foreground
+checked before the first tap, every coordinate taken from a `uiautomator dump`. Screenshots are in
+`../babylog-refshots/2026-10-24-reminders-reference/` (`13.4-01` … `13.4-28`), beside the repo and not committed.
+
+| Check | What the phone showed |
+|---|---|
+| The permission flow | Settings was still carrying the row at that point: `Allow` raised the system dialog, granting it made the row disappear, and `dumpsys package` then read `POST_NOTIFICATIONS: granted=true` |
+| A menu only where it belongs | `⋮` (`content-desc="Reminder options"`) on Bottle feed, Solids, Diaper and Health; **none** on Growth or Sleep |
+| The menu's states | `Set reminder` with no rule; `Edit reminder` + `Remove reminder` once one exists |
+| Per child, never Both | `Set reminder — Diaper` shows `For` with the two children and no `Both` chip, and the subtitle names the child |
+| The stepper does not move | Measured: at `3h` the −/+ are at `[567,673][592,726]` / `[972,673][997,726]`; at `1h 30m` they are **identical**, while the value slot widens |
+| Saving | Snackbar `Diaper reminder added`, and the card gained its chip |
+| The chip says when | `[F] 🔔 Every 3h (4:45 PM)` and `[S] 🔔 Every 4h (5:45 PM)` on **one row** (387px + 385px inside the 900px the card leaves) |
+| A chip edits ITS child | The second chip opened `Set reminder — Bottle feed` for **Second Twin, 4h**; the first for **First Twin, 3h** |
+| An Upcoming row opens its child | `Bottle feed · Second Twin` opened the sheet for **Second Twin**, not the first |
+| The Upcoming card folds | Tapping the header collapsed it and the chevron became `Expand` |
+| A rule is cancelled, not left armed | `Remove reminder` cleared the chip and the card; `dumpsys alarm` held **0 live** BabyLog alarms afterwards, only `alarm_cancelled` history |
+| Reminders left Settings | The Settings list has no `Reminders` section and no reminder rows |
+| Delete from inside the sheet | `Edit feed` → `Delete this entry` → *"Delete this bottle feed?"* → `Delete` → snackbar `Bottle feed deleted` with `Undo` |
+| **The notification fires on its own** | A First Twin Bottle feed reminder whose 3h target had passed re-armed for a minute later and fired: the shade showed **`First Twin · Bottle feed` — `Time to log bottle feed`**, bottle glyph, `color=0xffffc857`, `channel=reminders`, `category=reminder` |
+| **The notification's tap** | It opened the app with the **Bottle feed sheet already up, for First Twin** — the child the notification named, not the one the header showed |
+| No crash | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across installs, the sheet, both themes, 130% font scale, the alarm and the notification |
+
+**Dated note, 2026-10-25.** Three rounds of phone testing reshaped the UI after the first build: reminders moved out
+of Settings onto each activity's card, the `Both` scope went away, `Start`/`End`/`Snooze` were dropped, the chip gained
+the time it will ring and then split per child with its badge, and the edit sheet gained `Delete this entry`. Each is
+recorded under "Where a reminder lives" and "Three things the third round of phone testing changed" above, with the
+reason the phone gave for it.
+
+**Open, deliberately:** the notification says `Time to log bottle feed` when that child has never had the activity
+logged, because there is no log to measure from — the rule's own anchor drives the alarm, but claiming `3h since the
+last feed` when no feed exists would be a lie. Also `Reminders differ` is gone by design: two children get two chips.
+
+## Phase 13.5 — the growth dataset update channel — not started (`0.14.0`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -1187,7 +1394,7 @@ The Firebase project already exists by then, which is the only precondition this
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.5 — Reset to defaults — scoped 2026-10-22, not started (`0.14.0`)
+## Phase 13.6 — Reset to defaults — scoped 2026-10-22, not started (`0.15.0`)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so

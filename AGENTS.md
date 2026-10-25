@@ -195,6 +195,56 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   contains a digit, and the health sheet itself says `Names only — this app does not suggest a dose`. An
   infant dose depends on weight and age, so the app must never propose one.
 
+## Reminder rules (Phase 13.4) that will cost you if you forget them
+
+- **A reminder fires ONCE per anchor.** `AFTER_LAST` arms nothing after it fires: the anchor has not moved, so
+  re-arming would nag a parent who simply has not fed yet. The next log moves the anchor. `FIXED_TIMES` arms the
+  following time of day, because that rule is about the clock rather than about the last log.
+- **An overdue reminder is not scheduled.** A phone that was off overnight must not buzz the instant the app
+  opens; being in the app IS the reminder.
+- **`Reminders.refresh()` is the only recompute path** — app start, every event write, every rule save, boot and
+  app update. Five callers, one implementation. A second "compute the next reminder" would drift from the first.
+- **Switching a rule off must CANCEL its alarm**, not merely skip it. A notification the parent has turned off is
+  worse than no notification at all.
+- **Inexact alarms, no privilege.** `setAndAllowWhileIdle` only. `SCHEDULE_EXACT_ALARM` sends a parent to a
+  special-access screen and `USE_EXACT_ALARM` belongs to alarm clocks; a nudge a few minutes late is worth
+  neither. Do not "fix" the lateness by adding either.
+- **A health reminder names the ACTIVITY, never a medicine and never a dose.** The same rule as the names-only
+  medicine list, applied to the one surface the parent sees without opening the app. `ReminderNotificationsTest`
+  checks it against the whole bundled catalogue.
+- **A reminder is set from its activity's card, per child — never from Settings, never for "Both".** The `⋮` menu
+  exists only on the four reminder-capable cards. A shared rule hid which twin was overdue, and a Settings section put
+  the setting a screen away from the thing it is about.
+- **A reminder chip shows the TIME it will ring** (`Every 3h (4:45 PM)`), and with both children on screen there is
+  ONE CHIP PER CHILD, each carrying that child's badge — a single sentence naming two times made the parent work out
+  which twin was which. Tapping a chip edits THAT CHILD's rule — the action carries the chip's child id, because a
+  sheet that falls back to the first child is a reminder edited for the wrong twin. A rule with no logged anchor is
+  anchored on when it was set (`anchorAt`), and an overdue interval rings a minute later — returning null in either
+  case is a reminder that quietly stops reminding.
+- **Anything that opens a reminder must carry the child it is about.** A chip and an Upcoming row both name a child;
+  an action that carries only the activity falls back to the first child, which is a reminder edited for the wrong
+  twin. Both had that bug before it was seen on the phone.
+- **Every editing sheet offers `Delete this entry`**, routed through the same confirm-then-Undo path as a long-press.
+  A parent who opened a record to change it should not have to close it and hunt for the row again.
+- **The Activity screen's "Upcoming reminders" card reads the same `nextReminderAt` as the scheduler.** It must
+  never be given its own idea of when a reminder is due: a card that promises a reminder the alarm will not make
+  is worse than no card. It is absent when nothing is armed, ticks every 30 seconds, and NAMES the child whenever
+  a row does not apply to both children — an unnamed row reads as "both", which the phone caught.
+- **Only FOUR activities carry a reminder** — Bottle feed, Solids, Diaper, Health (`REMINDER_TYPES`). Growth is
+  a periodic weigh-in and Sleep has its own running timer; neither is forgotten, so neither gets a notification.
+  The engine, the Settings rows and the summary all read that one list, and a rule for a removed activity is
+  cancelled rather than left armed.
+- **A stepper whose values change width needs `valueWidth`.** `1h` and `1h 30m` are different widths, so without a
+  fixed slot the −/+ buttons move under the parent's finger as the value changes. Found on the phone, in the reminder
+  sheet, and the same trap waits for any future stepper.
+- **A reminder time is shown in the parent's 12/24-hour format.** `clockLabel(minutes, format)`, never a
+  hardcoded `HH:mm`: the picker and the notification follow the preference, so a row that does not is the same
+  clock in two conventions in one sheet — which is exactly what the phone caught.
+- **Reminders are per-device and never synced.** They live in DataStore, never in Room, and never in the outbox:
+  each phone has its own idea of when to be woken, and a shared rule would be a second source of truth.
+- **Alarms survive neither a reboot nor an app update**, which is why `ReminderBootReceiver` exists. Do not
+  delete it because "the app re-arms on launch" — the point is the launch that never happens.
+
 ## Sync rules (Phase 13) that will cost you if you forget them
 
 - **Later `updatedAt` wins, and a deletion wins a tie.** `domain/SyncMerge.kt` is the only place that
@@ -218,7 +268,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-417 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+511 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -245,8 +295,9 @@ only, and `1.0.0` is the first release.
 | | | 13.1.1 twelve-hour default | `0.10.1` |
 | | | 13.2 temperature bands | `0.11.0` |
 | | | 13.3 diaper detail | `0.12.0` |
-| | | 13.4 dataset channel | `0.13.0` |
-| | | 13.5 reset to defaults | `0.14.0` |
+| | | 13.4 activity reminders | `0.13.0` |
+| | | 13.5 dataset channel | `0.14.0` |
+| | | 13.6 reset to defaults | `0.15.0` |
 | | | 14/15 release | `1.0.0` |
 
 - **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever

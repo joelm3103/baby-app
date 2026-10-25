@@ -17,6 +17,68 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-25]
+
+**In short:**
+
+- **Phase 13.4 lands: activity reminders**, set per child from the activity's own card. Four activities — Bottle
+  feed, Solids, Diaper and Health — can each nudge one child `N` after that child's last log, with a night window
+  to stay quiet in and day-of-week chips. A reminder fires once and never nags.
+- **The card shows its reminder** as a chip per child carrying that child's badge and the time it will ring
+  (`[F] Every 3h (4:45 PM)`), and tapping the chip edits that child's rule. An `Upcoming reminders` card at the top
+  of Activity lists what is armed and folds away when you want the screen back.
+- **The notification names the child and the activity**, wears the activity's accent, and opens that child's logging
+  sheet when tapped — verified firing unprompted on the phone, not by injection.
+
+### Versions
+
+- `0.13.0` / `versionCode 17`. Phase 13.4 adds activity reminders — a capability, with no schema change. The dataset
+  channel moves to `0.14.0` and reset-to-defaults to `0.15.0`. **Recorded retrospectively:** the first half of this
+  work was written and recorded under `[2026-10-24]`; both halves land as commits on 2026-10-25.
+
+### Added
+
+- `domain/Reminders.kt` — `REMINDER_TYPES` (the four activities), `ReminderConfig`, `ReminderKey`,
+  `nextReminderAt(config, anchorMs, now, zone, night)` as the single "when does it ring" answer, plus
+  `upcomingReminders()` and `reminderChipText()`. `domain/ReminderCodec.kt` stores one rule as one forgiving string.
+- `data/reminders/` — `Reminders` (refresh + fire), `ReminderScheduler` (`setAndAllowWhileIdle`, one alarm per
+  activity and child), `ReminderNotifications` (one channel, bell icon, the activity's accent, an id per child),
+  `ReminderReceiver`, `ReminderBootReceiver`, and `ReminderText`.
+- **A `⋮` menu on the four reminder-capable cards** holding `Set reminder` / `Edit reminder` and `Remove reminder`;
+  the sheet is `Set reminder — <Activity>` with `For` (one child), `Time` (an interval), `Notify`, `Skip night` and
+  `Days`.
+- **A reminder chip per child** on the card, `Every 3h (4:45 PM)`, badged in Both mode; tapping it edits that child's
+  rule. An **`Upcoming reminders (n)` card** above the activities, collapsible, each row opening the child it names.
+- **`Delete this entry`** at the end of every editing sheet, routed through the same confirm-then-Undo path as a
+  long-press.
+- `ReminderConfig.anchorAt`: a rule for an activity that child has never logged is anchored on when it was set, so it
+  rings once instead of never.
+
+### Changed
+
+- **Reminders are per child only, and are set from the activity's card — not from Settings.** A shared rule hid which
+  twin was overdue, and a Settings section put the setting a screen away from the thing it is about. Growth and Sleep
+  carry no reminder: a weigh-in is periodic and Sleep has its own timer.
+- **`EventRepository` gained `onLogged`** beside `onQueued`, and `EventType.displayName()` moved into the domain so a
+  notification can name an activity without Compose.
+- **Inexact alarms, no privilege**: `setAndAllowWhileIdle`, with no `SCHEDULE_EXACT_ALARM` and no `USE_EXACT_ALARM`.
+- **A health reminder names the activity and nothing else** — never a medicine, never a dose — asserted against the
+  whole bundled catalogue.
+- **The interval stepper is standardised** (`StepperRow`'s `valueWidth`), so `1h` and `1h 30m` no longer shuffle the
+  −/+ buttons sideways. Reminder times follow the app's 12/24-hour preference everywhere.
+
+### Fixed
+
+- **A reminder that had nothing to measure from never rang**: a rule for an activity that child had never logged had
+  no anchor, and an interval whose target had passed returned nothing — so it stopped reminding exactly when it was
+  most overdue. Found on the phone as a chip reading `Every 3h` with no time.
+- **Tapping a chip or an Upcoming row edited the FIRST child's rule**, whatever the row said: the action carried the
+  activity but not the child.
+- **A rule left in the retired fixed-times mode** could neither fire nor be corrected from the UI; the refresh now
+  converts it to an interval, keeping the interval it had.
+- **Two chips did not fit one row** at the first size (458px each against 900px available); tightened to 7dp side
+  padding, `labelSmall` and an 11dp bell (387px + 385px).
+
 ## [2026-10-24]
 
 **In short:**
@@ -31,9 +93,16 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **A nappy now answers two questions that can both be true.** Wet / Dirty / Mixed became **Wet** and
   **Dirty** toggles, and a dirty change can carry a **colour** (six filled circles) and a **consistency**
   (seven silhouettes, multi-select). Both are optional: unrecorded stays empty, exactly like `rash`.
+- **Four activities can remind you to log them** — Bottle feed, Solids, Diaper and Health — **set from the activity's
+  own card** (`⋮` → `Set reminder`) and **per child**, N after that child's last log, with a night-window silence and
+  day-of-week chips. A reminder fires once and never nags, tapping it opens the right logging sheet for the right
+  child, and the card then shows its own reminder (`Every 3h · Next: 1:00 PM`). Growth and Sleep have no reminder: a
+  weigh-in is periodic and Sleep has its own timer.
 
 ### Versions
 
+- `0.13.0` / `versionCode 17`. Phase 13.4 adds activity reminders — a capability, no schema change. The dataset
+  channel moves to `0.14.0` and reset-to-defaults to `0.15.0`.
 - `0.12.0` / `versionCode 16`. Phase 13.3 is diaper detail — two-part answers plus colour and consistency,
   and a third schema version, so a capability rung. The dataset channel moves to `0.13.0` and
   reset-to-defaults to `0.14.0`.
@@ -72,6 +141,66 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - Seven filled silhouettes, `res/drawable/ic_stool_*.xml`, mapped by `DiaperConsistency.stoolRes()`.
 - `CardSummary.diaperDetail` / `diaperColors`, `DiaperColorDots`, and `DiaperSwatch` in `Tokens.kt`. The
   suite moves from 417 to **444**, with 0 failures, 0 errors and 0 skipped.
+
+### Added — Phase 13.4, activity reminders
+
+- `domain/Reminders.kt` — `ReminderMode`, `ReminderConfig`, `ReminderKey` and the single pure function
+  `nextReminderAt(config, anchorMs, now, zone, night)`. Null is a real answer for a disabled rule, a child with
+  no anchor, an overdue reminder and an interval that lands on a day switched off.
+- `domain/ReminderCodec.kt` — one string per rule, decoded forgivingly so a value from a newer build falls back
+  to defaults rather than throwing.
+- `data/reminders/` — `Reminders` (refresh + fire), `ReminderScheduler` (`setAndAllowWhileIdle`, one alarm per
+  activity and child), `ReminderNotifications` (one channel, bell icon, the activity's accent, ids per child),
+  `ReminderReceiver`, `ReminderBootReceiver`, and `ReminderText`.
+- The reminder entry point is a `⋮` menu on the four reminder-capable cards (`Set reminder` / `Edit reminder`,
+  `Remove reminder`), and the sheet is `Set reminder — <Activity>` with `For` (one child), `Time` (an interval),
+  `Notify`, `Skip night` and `Days`. `POST_NOTIFICATIONS` is requested from that sheet, never on launch.
+- The card's own reminder chips — one per child in scope, each with that child's badge and the time it will ring
+  (`[F] Every 3h (4:45 PM)`, `[S] Every 4h (5:45 PM)`) — each opening THAT child's rule, which is also the way to edit
+  it; a confirmation snackbar on save; and a collapsible Upcoming reminders card.
+- `ReminderConfig.anchorAt`: a rule for an activity that child has never logged is anchored on when it was set, so it
+  rings once instead of never. An overdue interval now rings a minute later rather than returning null, and a rule left
+  in the retired fixed-times mode is converted to an interval on the next refresh.
+- Every editing sheet ends with **`Delete this entry`**, using the same confirm-then-Undo path as a long-press.
+- **An "Upcoming reminders (n)" card at the top of the Activity screen** (the owner's mockup): one row per armed
+  reminder with its activity's glyph and accent, the time in the chosen format and a countdown, tapping through to
+  that activity's reminder sheet. It reads the same `nextReminderAt` as the scheduler, is absent when nothing is
+  armed, ticks every 30 seconds, and names the child whenever a row does not apply to both children.
+- `MainActivity` is `singleTop` with `onNewIntent`, and a notification's tap opens that activity's sheet **for
+  that child** through `AppContainer.pendingSheetRequest`. The suite moves from 444 to **496**, with 0
+  failures, 0 errors and 0 skipped.
+
+### Changed — Phase 13.4
+
+- **Reminders are inexact on purpose**: `setAndAllowWhileIdle` and no `SCHEDULE_EXACT_ALARM` or
+  `USE_EXACT_ALARM`. A feed nudge a few minutes late is worth neither a special-access screen nor a privilege
+  reserved for alarm clocks.
+- **`EventRepository` gained `onLogged`** beside `onQueued`: a reminder must re-arm after a write even on a build
+  with no sync configured, so "there is something for the sync queue" and "an anchor moved" are now separate
+  callbacks that happen to fire in the same place.
+- **`EventType.displayName()` moved from `ui/theme` to the domain**, so the notification can name an activity
+  without a Compose dependency and there is still exactly one copy of those six strings.
+- **The application object does nothing on start.** Reminders are armed from the first frame and from the boot
+  receiver, so the container stays lazy and a process started for a broadcast does not open the database.
+- **Three changes came out of the device pass.** Growth and Sleep lost their reminder rows (see above), and
+  reminder times now follow the 12/24-hour preference: the first build formatted the row and the Settings
+  summary with a hardcoded `HH:mm` while the picker and the notification used the preference, so one sheet
+  showed `11:00 PM` and `23:00` at once. `clockLabel(minutes, format)` now formats like `clockTime`, and a rule
+  with more than two times names two and counts the rest. The third is the card's child naming: with a Solids
+  rule for First Twin alone the row read a bare `Solids`, which reads as "both children will be reminded" when
+  only one will.
+- **The notification was seen firing on the device, unprompted.** A First Twin Bottle feed reminder whose target had
+  passed re-armed itself for a minute later, fired, and the shade showed `First Twin · Bottle feed — Time to log bottle
+  feed` in the bottle accent; tapping it opened the Bottle feed sheet already up for First Twin. The chips were also
+  tightened to 7dp/`labelSmall`/11dp so both children's fit on one row (387px + 385px inside the 900px available), and
+  an Upcoming row now opens the child it names.
+- **Superseded:** the earlier note that the alarm-to-notification hop was unproven. It is proven; only the two-phone
+  Firestore behaviour of reminders remains out of scope, because reminders are per-device and never synced.
+- **Recorded honestly, previously:** The pass confirmed the
+  permission flow, the armed alarms in `dumpsys alarm` (distinct times per child and per activity, inexact
+  windows), and the Settings summaries; the alarm-to-notification hop is covered by
+  `ReminderNotificationsTest` but has not yet been observed on the phone, because a broadcast to the app's
+  non-exported receiver cannot be injected from a shell.
 
 ### Changed — Phase 13.3
 
