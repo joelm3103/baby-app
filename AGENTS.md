@@ -206,9 +206,12 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   app update. Five callers, one implementation. A second "compute the next reminder" would drift from the first.
 - **Switching a rule off must CANCEL its alarm**, not merely skip it. A notification the parent has turned off is
   worse than no notification at all.
-- **Inexact alarms, no privilege.** `setAndAllowWhileIdle` only. `SCHEDULE_EXACT_ALARM` sends a parent to a
-  special-access screen and `USE_EXACT_ALARM` belongs to alarm clocks; a nudge a few minutes late is worth
-  neither. Do not "fix" the lateness by adding either.
+- **Alarms are EXACT when the system permits it.** `setExactAndAllowWhileIdle`, with `USE_EXACT_ALARM` declared
+  (granted at install) and `SCHEDULE_EXACT_ALARM` for API 31-32. This reverses the first build, which used
+  `setAndAllowWhileIdle` on the reasoning that "a few minutes late is fine": `dumpsys alarm` showed the armed
+  alarms carrying `window=+37m47s`, so a few minutes could be most of an hour, and the owner reported reminders
+  arriving late. When exactness is revoked the alarm is still armed inexactly — late is better than silent — and
+  `ReminderScheduler.canBeExact()` is the one place that decides.
 - **A health reminder names the ACTIVITY, never a medicine and never a dose.** The same rule as the names-only
   medicine list, applied to the one surface the parent sees without opening the app. `ReminderNotificationsTest`
   checks it against the whole bundled catalogue.
@@ -268,7 +271,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-511 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+515 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /

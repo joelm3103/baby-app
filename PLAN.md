@@ -46,7 +46,7 @@ everything after it is additive.**
 | 13.1.1 — Twelve-hour default | **DONE, device-verified** — fresh installs and no-choice fallbacks use 12-hour time without migrating an existing saved choice; `0.10.1`; 409 tests green |
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; two findings kept open by the owner (the `Mucousy` glyph reads as a `T` at 16dp); 444 tests green |
-| 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and a notification that names the child and opens that child's sheet; 511 tests green |
+| 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | not started — split out of 13, `0.14.0` |
 | 13.6 — Reset to defaults | not started — scoped 2026-10-22, `0.15.0`; **not started in this session, by the owner's instruction** |
 | 14 — Update delivery | not started |
@@ -63,10 +63,10 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.13.0, versionCode 17); `:app:testDebugUnitTest` is **511/511**
+Verified: `:app:assembleDebug` builds (0.13.0, versionCode 17); `:app:testDebugUnitTest` is **515/515**
 with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(51 XML files) — the 444 of the Phase-13.3 close plus the 52 of Phase 13.4's first build and the 15 the
-reminder UI added while it was reshaped on the phone. The 444 were the 417 of the
+(51 XML files) — the 444 of the Phase-13.3 close plus the 52 of Phase 13.4's first build and the 19 the
+reminder UI added while it was reshaped on the phone and corrected for exact alarms and `Remind at`. The 444 were the 417 of the
 temperature-band close plus the 27 of Phase 13.3. The 417 were the 409 of the time
 and temperature-preference close plus 8 temperature-band cases (`TemperatureBandTest` 6 and `TrendsTest` 2).
 The 409 were the 405 of the activity-glyph close plus 4 preference tests on 2026-10-23
@@ -1224,9 +1224,13 @@ one Summary's day/night split uses, so there is no second notion of night). A re
   other parent's phone has its own ideas about when to be woken.
 - `AlarmManager.setAndAllowWhileIdle`, one alarm per (activity, child) — at most twelve — with `FIXED_TIMES`
   arming only the next occurrence so the ceiling holds.
-- **No exact-alarm privilege.** `SCHEDULE_EXACT_ALARM` would send the parent to a special-access screen and
-  `USE_EXACT_ALARM` belongs to alarm clocks; a feed nudge a few minutes late is worth neither. This is the app's
-  one accepted imprecision.
+- **Exact alarms, after the phone disproved the first decision.** The build shipped with `setAndAllowWhileIdle`
+  and the reasoning "a feed nudge a few minutes late is worth not asking for a special-access screen". `dumpsys
+  alarm` then showed the armed alarms carrying **`window=+37m47s`** — "a few minutes" could be most of an hour — and
+  the owner reported reminders arriving late. The manifest now declares `USE_EXACT_ALARM` (granted at install) and
+  `SCHEDULE_EXACT_ALARM` for API 31-32, the scheduler uses `setExactAndAllowWhileIdle` when
+  `canScheduleExactAlarms()` allows it, and falls back to the inexact call rather than dropping the reminder. The
+  device now reports `window=0`.
 - `Reminders.refresh()` is the single recompute path — app start, every event write (`EventRepository.onLogged`),
   every rule save, `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`, because alarms survive neither a reboot nor an
   update. Switching a rule off **cancels** its alarm rather than skipping it.
@@ -1244,9 +1248,14 @@ and were replaced after the owner's second mockup (2026-10-25):
   menu whose only useful item is missing is worse than no menu.
 - **Per child, never Both.** A reminder happens to a person: First Twin's 1:00 PM nappy is not Second Twin's, and a
   shared rule hid which twin was actually overdue. When two children are on screen the sheet asks which one.
-- **The sheet is `Set reminder — Diaper`**: `For` (children only), `Time` (an interval), `Notify`, `Skip night` and
-  `Days`. The mockup's `Start`, `End` and `Snooze (10 min)` are dropped at the owner's instruction, and its `Repeat…`
-  item with them because a repeat is what an interval already is.
+- **The sheet is `Set reminder — Diaper`**: `For` (children only), `Mode`, `Time`, `Notify`, `Skip night` and `Days`.
+  The mockup's `Start`, `End` and `Snooze (10 min)` are dropped at the owner's instruction, and its `Repeat…` item
+  with them because a repeat is what an interval already is.
+- **`Remind at` came back.** The redesign left only an interval, and the owner asked for the fixed clock times again
+  ("Remind me at option is missing"): the first build had them, and a day with a rhythm wants `At 8:00 AM` rather
+  than "three hours after the last feed". So `Mode` is a two-chip row — `Remind in` (interval, anchored on that
+  child's last log) and `Remind at` (a list of times, each editable through the shared picker, plus `+ Add time`) —
+  and the chip follows the mode: `Every 3h (1:00 PM)` or `At 8:00 AM`.
 - **The interval stepper is standardised**: `StepperRow` gained a `valueWidth`, so `1h` and `1h 30m` no longer shuffle
   the −/+ buttons sideways as the value changes — found on the phone.
 - **The card shows its own reminder** as a chip under the actions: bell, `Every 3h · Next: 1:00 PM`, or
@@ -1367,6 +1376,8 @@ checked before the first tap, every coordinate taken from a `uiautomator dump`. 
 | Delete from inside the sheet | `Edit feed` → `Delete this entry` → *"Delete this bottle feed?"* → `Delete` → snackbar `Bottle feed deleted` with `Undo` |
 | **The notification fires on its own** | A First Twin Bottle feed reminder whose 3h target had passed re-armed for a minute later and fired: the shade showed **`First Twin · Bottle feed` — `Time to log bottle feed`**, bottle glyph, `color=0xffffc857`, `channel=reminders`, `category=reminder` |
 | **The notification's tap** | It opened the app with the **Bottle feed sheet already up, for First Twin** — the child the notification named, not the one the header showed |
+| **The alarm is exact, not deferred** | After the fix, `dumpsys alarm` reports the armed reminder as `RTC_WAKEUP … 08:00:00.000 window=0 reason=policy_permission` — against the `window=+37m47s` of the first build |
+| **`Remind at` is back** | The sheet shows `Mode` with `Remind in` / `Remind at`; `Remind at` lists `8:00 AM` with `Remove`, plus `+ Add time`, and the card's chip then reads **`At 8:00 AM`** |
 | No crash | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across installs, the sheet, both themes, 130% font scale, the alarm and the notification |
 
 **Dated note, 2026-10-25.** Three rounds of phone testing reshaped the UI after the first build: reminders moved out

@@ -66,9 +66,19 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   whole bundled catalogue.
 - **The interval stepper is standardised** (`StepperRow`'s `valueWidth`), so `1h` and `1h 30m` no longer shuffle the
   −/+ buttons sideways. Reminder times follow the app's 12/24-hour preference everywhere.
+- **`Remind at` is a first-class mode again**, and `ReminderScheduler` gained a `canBeExact` seam so the
+  exact/inexact branch is unit-tested instead of only discovered on a phone.
 
 ### Fixed
 
+- **Reminders arrived late.** The first build armed inexact alarms (`setAndAllowWhileIdle`) on the reasoning that a
+  few minutes late is fine; `dumpsys alarm` showed `window=+37m47s`, so "a few minutes" could be most of an hour. The
+  manifest now declares `USE_EXACT_ALARM` (granted at install) plus `SCHEDULE_EXACT_ALARM` for API 31-32, and the
+  scheduler arms `setExactAndAllowWhileIdle` — `window=0` on the phone — falling back to the inexact call rather than
+  dropping the reminder if the parent revokes exactness.
+- **`Remind at` was missing.** The redesign left only the interval; fixed clock times are back as a `Mode` row, with
+  an editable list of times and `+ Add time`, and the chip says `At 8:00 AM` instead of pretending a fixed time is an
+  interval.
 - **A reminder that had nothing to measure from never rang**: a rule for an activity that child had never logged had
   no anchor, and an interval whose target had passed returned nothing — so it stopped reminding exactly when it was
   most overdue. Found on the phone as a chip reading `Every 3h` with no time.
