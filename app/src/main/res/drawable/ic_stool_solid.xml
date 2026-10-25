@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Consistency: Solid — one firm mound with a defined peak, the shape a formed stool has.
+
+  FILLED, not the stroke line-art of the ic_glyph_* activity glyphs: these render at 16dp inside a chip,
+  and a 1.7dp outline at that size muddies into a smudge. The point of these seven is to show a FORM
+  (pebbles are pebbles), so the silhouette carries it and the word beside it names it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,17.6 C5.6,10.6 9.2,6.2 12.6,6.2 C16.2,6.2 19.2,11 20,17.6 Z" />
+</vector>

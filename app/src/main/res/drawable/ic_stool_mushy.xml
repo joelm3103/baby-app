@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Consistency: Mushy — a soft lumpy mass. Built from four overlapping circles rather than one
+  hand-drawn blob: merged sub-paths of the same winding give a lumpy union that no single bezier pair
+  is likely to get right by hand, and it stays legible at 16dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,13.4 a5,5 0 1,1 10,0 a5,5 0 1,1 -10,0 Z M9,13.6 a5.6,5.6 0 1,1 11.2,0 a5.6,5.6 0 1,1 -11.2,0 Z M6,9.6 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0 Z M12,15.4 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0 Z" />
+</vector>

@@ -1,6 +1,8 @@
 package app.babylog.ui.home
 
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.DiaperColor
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
@@ -44,7 +46,9 @@ class CardSummaryTest {
     fun `diaper has no big value, it has a kind`() {
         assertNull(bigValue(event(EventType.DIAPER).copy(diaperKind = DiaperKind.WET), metric))
         assertEquals("Wet", detailLine(event(EventType.DIAPER).copy(diaperKind = DiaperKind.WET), metric))
-        assertEquals("Mixed", detailLine(event(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED), metric))
+        // Phase 13.3: "both" is spelled Wet + dirty in the UI because the parent answered two questions,
+        // while the stored value stays MIXED so no row's meaning moved.
+        assertEquals("Wet + dirty", detailLine(event(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED), metric))
     }
 
     @Test
@@ -215,7 +219,7 @@ class CardSummaryTest {
     fun `a non-bottle row reuses the detail line`() {
         val diaper = event(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED, rash = true)
 
-        assertEquals("Mixed \u00b7 rash", recentRowLabel(diaper, metric))
+        assertEquals("Wet + dirty \u00b7 rash", recentRowLabel(diaper, metric))
         assertEquals(detailLine(diaper, metric), recentRowLabel(diaper, metric))
     }
 

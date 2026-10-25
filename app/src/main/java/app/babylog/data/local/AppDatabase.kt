@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ChildEntity::class, EventEntity::class, FoodEntity::class, OutboxEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,7 +43,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        /**
+         * v2 -> v3: a dirty nappy gained a colour and a consistency (Phase 13.3, `0.12.0`).
+         *
+         * Additive and nullable, with NO back-fill: every row written before this migration recorded
+         * neither, and NULL is the truth about it. Writing a default colour would invent a clinical
+         * observation nobody made.
+         */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE events ADD COLUMN diaperColoursCsv TEXT")
+                db.execSQL("ALTER TABLE events ADD COLUMN diaperConsistencyCsv TEXT")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NAME)

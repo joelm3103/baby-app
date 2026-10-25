@@ -62,7 +62,9 @@ class MigrationTest {
             assertNull(old.doseAmount)
             assertNull(old.doseUnit)
 
-            assertEquals(2, db.openHelper.readableDatabase.version)
+            // The chain now runs to v3 (Phase 13.3), so this reads 3 rather than 2. The claim is the same
+            // one it always made: a v1 log survives every migration this build carries.
+            assertEquals(3, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -94,42 +96,116 @@ class MigrationTest {
     }
 
     @Test
+    fun `a v2 log survives the upgrade and the nappy-detail columns arrive empty`() = runBlocking {
+        createV2Database()
+
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
+            .addMigrations(*AppDatabase.MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            // Phase 13.3 gave a dirty nappy a colour and a consistency. The row the previous build wrote
+            // must read back unchanged: `MIXED` still means both answers were yes, and the two new columns
+            // are NULL because that change recorded neither. A default would be an invented observation.
+            val old = db.eventDao().allIncludingDeleted().single { it.id == "nappy" }
+            assertEquals("first-twin", old.childId)
+            assertEquals("DIAPER", old.type)
+            assertEquals("MIXED", old.diaperKind)
+            assertEquals(true, old.rash)
+            assertNull(old.diaperColoursCsv)
+            assertNull(old.diaperConsistencyCsv)
+
+            assertEquals(3, db.openHelper.readableDatabase.version)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `the upgraded database accepts a colour and a consistency and reads them back`() = runBlocking {
+        createV2Database()
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
+            .addMigrations(*AppDatabase.MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            db.eventDao().upsert(
+                EventEntity(
+                    id = "detailed", childId = "first-twin", type = "DIAPER", startedAt = t0 + 1,
+                    diaperKind = "DIRTY", diaperColoursCsv = "BROWN,GREEN",
+                    diaperConsistencyCsv = "MUSHY,PEBBLES",
+                    createdBy = "local", updatedAt = t0 + 1,
+                ),
+            )
+
+            val read = db.eventDao().byId("detailed")
+            assertNotNull(read)
+            assertEquals("BROWN,GREEN", read!!.diaperColoursCsv)
+            assertEquals("MUSHY,PEBBLES", read.diaperConsistencyCsv)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
     fun `the current schema is exported, so the next migration can be tested`() {
         // Not ceremony: an unexported schema means the NEXT version cannot be tested against this one,
-        // and the failure would only appear months later as an untestable migration.
-        assertTrue(
-            "expected the v2 schema to be exported and committed",
-            schemaFile(2).exists(),
-        )
+        // and the failure would only appear months later as an untestable migration. Both older versions
+        // are asserted too - v2 is what the v2 -> v3 test above is built from.
+        assertTrue("expected the v2 schema to be exported and committed", schemaFile(2).exists())
+        assertTrue("expected the v3 schema to be exported and committed", schemaFile(3).exists())
     }
 
     /** Builds the v1 database exactly as version 1 of the app would have left it. */
     private fun createV1Database() {
-        val file = context.getDatabasePath(dbName)
-        file.parentFile?.mkdirs()
-        val v1 = SQLiteDatabase.openOrCreateDatabase(file, null)
-        try {
-            val database = JSONObject(schemaFile(1).readText()).getJSONObject("database")
-            val entities = database.getJSONArray("entities")
-            for (i in 0 until entities.length()) {
-                val entity = entities.getJSONObject(i)
-                val table = entity.getString("tableName")
-                v1.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
-                val indices = entity.optJSONArray("indices") ?: continue
-                for (j in 0 until indices.length()) {
-                    v1.execSQL(
-                        indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table),
-                    )
-                }
-            }
+        createDatabaseAt(1) { v1 ->
             v1.execSQL(
                 "INSERT INTO events (id, childId, type, startedAt, temperatureC, medication, " +
                     "createdBy, updatedAt, deleted) " +
                     "VALUES ('old', 'first-twin', 'HEALTH', $t0, 38.5, 'Calpol', 'local', $t0, 0)",
             )
-            v1.execSQL("PRAGMA user_version = 1")
+        }
+    }
+
+    /** Builds the v2 database - the build that shipped 0.11.0 - with a logged nappy in it. */
+    private fun createV2Database() {
+        createDatabaseAt(2) { v2 ->
+            v2.execSQL(
+                "INSERT INTO events (id, childId, type, startedAt, diaperKind, rash, " +
+                    "createdBy, updatedAt, deleted) " +
+                    "VALUES ('nappy', 'first-twin', 'DIAPER', $t0, 'MIXED', 1, 'local', $t0, 0)",
+            )
+        }
+    }
+
+    /**
+     * Builds the database for a version from the committed schema JSON, then runs [populate] against it.
+     *
+     * The schema file, never a hand-copied CREATE TABLE: a second copy of an old schema in a test is a copy
+     * that can drift, and a migration test that drifts tests nothing.
+     */
+    private fun createDatabaseAt(version: Int, populate: (SQLiteDatabase) -> Unit) {
+        val file = context.getDatabasePath(dbName)
+        file.parentFile?.mkdirs()
+        val db = SQLiteDatabase.openOrCreateDatabase(file, null)
+        try {
+            val database = JSONObject(schemaFile(version).readText()).getJSONObject("database")
+            val entities = database.getJSONArray("entities")
+            for (i in 0 until entities.length()) {
+                val entity = entities.getJSONObject(i)
+                val table = entity.getString("tableName")
+                db.execSQL(entity.getString("createSql").replace("\${TABLE_NAME}", table))
+                val indices = entity.optJSONArray("indices") ?: continue
+                for (j in 0 until indices.length()) {
+                    db.execSQL(
+                        indices.getJSONObject(j).getString("createSql").replace("\${TABLE_NAME}", table),
+                    )
+                }
+            }
+            populate(db)
+            db.execSQL("PRAGMA user_version = $version")
         } finally {
-            v1.close()
+            db.close()
         }
     }
 

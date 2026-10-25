@@ -3,6 +3,7 @@ package app.babylog.ui.home
 import app.babylog.domain.TemperatureUnit
 import app.babylog.domain.TemperatureBand
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.DiaperColor
 import app.babylog.domain.EventType
 import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
@@ -52,10 +53,7 @@ fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = 
 /** The line under the big value: what actually happened. */
 fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.type) {
     EventType.BOTTLE -> event.formulaBrand ?: "Bottle"
-    EventType.DIAPER -> buildString {
-        append(event.diaperKind?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Diaper")
-        if (event.rash == true) append(" \u00b7 rash")
-    }
+    EventType.DIAPER -> diaperDetail(event)
     EventType.SOLIDS -> event.foodIds.takeIf { it.isNotEmpty() }
         ?.joinToString(", ") { it.replace('-', ' ') }
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
@@ -69,6 +67,47 @@ fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.t
         event.vaccineName?.let(::vaccineLabel),
     ).joinToString(" \u00b7 ").ifBlank { "Health" }
 }
+
+/**
+ * A diaper change in one line: what it was, what the stool was like, and whether there was a rash.
+ *
+ * `Wet` · `Dirty` · `Wet + dirty` · `Dirty · mushy, runny` · `Dirty · rash`.
+ *
+ * "Both" reads `Wet + dirty` rather than `Mixed`. The storage value is still `MIXED` — the column has
+ * carried those three names since schema v1 and nothing about a row's meaning may move — but the question
+ * the parent answered was two yes/no answers, and the words should say so back. `Mixed` also invited the
+ * reading "mixed = some wet, some dirty", which was never what it meant.
+ *
+ * CONSISTENCY IS WORDS, COLOUR IS NOT: colour is drawn as dots by [diaperColors] because a row showing
+ * "brown" beside a brown circle would say it twice, and the owner asked for the circle. So this string
+ * never contains a colour name — the only place those words appear is TalkBack, where a dot cannot speak.
+ *
+ * An unrecorded colour or consistency contributes NOTHING. It must not say "unknown" on every row: the
+ * absence is the truth, exactly as it is for `rash`, where `null` and `false` are different claims.
+ */
+fun diaperDetail(event: BabyEvent): String = buildString {
+    val kind = event.diaperKind
+    append(
+        when {
+            kind == null -> "Diaper"
+            kind.wet && kind.dirty -> "Wet + dirty"
+            kind.dirty -> "Dirty"
+            else -> "Wet"
+        },
+    )
+    // Only a dirty nappy has a consistency, so a wet-only row cannot carry one even if the data somehow
+    // did; the sheet clears them on save, and this is the second line of defence for a synced row.
+    val consistency = if (kind?.dirty == true) event.diaperConsistency else emptyList()
+    if (consistency.isNotEmpty()) {
+        append(" · ")
+        append(consistency.joinToString(", ") { it.name.lowercase() })
+    }
+    if (event.rash == true) append(" · rash")
+}
+
+/** The colours to replay as dots on this row — empty for a wet-only change, whatever the row holds. */
+fun diaperColors(event: BabyEvent): List<DiaperColor> =
+    if (event.diaperKind?.dirty == true) event.diaperColors else emptyList()
 
 /**
  * `Calpol 2.5 ml` — the medicine and how much of it, as one phrase.

@@ -5,6 +5,8 @@ import app.babylog.data.local.EventEntity
 import app.babylog.data.local.FoodEntity
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -74,6 +76,36 @@ class BackupTest {
         assertEquals(children, read.children)
         assertEquals(events, read.events)
         assertEquals(foods, read.foods)
+    }
+
+    @Test
+    fun `a diaper's colour and consistency survive the round trip`() {
+        // The v3 columns are only useful if they travel. A restore that lost them would keep the nappy and
+        // silently forget the reason it was logged.
+        val detailed = events.first { it.id == "e2" }
+            .copy(diaperKind = "MIXED", diaperColoursCsv = "BROWN,GREEN", diaperConsistencyCsv = "MUSHY")
+        val read = Backup.read(Backup.write(snapshot().copy(events = listOf(detailed))))
+
+        assertEquals(detailed, read.events.single())
+        assertEquals("BROWN,GREEN", read.events.single().diaperColoursCsv)
+        assertEquals("MUSHY", read.events.single().diaperConsistencyCsv)
+    }
+
+    @Test
+    fun `an export written before the nappy detail existed still restores its nappies`() {
+        // The two keys are absent rather than null in a file from 0.11.0; the import must read that as
+        // "not recorded" instead of failing the whole file.
+        // Matching on the key rather than the indentation: the exact whitespace is `JSONObject.toString(2)`'s
+        // business, and a test that pins it breaks on a formatting change that broke nothing.
+        val older = Backup.write(snapshot())
+            .replace(Regex(",\\s*\"diaperColoursCsv\": null"), "")
+            .replace(Regex(",\\s*\"diaperConsistencyCsv\": null"), "")
+        assertFalse("the keys must be gone for this to test anything", older.contains("diaperColoursCsv"))
+
+        val read = Backup.read(older)
+
+        assertEquals(events, read.events)
+        assertNull(read.events.first { it.id == "e2" }.diaperColoursCsv)
     }
 
     @Test

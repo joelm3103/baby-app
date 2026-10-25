@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import app.babylog.R
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.EventType
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.patternFor
@@ -127,4 +128,24 @@ private fun buildTile(context: Context, @DrawableRes res: Int, tint: Color, dens
         drawable.draw(canvas)
     }
     return bitmap.asImageBitmap()
+}
+
+/**
+ * The shape a consistency is drawn as (Phase 13.3).
+ *
+ * Same `when`-not-a-map reasoning as [glyphRes]: adding a consistency fails the build here rather than
+ * shipping a chip with a blank square. These are FILLED silhouettes rather than the stroke line-art the
+ * activity glyphs use, because a 1.7dp outline at 16dp inside a chip muddies; the shape has to carry the
+ * meaning (pebbles are pebbles) and the word beside it names it. Colour never carries it, so the field
+ * survives a colour-blind parent and a monochrome screenshot alike.
+ */
+@DrawableRes
+fun DiaperConsistency.stoolRes(): Int = when (this) {
+    DiaperConsistency.SOLID -> R.drawable.ic_stool_solid
+    DiaperConsistency.MUSHY -> R.drawable.ic_stool_mushy
+    DiaperConsistency.RUNNY -> R.drawable.ic_stool_runny
+    DiaperConsistency.MUCOUSY -> R.drawable.ic_stool_mucousy
+    DiaperConsistency.HARD -> R.drawable.ic_stool_hard
+    DiaperConsistency.PEBBLES -> R.drawable.ic_stool_pebbles
+    DiaperConsistency.DIARRHEA -> R.drawable.ic_stool_diarrhea
 }

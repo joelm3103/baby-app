@@ -491,3 +491,101 @@ fun DangerButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifi
             .padding(horizontal = 16.dp, vertical = 12.dp),
     )
 }
+
+/**
+ * One chip in a MULTI-select set — the same visual language as [ChoiceChip] (accent fill, `onAccent`
+ * content, raw accent icon when off) because it is the same kind of answer, just not exclusive.
+ *
+ * A separate component rather than a flag on [ChoiceChip]: selection state is a different type here
+ * (`Boolean` from a set rather than `T?`), and a shared composable with two meanings is how a caller ends
+ * up passing the wrong one. Phase 13.3 needed it for a dirty nappy's colour and consistency.
+ */
+@Composable
+fun MultiChoiceChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** A leading shape. Tinted like [ChoiceChip]'s: raw accent off, `onAccent` on the accent fill. */
+    icon: Painter? = null,
+    /** 14dp matches [ChoiceChip]; the filled stool silhouettes read better at 16dp. */
+    iconSize: androidx.compose.ui.unit.Dp = 14.dp,
+) {
+    val colors = BabyLogTheme.colors
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(Radius.pill))
+            .background(if (selected) accent else colors.surfaceRaised)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (icon != null) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = if (selected) colors.onAccent else accent,
+                modifier = Modifier.size(iconSize),
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (selected) colors.onAccent else colors.textPrimary,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * A labelled MULTI-select chip set that wraps rather than clips, for the same reason [ChipRow] does:
+ * seven consistency words — one of them "Mucousy" — do not fit a phone's width in one row, and an
+ * equal-weight row would squeeze them off the edge instead of flowing onto a second line.
+ *
+ * Selection is a set, and the caller receives the TOGGLED set rather than being told "select this": a
+ * multi-select field has to be clearable field-by-field, which was the defect [ChipRow]'s `clearLabel`
+ * was added to fix for the single-select case.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun <T> MultiChipRow(
+    label: String,
+    options: List<T>,
+    selected: Set<T>,
+    accent: Color,
+    labelOf: (T) -> String,
+    onToggle: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    /** Composable because each shape comes from `painterResource`, and a Painter needs a context. */
+    painterOf: (@Composable (T) -> Painter)? = null,
+    iconSize: androidx.compose.ui.unit.Dp = 14.dp,
+) {
+    val colors = BabyLogTheme.colors
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { option ->
+                MultiChoiceChip(
+                    label = labelOf(option),
+                    selected = option in selected,
+                    accent = accent,
+                    onClick = { onToggle(option) },
+                    icon = painterOf?.invoke(option),
+                    iconSize = iconSize,
+                )
+            }
+        }
+        HorizontalDivider(color = colors.divider)
+    }
+}

@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -54,6 +55,15 @@ import java.time.ZoneId
  * included — and "See all" whenever something is not on the card. Rows are tappable for editing: a
  * dashboard you cannot correct is a dashboard you stop trusting.
  */
+/**
+ * The answers a quick pill on the Diaper card may write.
+ *
+ * Wet and Dirty only, and deliberately NOT `DiaperKind.entries`. "Both" is a two-part answer, and a single
+ * tap cannot be a two-part answer: choosing it for the parent is the shortcut-to-a-wrong-record that the
+ * sheet exists to prevent. [app.babylog.domain.DiaperKind.MIXED] is therefore reachable only from the sheet.
+ */
+internal val DIAPER_QUICK_KINDS: List<DiaperKind> = listOf(DiaperKind.WET, DiaperKind.DIRTY)
+
 @Composable
 fun ActivityCard(
     card: CardUi,
@@ -267,20 +277,34 @@ fun ActivityCard(
                         }
                     }
                 }
-                Text(
-                    text = growth?.let { growthDetail(it, units) } ?: detailLine(headline, units),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textOnCard,
-                )
+                // The detail line and the colour dots share one row: the dots are part of what the newest
+                // change WAS, and the same mark is replayed on the rows below (DiaperColorDots). A Row so
+                // the text still ellipsises as one line at 1.3x font scale instead of wrapping the card.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = growth?.let { growthDetail(it, units) } ?: detailLine(headline, units),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textOnCard,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    DiaperColorDots(
+                        colors = diaperColors(headline),
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
             }
 
             when (card.type) {
-                // Diaper asks one question with three answers, so it answers in place of a sheet. The
-                // sheet, behind "More", is only for what the pills cannot say: back-dating, a rash, a note.
+                // Diaper answers its two common cases in place of a sheet: one tap for Wet, one for Dirty.
+                // Saying BOTH now costs opening the sheet — the owner's call, 2026-10-24 — so this list is
+                // deliberately not `DiaperKind.entries`: a quick pill must never write MIXED, which is the
+                // encoding of a two-part answer the parent did not give in one tap.
                 EventType.DIAPER -> Column {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DiaperKind.entries.forEach { kind ->
+                        DIAPER_QUICK_KINDS.forEach { kind ->
                             PillButton(
                                 label = kind.name.lowercase().replaceFirstChar { it.uppercase() },
                                 fill = colors.surface,

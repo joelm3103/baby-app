@@ -2,13 +2,17 @@ package app.babylog.data.local
 
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
+import app.babylog.domain.DiaperColor
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
 import app.babylog.domain.FoodReaction
 import app.babylog.domain.MealSlot
 import app.babylog.domain.Sex
+import app.babylog.domain.decodeCodes
 import app.babylog.domain.decodeFoodIds
+import app.babylog.domain.encodeCodes
 import app.babylog.domain.encodeFoodIds
 import java.time.LocalDate
 
@@ -67,6 +71,8 @@ fun EventEntity.toDomain(): BabyEvent? {
         reaction = enumOrNull<FoodReaction>(reaction),
         diaperKind = enumOrNull<DiaperKind>(diaperKind),
         rash = rash,
+        diaperColors = decodeCodes(diaperColoursCsv, DiaperColor.entries.toTypedArray()),
+        diaperConsistency = decodeCodes(diaperConsistencyCsv, DiaperConsistency.entries.toTypedArray()),
         weightGrams = weightGrams,
         lengthMm = lengthMm,
         headMm = headMm,
@@ -97,6 +103,8 @@ fun BabyEvent.toEntity(): EventEntity = EventEntity(
     reaction = reaction?.name,
     diaperKind = diaperKind?.name,
     rash = rash,
+    diaperColoursCsv = encodeCodes(diaperColors),
+    diaperConsistencyCsv = encodeCodes(diaperConsistency),
     weightGrams = weightGrams,
     lengthMm = lengthMm,
     headMm = headMm,

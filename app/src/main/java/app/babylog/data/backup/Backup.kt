@@ -105,6 +105,8 @@ object Backup {
         putNullable("reaction", e.reaction)
         putNullable("diaperKind", e.diaperKind)
         putNullable("rash", e.rash)
+        putNullable("diaperColoursCsv", e.diaperColoursCsv)
+        putNullable("diaperConsistencyCsv", e.diaperConsistencyCsv)
         putNullable("weightGrams", e.weightGrams)
         putNullable("lengthMm", e.lengthMm)
         putNullable("headMm", e.headMm)
@@ -132,6 +134,10 @@ object Backup {
         reaction = o.stringOrNull("reaction"),
         diaperKind = o.stringOrNull("diaperKind"),
         rash = o.booleanOrNull("rash"),
+        // An export written before Phase 13.3 has neither key; empty means "not recorded", so an old file
+        // still restores every nappy it holds.
+        diaperColoursCsv = o.stringOrNull("diaperColoursCsv"),
+        diaperConsistencyCsv = o.stringOrNull("diaperConsistencyCsv"),
         weightGrams = o.intOrNull("weightGrams"),
         lengthMm = o.intOrNull("lengthMm"),
         headMm = o.intOrNull("headMm"),

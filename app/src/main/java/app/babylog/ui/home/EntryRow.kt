@@ -55,6 +55,10 @@ internal fun EntryRow(
     onCard: Boolean = true,
     band: TemperatureBand? = null,
 ) {
+    // The diaper's colour, replayed as the same small circle the sheet's selector draws. Read from the
+    // event rather than passed in, so a caller cannot forget it and leave a row that disagrees with the
+    // headline above it - which is the only way a row and its card ever drift apart.
+    val dotColors = diaperColors(event)
     val colors = BabyLogTheme.colors
     Row(
         modifier = modifier
@@ -83,6 +87,7 @@ internal fun EntryRow(
                 // The label gives way first, so the pill and the time both survive a narrow row.
                 modifier = Modifier.weight(1f, fill = false),
             )
+            DiaperColorDots(colors = dotColors, modifier = Modifier.padding(start = 6.dp))
             if (band != null) TemperatureBadge(band)
         }
         Text(

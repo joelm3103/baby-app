@@ -23,6 +23,14 @@ data class EventEntity(
     val reaction: String? = null,
     val diaperKind: String? = null,
     val rash: Boolean? = null,
+    /**
+     * Colour and consistency, comma-separated enum names, and NULL unless the nappy was DIRTY.
+     *
+     * Added in schema v3 (Phase 13.3, `0.12.0`). Two TEXT columns rather than a join table, for the
+     * reason `CodedValues` records.
+     */
+    val diaperColoursCsv: String? = null,
+    val diaperConsistencyCsv: String? = null,
     val weightGrams: Int? = null,
     val lengthMm: Int? = null,
     val headMm: Int? = null,

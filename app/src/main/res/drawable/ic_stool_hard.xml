@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Consistency: Hard — a faceted block. Straight edges and corners, deliberately the only shape in the set
+  with no curve in its outline, because "hard" is exactly the absence of give.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4.4,16.6 L3.4,11 L8,6.6 L15.6,6 L20.6,10.4 L19.2,16.6 Z" />
+</vector>

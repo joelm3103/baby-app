@@ -1,6 +1,8 @@
 package app.babylog.data.repo
 
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.DiaperColor
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
 import org.junit.Assert.assertEquals
@@ -67,6 +69,47 @@ class EventDraftTest {
         val draft = EventDraft(type = EventType.BOTTLE, startedAt = existing.startedAt, amountMl = null)
 
         assertNull(draft.applyTo(existing, 1L).amountMl)
+    }
+
+    @Test
+    fun `an edit keeps the colour and consistency it was saved with`() {
+        // The sheet prefills from the row, so an untouched edit must write back exactly what was there -
+        // the same trap `applyTo` guards for a bottle amount that was only displayed in another unit.
+        val diaper = existing.copy(
+            type = EventType.DIAPER,
+            diaperKind = DiaperKind.MIXED,
+            diaperColors = listOf(DiaperColor.BROWN),
+            diaperConsistency = listOf(DiaperConsistency.RUNNY),
+        )
+        val draft = EventDraft(
+            type = EventType.DIAPER,
+            startedAt = diaper.startedAt,
+            diaperKind = DiaperKind.MIXED,
+            diaperColors = diaper.diaperColors,
+            diaperConsistency = diaper.diaperConsistency,
+        )
+
+        val edited = draft.applyTo(diaper, 2L)
+
+        assertEquals(listOf(DiaperColor.BROWN), edited.diaperColors)
+        assertEquals(listOf(DiaperConsistency.RUNNY), edited.diaperConsistency)
+        assertEquals(diaper.id, edited.id)
+    }
+
+    @Test
+    fun `an edit that clears them clears them`() {
+        val diaper = existing.copy(
+            type = EventType.DIAPER,
+            diaperKind = DiaperKind.WET,
+            diaperColors = listOf(DiaperColor.BROWN),
+            diaperConsistency = listOf(DiaperConsistency.RUNNY),
+        )
+        val draft = EventDraft(type = EventType.DIAPER, startedAt = diaper.startedAt, diaperKind = DiaperKind.WET)
+
+        val edited = draft.applyTo(diaper, 2L)
+
+        assertEquals(emptyList<DiaperColor>(), edited.diaperColors)
+        assertEquals(emptyList<DiaperConsistency>(), edited.diaperConsistency)
     }
 
     @Test

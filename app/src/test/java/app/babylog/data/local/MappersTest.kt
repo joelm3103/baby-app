@@ -2,6 +2,8 @@ package app.babylog.data.local
 
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.Child
+import app.babylog.domain.DiaperColor
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
@@ -83,6 +85,29 @@ class MappersTest {
     fun `diaper round trips with kind and rash`() {
         val e = base(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED, rash = false)
         assertEquals(e, e.toEntity().toDomain())
+    }
+
+    @Test
+    fun `diaper round trips colour and consistency`() {
+        val e = base(EventType.DIAPER).copy(
+            diaperKind = DiaperKind.MIXED,
+            diaperColors = listOf(DiaperColor.BROWN, DiaperColor.GREEN),
+            diaperConsistency = listOf(DiaperConsistency.MUSHY),
+        )
+        val entity = e.toEntity()
+        assertEquals("BROWN,GREEN", entity.diaperColoursCsv)
+        assertEquals("MUSHY", entity.diaperConsistencyCsv)
+        assertEquals(e, entity.toDomain())
+    }
+
+    @Test
+    fun `a row written before the nappy-detail columns existed reads as not recorded`() {
+        // The v2 rows on the phone have NULL in both columns; empty is the domain's "not recorded", and it
+        // must not become a recorded false or a default colour.
+        val entity = base(EventType.DIAPER).copy(diaperKind = DiaperKind.DIRTY).toEntity()
+        val back = entity.toDomain()!!
+        assertEquals(emptyList<DiaperColor>(), back.diaperColors)
+        assertEquals(emptyList<DiaperConsistency>(), back.diaperConsistency)
     }
 
     @Test

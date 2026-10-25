@@ -40,8 +40,10 @@ android {
         // Phase 13.1: explicit 12/24-hour and Celsius/Fahrenheit display preferences.
         // Storage stays canonical; this is the next capability rung after 0.9.1.
         // 0.11.0 is Phase 13.2, the four temperature bands — a new capability, so a new MINOR rung.
-        versionCode = 15
-        versionName = "0.11.0"
+        // 0.12.0 is Phase 13.3, diaper detail: two independent answers plus colour and consistency,
+        // which is a new capability and a third schema version, so another MINOR rung.
+        versionCode = 16
+        versionName = "0.12.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

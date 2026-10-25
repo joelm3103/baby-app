@@ -1,6 +1,8 @@
 package app.babylog.data.repo
 
 import app.babylog.domain.BabyEvent
+import app.babylog.domain.DiaperColor
+import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.DoseUnit
 import app.babylog.domain.EventType
@@ -25,6 +27,9 @@ data class EventDraft(
     val reaction: FoodReaction? = null,
     val diaperKind: DiaperKind? = null,
     val rash: Boolean? = null,
+    /** Empty unless the nappy is DIRTY; the sheet clears them when Dirty is off, before the save. */
+    val diaperColors: List<DiaperColor> = emptyList(),
+    val diaperConsistency: List<DiaperConsistency> = emptyList(),
     val weightGrams: Int? = null,
     val lengthMm: Int? = null,
     val headMm: Int? = null,
@@ -54,6 +59,8 @@ data class EventDraft(
         reaction = reaction,
         diaperKind = diaperKind,
         rash = rash,
+        diaperColors = diaperColors,
+        diaperConsistency = diaperConsistency,
         weightGrams = weightGrams,
         lengthMm = lengthMm,
         headMm = headMm,

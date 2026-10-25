@@ -87,6 +87,36 @@ class SyncDocumentsTest {
     }
 
     @Test
+    fun `a nappy's colour and consistency travel to the other phone`() {
+        val detailed = event.copy(
+            type = "DIAPER",
+            diaperKind = "MIXED",
+            diaperColoursCsv = "BROWN,GREEN",
+            diaperConsistencyCsv = "MUSHY,PEBBLES",
+        )
+
+        val read = eventFromSyncMap(detailed.toSyncMap())!!
+
+        assertEquals("MIXED", read.diaperKind)
+        assertEquals("BROWN,GREEN", read.diaperColoursCsv)
+        assertEquals("MUSHY,PEBBLES", read.diaperConsistencyCsv)
+    }
+
+    @Test
+    fun `a document written before the nappy detail existed reads as not recorded`() {
+        // The other phone may still be on 0.11.0 while this one is on 0.12.0; its documents have neither key,
+        // and that must read as empty rather than as a parse failure that hides the nappy.
+        val documents = event.toSyncMap().toMutableMap()
+        documents.remove("diaperColoursCsv")
+        documents.remove("diaperConsistencyCsv")
+
+        val read = eventFromSyncMap(documents)!!
+
+        assertNull(read.diaperColoursCsv)
+        assertNull(read.diaperConsistencyCsv)
+    }
+
+    @Test
     fun `integers come back as integers even though Firestore may hand them back as doubles`() {
         // A whole number that round-trips through a Double and back to Int is the difference between
         // 120 ml and a row the entity constructor refuses.

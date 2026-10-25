@@ -26,8 +26,68 @@ enum class EventType(
     SLEEP(hasDuration = true),
 }
 
-/** DELIBERATELY three. Both source apps shipped a clinical taxonomy nobody asks for at 3am. */
-enum class DiaperKind { WET, DIRTY, MIXED }
+/**
+ * What was in the nappy, as THREE values that encode two INDEPENDENT answers.
+ *
+ * The sheet now asks two questions that can both be true (Wet, Dirty), and [MIXED] is how "both" is
+ * spelled in storage. That is deliberate rather than lazy: the column has carried these three names since
+ * schema v1, so keeping them means no existing row, sync document or export changes meaning — and "both"
+ * stays expressible in one column instead of two booleans whose illegal combinations [of] would have to
+ * police. [wet] and [dirty] are the accessors the UI and the pills use.
+ */
+enum class DiaperKind {
+    WET,
+    DIRTY,
+    MIXED;
+
+    val wet: Boolean get() = this != DIRTY
+    val dirty: Boolean get() = this != WET
+
+    companion object {
+        /**
+         * The only legal combinations are the three enum values, so "neither" is not representable. That
+         * is a feature: a nappy that was neither wet nor dirty is not something anyone looks at 3am.
+         */
+        fun of(wet: Boolean, dirty: Boolean): DiaperKind {
+            require(wet || dirty) { "a diaper change is wet, dirty, or both" }
+            return when {
+                wet && dirty -> MIXED
+                wet -> WET
+                else -> DIRTY
+            }
+        }
+
+        /**
+         * One chip tap, with the rule that the LAST selected answer cannot be turned off.
+         *
+         * Expressed here rather than in the composable for the reason `HistoryFilter` lives in `ui/history`
+         * as a pure file: a rule about what a screen may produce is testable when it is not welded to a
+         * `Modifier.clickable`. Turning both off has no honest encoding, so the chip simply stays on.
+         */
+        fun toggle(current: DiaperKind, tapWet: Boolean): DiaperKind {
+            val targetWet = if (tapWet) !current.wet else current.wet
+            val targetDirty = if (tapWet) current.dirty else !current.dirty
+            if (!targetWet && !targetDirty) return current
+            return of(targetWet, targetDirty)
+        }
+    }
+}
+
+/**
+ * The colour of a dirty nappy. A LITERAL colour — what the parent saw — not an activity accent.
+ *
+ * `accent*` tokens mean exactly one activity type each and must never be reused (`Tokens.kt`), and
+ * `danger` means a destructive action rather than a red stool. These six are data, drawn as filled
+ * circles, and every one of them carries a hairline ring because Black disappears on the dark surface
+ * and White on the light one (both about 1.1:1 unringed).
+ */
+enum class DiaperColor { YELLOW, BROWN, BLACK, GREEN, RED, WHITE }
+
+/**
+ * How a dirty nappy was FORMED, identified by a shape plus its word — never by colour, so the field does
+ * not depend on a hue, the same reason a fever is marked by a pill and not a red number.
+ */
+enum class DiaperConsistency { SOLID, MUSHY, RUNNY, MUCOUSY, HARD, PEBBLES, DIARRHEA }
 
 /**
  * The temperature at or above which a reading is shown as a fever.
@@ -87,6 +147,13 @@ data class BabyEvent(
     // DIAPER
     val diaperKind: DiaperKind? = null,
     val rash: Boolean? = null,
+    /**
+     * Colour and consistency are only meaningful for a DIRTY nappy, so both are EMPTY unless
+     * [DiaperKind.dirty] — the sheet clears them on save when Dirty is off, and empty means "not recorded"
+     * rather than "none", exactly like [rash].
+     */
+    val diaperColors: List<DiaperColor> = emptyList(),
+    val diaperConsistency: List<DiaperConsistency> = emptyList(),
     // GROWTH
     val weightGrams: Int? = null,
     val lengthMm: Int? = null,

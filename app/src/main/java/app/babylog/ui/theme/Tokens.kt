@@ -224,3 +224,64 @@ object Radius {
     val card = 20.dp
     val pill = 999.dp
 }
+
+/**
+ * A dirty nappy's colour and consistency marks (Phase 13.3).
+ *
+ * The six fills are LITERAL colours - what the parent saw - and are deliberately not taken from the
+ * activity accents, from [BabyLogColors.danger] or from [BabyLogColors.background]. An accent means one
+ * activity type and nothing else, so a brown stool is not "BabyLog's anything" and a red one is not a
+ * destructive action.
+ *
+ * THE RING IS THE CONTRACT. Black against the dark `surface #222534` measures 1.10:1 and White against the
+ * light `surface #FFFFFF` 1.13:1 - without a hairline one of the two vanishes in one of the two themes. So
+ * every swatch, selected or not, and the same mark when it is replayed at 8dp on a card row, carries a 1dp
+ * ring.
+ *
+ * The ring is a DEDICATED colour per theme, not `textSecondary`, and the reason is measurable: a fill set
+ * that runs from black to white has no single grey that clears 3:1 against all six (the mid-greys measured
+ * 1.0-2.9:1 against the ends of the range). So each theme gets the pole it needs - near-white on dark,
+ * near-black on light - and the rule the test enforces is the one that actually matters: at every circle's
+ * EDGE either the fill contrasts with the sheet (>= 3:1) or the ring contrasts with the fill (>= 3:1), and
+ * the ring always reads against the sheet itself (10.67:1 dark, 9.95:1 light). Measured results, per
+ * theme: the only fills that rely on the ring are Brown (2.60:1 on dark, ring 4.10:1) and Black
+ * (1.10:1, ring 11.74:1) on dark, and Yellow (1.69:1 on light, ring 5.88:1) and White (1.13:1, ring
+ * 8.81:1) on light. `DiaperPaletteTest` asserts all twelve cases, so retuning a fill or dropping the ring
+ * fails the build rather than shipping a blank dot.
+ *
+ * Selection adds a ring OUTSIDE the hairline and never changes the circle's size, because a row that
+ * shifts as you tick boxes is the same defect the three temperature bands were given one geometry to
+ * avoid.
+ */
+object DiaperSwatch {
+    val Yellow = Color(0xFFF2C11E)
+    val Brown = Color(0xFF8B5A2B)
+    val Black = Color(0xFF241C1A)
+    val Green = Color(0xFF5C8A21)
+    val Red = Color(0xFFD93A2B)
+    val White = Color(0xFFF3F1EC)
+
+    /**
+     * The selector's circle. The MARKS are 6 x 36dp + 5 x 10dp = 266dp inside the 328dp a 360dp phone
+     * leaves; the TAP TARGETS are 44dp boxes around them (6 x 44dp + 5 x 10dp = 314dp, still inside that
+     * 328dp) so the visible circles stay close together while every one of them meets the touch minimum.
+     * A narrower phone wraps the row rather than clipping it.
+     */
+    val size = 36.dp
+    val gap = 10.dp
+
+    /** Both rings: a permanent hairline, then the selection ring outside it. */
+    val hairline = 1.dp
+    val selectionRing = 2.dp
+
+    /**
+     * The permanent hairline's colour, per theme. Near-white on the dark scheme and near-black on the light
+     * one, because those are the poles a fill spanning black-to-white always has something to say against -
+     * see the measured derivation above. Keyed on [BabyLogColors.isDark] rather than a `when` on a theme
+     * name so a third theme cannot silently fall through to no ring.
+     */
+    fun ringFor(colors: BabyLogColors): Color = if (colors.isDark) Color(0xFFD5D8E2) else Color(0xFF3C4350)
+
+    /** The same mark replayed on a card row, where it is a bullet rather than a control. */
+    val dot = 8.dp
+}

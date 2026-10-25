@@ -104,6 +104,10 @@ fun EventEntity.toSyncMap(): SyncMap = mapOf(
     "reaction" to reaction,
     "diaperKind" to diaperKind,
     "rash" to rash,
+    // Phase 13.3. A document written before this build simply lacks both keys, and `eventFromSyncMap`
+    // reads them as empty - "not recorded" - rather than as a parse failure.
+    "diaperColoursCsv" to diaperColoursCsv,
+    "diaperConsistencyCsv" to diaperConsistencyCsv,
     "weightGrams" to weightGrams,
     "lengthMm" to lengthMm,
     "headMm" to headMm,
@@ -133,6 +137,8 @@ fun eventFromSyncMap(map: SyncMap): EventEntity? {
         reaction = map.string("reaction"),
         diaperKind = map.string("diaperKind"),
         rash = map.bool("rash"),
+        diaperColoursCsv = map.string("diaperColoursCsv"),
+        diaperConsistencyCsv = map.string("diaperConsistencyCsv"),
         weightGrams = map.int("weightGrams"),
         lengthMm = map.int("lengthMm"),
         headMm = map.int("headMm"),
