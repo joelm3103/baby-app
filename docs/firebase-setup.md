@@ -210,6 +210,14 @@ The app can fetch a newer WHO dataset without an APK release. Publish two docume
 Clients read both documents and never write them. The rules above allow that for the two accounts.
 If either document is missing or fails its checksum, the app keeps the bundled dataset.
 
+**The `reference` rule has to be deployed, not just committed.** The match block arrived in `ba4bbb4`, but
+rules reach the console by hand, so the first device pass in Phase 13.5 got `PERMISSION_DENIED` on
+`reference/growth_manifest` while `events` synced normally — and the app reports that as `Could not check`,
+which reads like a bug in the fetch. If a check fails, paste the file into Firestore → Rules → Publish and
+look for that line in `adb logcat | grep Firestore` before touching any code. Publishing the documents is
+enough to prove the promise end to end: a copy of the bundled JSON with only `version` and `retrievedAt`
+bumped and the SHA-256 recomputed moves the identity line without changing a single percentile.
+
 ## What is still Phase 16
 
 The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above

@@ -36,13 +36,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   up arrow, a head); the range chips carry no glyph and read `D · 1W · 2W` and `1W · 2W · 1M`. No window changed.
 - **Four findings closed without code**, by the owner's ruling: the `8:55 PM` tombstone stays deleted, `Reminders
   differ` stays gone, the Trends chip clipping was fine, and phases land in the order they are done.
-- **Phase 13.5 lands the growth dataset update channel.** A newer WHO dataset can now be fetched from
-  Firestore, checksum-verified, and cached without an APK release; the bundled dataset stays on every
-  failure. Built and unit-tested; the phone check is still pending.
+- **Phase 13.5 lands the growth dataset update channel, device-verified.** A newer WHO dataset can be fetched
+  from Firestore, checksum-verified, and cached without an APK release; the bundled dataset stays on every
+  failure. The pass also found a real defect — the Settings identity line kept reading `v2026.10` directly
+  beside `Updated to v2026.11` until the screen was left and re-entered — fixed here as `0.17.1`.
 - **The phase ladder is renumbered so it reads in landing order** (docs only, no build): reset-to-defaults
-  13.6 → 15, update delivery 15 → 16, ship 16 → 17. 13.5 keeps its number and its `0.17.0`, because three
-  commits already carry it. This supersedes the `phases land in the order they are done` ruling closed
-  earlier the same day, below.
+  13.6 → 15, update delivery 15 → 16, ship 16 → 17. 13.5 keeps its number and its `0.17.0` — now `0.17.1`,
+  the rung its device pass took — because three commits already carry `phase13.5`. This supersedes the
+  `phases land in the order they are done` ruling closed earlier the same day, below.
 
 ### Versions
 
@@ -50,8 +51,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   (per-metric marks and the wider glyph reach), so it takes the next `0.MINOR` rung rather than a `0.PATCH`. The
   unused `0.14.0` / `0.15.0` rungs are not reserved for unfinished phases; they receive increasing versions
   and codes when they land. `1.0.0` is the first delivered release, with Ship as the last step.
-- `0.17.0` / `versionCode 21`. Phase 13.5 adds the growth dataset update channel. Built and unit-tested;
-  device verification is pending.
+- `0.17.0` / `versionCode 21`. Phase 13.5 adds the growth dataset update channel. Built, unit-tested and
+  device-verified on 2026-10-26 — see the phone pass below.
+- `0.17.1` / `versionCode 22`. Phase 13.5's device pass. The Settings identity line is now observed through a
+  `StateFlow` instead of being read once on entry, so an accepted update changes it on the screen that ran the
+  check. A fix found by the pass, so a `0.PATCH` rung and not a new capability.
 
 ### Changed
 
@@ -102,8 +106,39 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **A defect no test caught, found here:** a feed with no amount read `Bottle feed` over `Bottle`. Fixed as
   14.10 (`No amount recorded`), and the test that had pinned the old word now pins the new one.
 
+### Verified on the phone — Phase 13.5, `0.17.1`, `<handset>`, 2026-10-26
+
+- **The check could not work at first, and the phone said why.** A read of `reference/growth_manifest` returned
+  `Status{code=PERMISSION_DENIED}` while `events` synced normally: the repo's `firebase/firestore.rules`
+  carries the `match /reference/{documentId}` block from `ba4bbb4`, but rules are pasted into the console by
+  hand and the deployed set predated it. With the rules published and the two documents in place, the same
+  tap reported `Updated to who-2006.2026.11`.
+- **The fallback is real, not theoretical.** Across every failing check the Growth reference line stayed at
+  `WHO 2006 · v2026.10 · updated 15 Oct 2026` and the app kept working: a permission error, a missing document
+  and a checksum mismatch all end as `Could not check` with the bundled tables still in use.
+- **The update path, end to end.** Cache file removed so the app fell back to the bundled dataset, then one tap:
+  `Updated to who-2006.2026.11`, the line became `WHO 2006 · v2026.11 · updated 26 Oct 2026` **on the same
+  screen**, and `files/growth/updated.json` (488 449 bytes) was written. A second tap reported
+  `Already up to date` with no re-fetch. The dataset published for the pass carries the bundled LMS numbers with
+  only `version` and `retrievedAt` bumped — it proves fetch → checksum → cache → identity line, not a new WHO
+  release, and the percentile tables are byte-identical to the bundled ones.
+- **A defect no unit test caught, found here:** after a successful update the Settings card printed
+  `Updated to who-2006.2026.11` above a line still reading `v2026.10`. `SettingsViewModel` called
+  `container.growth()` under a comment claiming it refreshed that line, but the value was discarded, and
+  `AppScaffold` only re-read it when the destination changed. Fixed in `0.17.1`; the line now moves on the
+  screen that triggered the check, which is what this pass re-verified.
+- **Both manual rows work** — Settings and Trends → Growth each ran the check — and the crash buffer stayed at
+  0 `FATAL EXCEPTION` across the install, the relaunch and every tap.
+
 ### Fixed
 
+- **The Settings identity line did not move when the dataset did.** `SettingsViewModel.checkGrowthUpdates()`
+  ended with `container.growth()` under the comment *Refresh the identity line shown in Settings after a
+  successful update* — a suspending call whose result was discarded, so nothing recomposed. The line came from a
+  `produceState` keyed on the destination in `AppScaffold`, which only re-runs when the screen is re-entered.
+  `GrowthDatasetRepository.identityLine` is now a `StateFlow` that the accepted update publishes to, the screen
+  collects it, and the dead call (and the now-unused `container` parameter) are gone. Found on the phone, not by
+  a test; `GrowthDatasetRepositoryTest` now pins that a collector sees the new line.
 - **Two consistency silhouettes.** `Mucousy` was a wide bar over a stem with a dot under it — a `T` at 16 dp, found
   by the owner on the phone and kept open rather than redrawn in the moment. `Runny` was three heavy circles on an
   ellipse that merged into `Mushy` at the same size. Both redrawn, and both were rendered at 16/24/48 dp before and
@@ -134,6 +169,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   fallbacks. The existing amount-less-bottle test was rewritten to pin `No amount`, not counted as new.
 - **532 → 537.** Five in `GrowthDatasetRepositoryTest`: newer dataset with matching checksum, stale version,
   checksum mismatch, unreachable gateway, and corrupt cache fallback.
+- **537 → 538.** One in `GrowthDatasetRepositoryTest` for the defect this pass found: `identityLine` is a
+  `StateFlow`, so a collector sees `who-2006.2026.12` after an accepted update instead of the version it read on
+  entry. The suite is 538 with 0 failures, 0 errors and 0 skipped, summed from 54 XML files under
+  `app/build/test-results/testDebugUnitTest/`.
 
 ### Changed — the phase ladder is renumbered (documents only)
 

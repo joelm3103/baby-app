@@ -302,7 +302,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-537 unit tests through Phase 13.5, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+538 unit tests through Phase 13.5, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -331,12 +331,12 @@ only, and `1.0.0` is the first release.
 | | | 13.3 diaper detail | `0.12.0` |
 | | | 13.4 activity reminders | `0.13.0` |
 | | | 14 Polish/Misc changes | `0.16.0` |
-| | | 13.5 dataset channel | `0.17.0` |
+| | | 13.5 dataset channel | `0.17.1` |
 | | | 15 reset to defaults (not started) | `0.18.0` at first commit |
 | | | 16 update delivery (first release) | `1.0.0` |
 | | | 17 ship | uses delivered release |
 
-- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.17.0` → 21); it never goes backwards,
+- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.17.1` → 22); it never goes backwards,
   because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:
   unfinished phases get versions and codes above the latest delivered build when they land, in landing order.
   If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release number.
@@ -344,8 +344,8 @@ only, and `1.0.0` is the first release.
   first commit lands: work that has not started takes the next free integer above the last landed phase, and
   may be renumbered freely while it still has no commits. **Decimal sub-phases are retired** — `9.1`, `9.2`,
   `13.1`, `13.1.1` and `13.2`–`13.5` stay as history and nothing new is numbered `13.7`. Phase 13.5 keeps its
-  number and its `0.17.0` because three commits on `main` already say `phase13.5`; a landed rung is never
-  renumbered to match a tidier label. 13.5 and 15 have no prerequisites. Phase 16 creates and backs up the
+  number because three commits on `main` already say `phase13.5`, and its rung is `0.17.1` after its own device
+  pass; a landed rung is never renumbered to match a tidier label. 13.5 and 15 have no prerequisites. Phase 16 creates and backs up the
   release keystore outside the repo, then registers its SHA-1 with the Google Sign-In OAuth client **before
   delivery**. Phase 17 requires a build delivered over the air from Phase 16.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed

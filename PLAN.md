@@ -47,7 +47,7 @@ everything after it is additive.**
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; the `Mucousy` glyph read as a `T` at 16dp, kept open here and redrawn in Phase 14.6; 444 tests green |
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
-| 13.5 — Growth dataset update channel | **built and tested — device pass pending** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`; 537 tests green. **No prerequisite.** Keeps this number and this rung: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Next: the device pass** |
+| 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); `0.18.0` / versionCode 22, set at its first commit. **No prerequisite.** Was 13.6 |
 | 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
@@ -58,10 +58,9 @@ reservation for unstarted work — `versionCode`/`versionName` were rewritten so
 carry that phase's rung, set at the **first commit of the phase's work** so a build on a phone says which
 phase produced it. `0.MINOR` is a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is
 the first release. **Landed rungs are never renumbered**, even where a phase's number moved afterwards:
-Phase 14 is `0.16.0` / versionCode 20 and Phase 13.5 is `0.17.0` / versionCode 21, so the ladder rises in
+Phase 14 is `0.16.0` / versionCode 20 and Phase 13.5 is `0.17.1` / versionCode 22, so the ladder rises in
 **landing** order rather than in phase-number order. The next new work — Phase 15, reset to defaults —
-takes `0.18.0` / versionCode 22 at its first commit, and a code fix found during the Phase-13.5 device
-pass takes `0.17.1`, because a PATCH is fixes only. Landed rungs are listed in dated `CHANGELOG.md`
+takes `0.18.0` / versionCode 23 at its first commit. Landed rungs are listed in dated `CHANGELOG.md`
 sections under `### Versions`; the rule is in `AGENTS.md`.
 Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 16. The original scheme note
 that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
@@ -77,10 +76,10 @@ The owner asked for the phase numbers to run in the order the work actually happ
 | Update delivery (first release) | 15 | **16** | `1.0.0` |
 | Ship | 16 | **17** | uses the delivered release |
 
-- **Phase 13.5 keeps its number and its `0.17.0`.** Three commits on `main` already say `phase13.5`
-  (`29ccd6c`, `ba4bbb4`, `848c924`), and renaming a landed phase to match a tidier label would mean
-  rewriting history. It sits below Phase 14 on purpose, and the property that actually matters — the
-  version ladder rising in landing order — still holds.
+- **Phase 13.5 keeps its number**, and its rung is `0.17.1` after its own device pass. Three commits on
+  `main` already say `phase13.5` (`29ccd6c`, `ba4bbb4`, `848c924`), and renaming a landed phase to match a
+  tidier label would mean rewriting history. It sits below Phase 14 on purpose, and the property that
+  actually matters — the version ladder rising in landing order — still holds.
 - **The rule is now: a phase's number is fixed when its first commit lands.** Work that has not started
   takes the next free integer above the last landed phase, and may be renumbered freely while it still
   has no commits. This supersedes the 2026-10-26 ruling *phases land in the order they are done* (C12 in
@@ -96,8 +95,10 @@ The owner asked for the phase numbers to run in the order the work actually happ
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.17.0, versionCode 21); `:app:testDebugUnitTest` is **537/537**
-with 0 failures, 0 errors and 0 skipped (532 at the Phase-14 close, +5 in Phase 13.5: manifest and
+Verified: `:app:assembleDebug` builds (0.17.1, versionCode 22); `:app:testDebugUnitTest` is **538/538**
+with 0 failures, 0 errors and 0 skipped, summed from the 54 XML files under
+`app/build/test-results/testDebugUnitTest/` on 2026-10-26 (537 at the Phase-13.5 code close, +1 for the
+identity-line defect its device pass found). (532 at the Phase-14 close, +5 in Phase 13.5: manifest and
 repository tests). (515 at the Phase-13.4 close, +17 in Phase 14: two new
 `OutboxDrainerTest`, five `SyncRepositoryTest`, three `StoolAndMetricGlyphTest`, five `RangeLabelTest`
 and two `CardSummaryTest`; the old amount-less-bottle test was changed, not added). The 515 was: `:app:testDebugUnitTest` was **515/515**
@@ -1436,7 +1437,7 @@ phone, and it is why the pass below is a table rather than a sentence.
 logged, because there is no log to measure from — the rule's own anchor drives the alarm, but claiming `3h since the
 last feed` when no feed exists would be a lie. Also `Reminders differ` is gone by design: two children get two chips.
 
-## Phase 13.5 — the growth dataset update channel — built and tested, device pass pending (`0.17.0`)
+## Phase 13.5 — the growth dataset update channel — DONE, device-verified (`0.17.0`, `0.17.1`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -1452,10 +1453,52 @@ The Firebase project already exists by then, which is the only precondition this
 - `GrowthReference.identityLine` is unchanged; the repository supplies the current reference.
 - Tests: `GrowthDatasetRepositoryTest` (5 cases) plus the existing Growth tests; 537 total, 0 failures.
 
-**Device pass pending:** publish the two reference documents and verify an update changes the identity
-line on a phone. The bundled dataset and percentile maths are unchanged.
+### As built, where the device pass changed it — 2026-10-26
 
-The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
+Two things came out of the phone, one of them a defect the suite could not see:
+
+- **The check was blocked by deployment, not by code.** `reference/growth_manifest` read returned
+  `Status{code=PERMISSION_DENIED}` while `events` synced normally. `firebase/firestore.rules` in the repo
+  carries `match /reference/{documentId}` from `ba4bbb4`, but rules are pasted into the console by hand and
+  the deployed set predated that commit. Nothing in the app needed to change; the rules and the two
+  documents were published and the same tap then reported `Updated to who-2006.2026.11`.
+- **The Settings identity line did not move when the dataset did** — `0.17.1`. After a successful check the
+  card printed `Updated to who-2006.2026.11` above a line still reading `v2026.10`; it only corrected itself
+  after leaving and re-entering Settings. `SettingsViewModel.checkGrowthUpdates()` called
+  `container.growth()` under a comment claiming that refreshed the line, but the value was discarded, and
+  `AppScaffold` re-read it inside a `produceState` keyed on the destination. `GrowthDatasetRepository
+  .identityLine` is now a `StateFlow` that an accepted update publishes to, the screen collects it, the dead
+  call is gone, and so is the `container` parameter it was the last user of. The phone re-proved it: one tap,
+  same screen, `v2026.10` → `v2026.11`.
+
+The bundled dataset and percentile maths are unchanged. The reference published for the pass is the bundled
+JSON with only `version` and `retrievedAt` bumped (`who-2006.2026.11`, `2026-10-26`) and the SHA-256
+recomputed — it proves fetch → verify → cache → identity line, and its LMS tables are byte-identical to the
+bundled ones. The four datasets' curation still matters: a fix to our own bundled data should not need an
+APK release.
+
+### Device pass, 2026-10-26 — `<handset>` (SM-S918U1), `0.17.1`
+
+Every tap coordinate came from `uiautomator dump`, the foreground was confirmed before any input, and the
+crash buffer was read at the end.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r` `0.17.1` (versionCode 22) over `0.17.0`, launch, foreground before input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 2 | Home renders after the install | six cards, glyph tiles, both children, today's rows intact ✅ |
+| 3 | Growth cache file removed, so the app falls back to the bundled dataset | `WHO 2006 · v2026.10 · updated 15 Oct 2026` ✅ |
+| 4 | Settings → *Check for updates*, then read the **same screen** without navigating | `Updated to who-2006.2026.11`, line now `WHO 2006 · v2026.11 · updated 26 Oct 2026` ✅ (this is the `0.17.1` fix) |
+| 5 | Second tap | `Already up to date`, line unchanged, no re-fetch ✅ |
+| 6 | Accepted dataset written to app-private storage | `files/growth/updated.json`, 488 449 bytes ✅ |
+| 7 | Trends → Growth → *Check for updates* | `Already up to date` ✅ |
+| 8 | Rules not yet published (earlier in the same pass) | `Could not check`, bundled line kept, app usable, `PERMISSION_DENIED` in logcat ✅ |
+| 9 | Force-stop → relaunch (the 90-day silent-check path) | launches, check fails silently, no crash ✅ |
+| 10 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` ✅ |
+
+Not exercised on the phone: the Growth tab's identity line and percentile chart, because that child has no
+measurements yet and the empty state replaces the chart body. The line for that surface is the same
+`StateFlow` read, and it is covered by `GrowthDatasetRepositoryTest` rather than by a measurement being
+invented for the test — the app must not record a number nobody took.
 
 ## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
 
