@@ -911,6 +911,106 @@ tombstone-only purge the sync layer understands. Archive (soft delete) is alread
 **Acceptance:** log on phone A, see it on B; airplane-mode three writes on A, restore, all three arrive
 once, no duplicates.
 
+## Phase 13.1 — Time and temperature preferences — DONE, device-verified (`0.10.0`)
+
+**As built — 2026-10-23.** The owner requested this capability before the growth dataset update channel.
+Settings now offers independent `12-hour` / `24-hour` and `°C` / `°F` choices, persisted in DataStore
+with the previous behaviour as the defaults: 24-hour and Celsius. The owner later chose `12-hour` as the
+clock default on a fresh install (2026-10-24, `0.10.1`); Celsius remains the temperature default.
+
+The preferences are display/input choices, not stored-data choices. Timestamps remain epoch milliseconds;
+temperatures remain Celsius in Room, backups and sync documents; and fever classification remains the
+canonical `FEVER_C` comparison. Fahrenheit input converts to Celsius before validation/storage, while an
+untouched Fahrenheit prefill keeps the exact stored reading rather than rounding it through the displayed
+text. Cards, entry rows, Both-mode Health columns, Summary, Trends' fever list and threshold, sheet time
+rows, the Material time picker, and Settings' night-window labels all follow the selected preferences.
+`LocalTimeFormat` and `LocalTemperatureUnit` carry the choices through Compose. There is no Room schema
+change and no sync-document change.
+
+### As built, where it differed from the plan
+
+- This supersedes the earlier Celsius-only rule. Temperature remains independent of the Metric / Imperial /
+  Custom presets, so changing a preset cannot silently change a health-entry field.
+- The capability took the next `0.MINOR` rung and was inserted before the already-planned dataset channel;
+  that channel and Reset to defaults moved forward one phase/version without changing scope.
+- The first phone pass showed that a temperature error at the bottom of the form was disconnected from the
+  field that caused it. The final layout puts temperature parse/range warnings directly beneath
+  Temperature, keeps dose validation separate, and hides the empty-form hint while either field is invalid.
+
+**Validation:** `:app:assembleDebug` builds; the JVM suite is **409/409** with 0 failures, 0 errors and 0
+skipped, read from `app/build/test-results/testDebugUnitTest/*.xml`. The four new cases cover 12-hour clock
+boundaries, Fahrenheit input and the exact fever threshold, untouched-prefill precision, and persistence
+independent of the three unit presets.
+
+### Device pass — 2026-10-23
+
+Samsung S23 Ultra (`<handset>`), in-place install of the `0.10.0` / versionCode 13 debug APK. The app
+was confirmed foreground before every input sequence, and every tap coordinate came from a fresh
+`uiautomator dump`. Screenshots are stored beside the repository under
+`babylog-refshots/2026-10-23-time-temperature-closeout/`, not committed.
+
+| Check | What the phone showed |
+|---|---|
+| Settings controls | Temperature and Time format render together without clipping. The original `°C` / `12-hour` choices changed to `°C` / `24-hour` (night window `6:00 PM` / `6:00 AM` → `18:00` / `06:00`), then to `°F` / `12-hour`, and finally back to the owner's original `°C` / `12-hour` |
+| Persistence | `°C` / `24-hour` survived force-stop/relaunch. `°F` / `12-hour` then survived another relaunch and opened Health as `Temperature (°F)` with a `10:39 PM` row. After final restoration and relaunch, Health read `Temperature (°C)` and `10:48 PM` |
+| Fahrenheit input guard | An unsaved `38` produced `Temperature must be between 86 and 113 °F.` directly beneath Temperature and above Medication |
+| Canonical storage | A synthetic `100.4 °F` reading saved as exactly `38.0` in the phone's Room `temperatureC` column; `PRAGMA user_version` remained 2, so no schema migration was involved |
+| Activity card and entry | The Health card showed `100.4 °F` with the filled `Fever` pill; the entry row also read `100.4 °F` with its own `Fever` pill |
+| Summary | Health showed `100.4 °F`, the `Fever` pill, `Records 1`, and `Measured 23 Oct` |
+| Trends | Health showed `100.4 °F`, `Fever`, `23 Oct 10:39 PM`, and `A reading at or above 100.4 °F is marked as a fever.` |
+| System back | System back from Trends returned to Activity without leaving the app; the Health card and bottom navigation remained intact |
+| Test-row cleanup | The synthetic row was soft-deleted through its long-press confirmation. It disappeared from the UI and remains only as the expected Room tombstone (`deleted = 1`) |
+| No crash | The final `logcat -b crash -d` buffer was empty: 0 `FATAL EXCEPTION` |
+
+## Phase 13.1.1 — Twelve-hour default — DONE, device-verified (`0.10.1`)
+
+**As built — 2026-10-24.** The owner's preferred clock became the fallback for a fresh install or any
+installation with no saved `time.format`: `SettingsRepository`, the no-argument `clockTime()` path,
+`AppRoot`'s first composition and `LocalTimeFormat` all default to `TWELVE_HOUR`. Timestamps remain epoch
+milliseconds, Celsius remains the temperature default, and a user who already saved 24-hour time keeps it.
+`SettingsRepositoryTest` and `DisplayPreferencesTest` changed their expectations without adding test
+methods, so the phase landed with the same 409-test suite as Phase 13.1.
+
+### As built, where it differed from the plan
+
+- Phase 13.1 originally shipped with a 24-hour fallback because that matched the app's earlier formatting.
+  The owner override made 12-hour the default the following day; this is a fallback correction, not a new
+  preference, migration or storage-format change.
+- The four fallback sites moved together. Changing only DataStore would still show 24-hour during the first
+  composition, while changing only `clockTime()` would leave persisted no-choice flows inconsistent.
+- This is a `0.PATCH` rung (`0.10.1` / versionCode 14), not another capability. The setting itself already
+  existed in `0.10.0`.
+- Commit `123062b` was created while closing the following temperature-band branch, so the dedicated
+  `feat/twelve-hour-default` branch was later fast-forwarded to that history rather than duplicating the
+  code. This close-out adds the phase's own record and device evidence only.
+
+**Validation:** the landing suite remained **409/409** because the two existing preference tests changed
+expectations rather than adding methods. The current full-suite artifact and counts are recorded in the
+live `Verified:` line above after the close-out build.
+
+### Device pass — 2026-10-24
+
+Samsung S23 Ultra (`<handset>`), Android 16. The APK was installed in place with the native Windows
+ADB path. `topResumedActivity` showed `app.babylog/.MainActivity` before every input sequence, and each tap
+came from a fresh `uiautomator dump` node or its clickable ancestor (the Settings icon exposes
+`content-desc`, not `text`).
+
+| Check | What the phone showed |
+|---|---|
+| APK identity | `install -r` succeeded. Package Manager reported `versionName=0.11.0`, `versionCode=15` — the branch was fast-forwarded to `main` before this close-out, so the installed APK carries the later Phase 13.2 rung while containing this phase's `0.10.1` code change (commit `123062b`). |
+| No-choice fallback | The `time.format` key was stripped from `settings.preferences_pb` (four other keys preserved). On relaunch, Settings → Time format showed both chips and the Day & night labels read `Night starts 6:00 PM` / `Night ends 6:00 AM` — the 12-hour fallback, not `18:00` / `06:00`. |
+| Clock surfaces | The Health sheet's time row read `8:28 PM` on the same no-choice install, confirming the fallback reaches the sheet time row as well as Settings' night-window labels. |
+| Saved choice not migrated | Tapping `24-hour` immediately changed the night window to `18:00` / `06:00`. Force-stop + relaunch showed `18:00` / `06:00` and `settings.preferences_pb` held `TWENTY_FOUR_HOUR` — the new default did not overwrite a user's saved choice. |
+| Preference round-trip | Tapping `12-hour` immediately restored `6:00 PM` / `6:00 AM`; force-stop + relaunch kept `6:00 PM` / `6:00 AM` and `settings.preferences_pb` held `TWELVE_HOUR`. |
+| System back | Back from Settings returned to Activity with the app still foreground. Back with the Health sheet open dismissed the sheet and kept Activity foreground. Back on Activity's root screen exits to the launcher, which is expected Android behaviour for a root screen and not a defect. |
+| No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
+
+**Note on the fallback test method.** The first attempt to strip `time.format` from the protobuf matched the
+map entry's inner header instead of its outer length-delimited wrapper, truncating the file and crashing the
+app on launch (`InvalidProtocolBufferException`). The original file was restored byte-for-byte from a local
+copy, the parser was corrected to span the full 30-byte outer entry, and the test re-ran cleanly. The
+crash buffer was cleared before the final check; the incident was a test-method error, not an app defect.
+
 ## Phase 13.2 — Temperature bands — DONE, device-verified (`0.11.0`)
 
 **As built — 2026-10-24.** The owner asked for the single fever threshold to become four bands, marked by
@@ -966,106 +1066,6 @@ came from the matching node or clickable ancestor in a fresh `uiautomator dump`.
 | System back | Back from Trends returned to Activity without leaving the app; back with the Health sheet open dismissed the sheet and kept Activity foreground. |
 | Test-row cleanup | Six close-out readings (the four bands plus 37.94/37.99) were long-pressed and confirmed through the app. No matching live row remained; the latest six rows were soft-deleted tombstones. Ten matching tombstones existed in total because the earlier exploratory device pass had already created and removed the same four-band set. |
 | No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
-
-## Phase 13.1.1 — Twelve-hour default — DONE, device-verified (`0.10.1`)
-
-**As built — 2026-10-24.** The owner's preferred clock became the fallback for a fresh install or any
-installation with no saved `time.format`: `SettingsRepository`, the no-argument `clockTime()` path,
-`AppRoot`'s first composition and `LocalTimeFormat` all default to `TWELVE_HOUR`. Timestamps remain epoch
-milliseconds, Celsius remains the temperature default, and a user who already saved 24-hour time keeps it.
-`SettingsRepositoryTest` and `DisplayPreferencesTest` changed their expectations without adding test
-methods, so the phase landed with the same 409-test suite as Phase 13.1.
-
-### As built, where it differed from the plan
-
-- Phase 13.1 originally shipped with a 24-hour fallback because that matched the app's earlier formatting.
-  The owner override made 12-hour the default the following day; this is a fallback correction, not a new
-  preference, migration or storage-format change.
-- The four fallback sites moved together. Changing only DataStore would still show 24-hour during the first
-  composition, while changing only `clockTime()` would leave persisted no-choice flows inconsistent.
-- This is a `0.PATCH` rung (`0.10.1` / versionCode 14), not another capability. The setting itself already
-  existed in `0.10.0`.
-- Commit `123062b` was created while closing the following temperature-band branch, so the dedicated
-  `feat/twelve-hour-default` branch was later fast-forwarded to that history rather than duplicating the
-  code. This close-out adds the phase's own record and device evidence only.
-
-**Validation:** the landing suite remained **409/409** because the two existing preference tests changed
-expectations rather than adding methods. The current full-suite artifact and counts are recorded in the
-live `Verified:` line above after the close-out build.
-
-### Device pass — 2026-10-24
-
-Samsung S23 Ultra (`<handset>`), Android 16. The APK was installed in place with the native Windows
-ADB path. `topResumedActivity` showed `app.babylog/.MainActivity` before every input sequence, and each tap
-came from a fresh `uiautomator dump` node or its clickable ancestor (the Settings icon exposes
-`content-desc`, not `text`).
-
-| Check | What the phone showed |
-|---|---|
-| APK identity | `install -r` succeeded. Package Manager reported `versionName=0.11.0`, `versionCode=15` — the branch was fast-forwarded to `main` before this close-out, so the installed APK carries the later Phase 13.2 rung while containing this phase's `0.10.1` code change (commit `123062b`). |
-| No-choice fallback | The `time.format` key was stripped from `settings.preferences_pb` (four other keys preserved). On relaunch, Settings → Time format showed both chips and the Day & night labels read `Night starts 6:00 PM` / `Night ends 6:00 AM` — the 12-hour fallback, not `18:00` / `06:00`. |
-| Clock surfaces | The Health sheet's time row read `8:28 PM` on the same no-choice install, confirming the fallback reaches the sheet time row as well as Settings' night-window labels. |
-| Saved choice not migrated | Tapping `24-hour` immediately changed the night window to `18:00` / `06:00`. Force-stop + relaunch showed `18:00` / `06:00` and `settings.preferences_pb` held `TWENTY_FOUR_HOUR` — the new default did not overwrite a user's saved choice. |
-| Preference round-trip | Tapping `12-hour` immediately restored `6:00 PM` / `6:00 AM`; force-stop + relaunch kept `6:00 PM` / `6:00 AM` and `settings.preferences_pb` held `TWELVE_HOUR`. |
-| System back | Back from Settings returned to Activity with the app still foreground. Back with the Health sheet open dismissed the sheet and kept Activity foreground. Back on Activity's root screen exits to the launcher, which is expected Android behaviour for a root screen and not a defect. |
-| No crash | The final `logcat -b crash -d` contained **0** `FATAL EXCEPTION` entries. |
-
-**Note on the fallback test method.** The first attempt to strip `time.format` from the protobuf matched the
-map entry's inner header instead of its outer length-delimited wrapper, truncating the file and crashing the
-app on launch (`InvalidProtocolBufferException`). The original file was restored byte-for-byte from a local
-copy, the parser was corrected to span the full 30-byte outer entry, and the test re-ran cleanly. The
-crash buffer was cleared before the final check; the incident was a test-method error, not an app defect.
-
-## Phase 13.1 — Time and temperature preferences — DONE, device-verified (`0.10.0`)
-
-**As built — 2026-10-23.** The owner requested this capability before the growth dataset update channel.
-Settings now offers independent `12-hour` / `24-hour` and `°C` / `°F` choices, persisted in DataStore
-with the previous behaviour as the defaults: 24-hour and Celsius. The owner later chose `12-hour` as the
-clock default on a fresh install (2026-10-24, `0.10.1`); Celsius remains the temperature default.
-
-The preferences are display/input choices, not stored-data choices. Timestamps remain epoch milliseconds;
-temperatures remain Celsius in Room, backups and sync documents; and fever classification remains the
-canonical `FEVER_C` comparison. Fahrenheit input converts to Celsius before validation/storage, while an
-untouched Fahrenheit prefill keeps the exact stored reading rather than rounding it through the displayed
-text. Cards, entry rows, Both-mode Health columns, Summary, Trends' fever list and threshold, sheet time
-rows, the Material time picker, and Settings' night-window labels all follow the selected preferences.
-`LocalTimeFormat` and `LocalTemperatureUnit` carry the choices through Compose. There is no Room schema
-change and no sync-document change.
-
-### As built, where it differed from the plan
-
-- This supersedes the earlier Celsius-only rule. Temperature remains independent of the Metric / Imperial /
-  Custom presets, so changing a preset cannot silently change a health-entry field.
-- The capability took the next `0.MINOR` rung and was inserted before the already-planned dataset channel;
-  that channel and Reset to defaults moved forward one phase/version without changing scope.
-- The first phone pass showed that a temperature error at the bottom of the form was disconnected from the
-  field that caused it. The final layout puts temperature parse/range warnings directly beneath
-  Temperature, keeps dose validation separate, and hides the empty-form hint while either field is invalid.
-
-**Validation:** `:app:assembleDebug` builds; the JVM suite is **409/409** with 0 failures, 0 errors and 0
-skipped, read from `app/build/test-results/testDebugUnitTest/*.xml`. The four new cases cover 12-hour clock
-boundaries, Fahrenheit input and the exact fever threshold, untouched-prefill precision, and persistence
-independent of the three unit presets.
-
-### Device pass — 2026-10-23
-
-Samsung S23 Ultra (`<handset>`), in-place install of the `0.10.0` / versionCode 13 debug APK. The app
-was confirmed foreground before every input sequence, and every tap coordinate came from a fresh
-`uiautomator dump`. Screenshots are stored beside the repository under
-`babylog-refshots/2026-10-23-time-temperature-closeout/`, not committed.
-
-| Check | What the phone showed |
-|---|---|
-| Settings controls | Temperature and Time format render together without clipping. The original `°C` / `12-hour` choices changed to `°C` / `24-hour` (night window `6:00 PM` / `6:00 AM` → `18:00` / `06:00`), then to `°F` / `12-hour`, and finally back to the owner's original `°C` / `12-hour` |
-| Persistence | `°C` / `24-hour` survived force-stop/relaunch. `°F` / `12-hour` then survived another relaunch and opened Health as `Temperature (°F)` with a `10:39 PM` row. After final restoration and relaunch, Health read `Temperature (°C)` and `10:48 PM` |
-| Fahrenheit input guard | An unsaved `38` produced `Temperature must be between 86 and 113 °F.` directly beneath Temperature and above Medication |
-| Canonical storage | A synthetic `100.4 °F` reading saved as exactly `38.0` in the phone's Room `temperatureC` column; `PRAGMA user_version` remained 2, so no schema migration was involved |
-| Activity card and entry | The Health card showed `100.4 °F` with the filled `Fever` pill; the entry row also read `100.4 °F` with its own `Fever` pill |
-| Summary | Health showed `100.4 °F`, the `Fever` pill, `Records 1`, and `Measured 23 Oct` |
-| Trends | Health showed `100.4 °F`, `Fever`, `23 Oct 10:39 PM`, and `A reading at or above 100.4 °F is marked as a fever.` |
-| System back | System back from Trends returned to Activity without leaving the app; the Health card and bottom navigation remained intact |
-| Test-row cleanup | The synthetic row was soft-deleted through its long-press confirmation. It disappeared from the UI and remains only as the expected Room tombstone (`deleted = 1`) |
-| No crash | The final `logcat -b crash -d` buffer was empty: 0 `FATAL EXCEPTION` |
 
 ## Phase 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency — DONE, device-verified (`0.12.0`)
 
