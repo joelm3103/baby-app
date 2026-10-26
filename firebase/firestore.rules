@@ -38,5 +38,12 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read, write: if oneOfTheTwo();
     }
+
+    // Growth datasets are published by hand in the console and read by the two accounts. Clients never
+    // write them, so a compromised client cannot replace the reference tables a percentile depends on.
+    match /reference/{documentId} {
+      allow read: if oneOfTheTwo();
+      allow write: if false;
+    }
   }
 }
