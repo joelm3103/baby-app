@@ -14,11 +14,17 @@ import java.util.Locale
  * nothing can quietly fall back to the device default and the whole file is testable on the JVM.
  */
 
-/** The ranges the History screen offers. Days, not hours — see [dayRange]. */
-enum class HistoryRange(val days: Int, val label: String) {
-    DAY(1, "1d"),
-    WEEK(7, "7d"),
-    FORTNIGHT(14, "14d"),
+/**
+ * The ranges the History screen offers. Days, not hours — see [dayRange].
+ *
+ * The label is SHORT on purpose: three chips share one row above six filter chips, and `1d 7d 14d` was
+ * clutter read as data. It is paired with [spoken], because `2W` read aloud is not the same instruction as
+ * "2 weeks" — a chip whose only label is an abbreviation is a chip a screen reader mumbles.
+ */
+enum class HistoryRange(val days: Int, val label: String, val spoken: String) {
+    DAY(1, "D", "1 day"),
+    WEEK(7, "1W", "1 week"),
+    FORTNIGHT(14, "2W", "2 weeks"),
 }
 
 /** A half-open window, `[from, to)`. */

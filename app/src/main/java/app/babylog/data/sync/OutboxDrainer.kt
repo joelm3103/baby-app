@@ -6,6 +6,7 @@ import app.babylog.data.local.OutboxDao
 import app.babylog.data.local.OutboxEntity
 import java.time.Clock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What one drain attempt did, for the `Sync now` row and for the tests to assert on. */
 data class DrainResult(
@@ -13,6 +14,15 @@ data class DrainResult(
     val tombstoned: Int = 0,
     val skipped: Int = 0,
     val error: String? = null,
+    /** Still queued when the attempt stopped: what the Sync card says is waiting. */
+    val remaining: Int = 0,
+    /**
+     * The gateway took the call and never answered, rather than failing.
+     *
+     * Worth its own flag because the sentence differs: a timeout may mean the phone is offline or that
+     * the server is silent, and those are not the same news. See `NetworkStatus`.
+     */
+    val timedOut: Boolean = false,
 ) {
     val ok: Boolean get() = error == null
 }
@@ -33,6 +43,12 @@ data class DrainResult(
  *
  * The drain stops at the first failure instead of skipping ahead: the queue is ordered by when it was
  * written, and a later write to the same row must not overtake the earlier one on the wire.
+ *
+ * 4. **A write that never answers is a failure, not a wait.** Firestore closes its write stream
+ *    `UNAVAILABLE` with no network and leaves the `Task` pending forever, so `awaitTask()` never
+ *    returns, `syncNow()` never returns, and `drainLock` stays held — the button looked inert and could
+ *    not resolve itself. Each write is therefore bounded by [writeTimeoutMs]. The timeout lives HERE and
+ *    not in the gateway so the fake can prove it without a Firestore client.
  */
 class OutboxDrainer(
     private val outboxDao: OutboxDao,
@@ -40,7 +56,11 @@ class OutboxDrainer(
     private val eventDao: EventDao,
     private val gateway: SyncGateway,
     private val clock: Clock = Clock.systemUTC(),
+    /** Generous for one document write, small enough that a parent is still looking at the screen. */
+    private val writeTimeoutMs: Long = DEFAULT_WRITE_TIMEOUT_MS,
 ) {
+
+    private enum class Outcome { WRITTEN, TOMBSTONED, SKIPPED }
 
     suspend fun drain(): DrainResult {
         var written = 0
@@ -48,47 +68,75 @@ class OutboxDrainer(
         var skipped = 0
 
         for (intent in outboxDao.pending()) {
-            try {
-                when (intent.entityType) {
-                    ENTITY_CHILD -> {
-                        val child = childDao.byId(intent.entityId)
-                        if (child != null) {
-                            gateway.writeChild(child)
-                            written++
-                        } else if (intent.op == OP_DELETE) {
-                            gateway.deleteChild(intent.entityId, clock.millis())
-                            tombstoned++
-                        } else {
-                            // The row was permanently deleted and its own DELETE intent already
-                            // carries the news, so this pointer has nothing left to write.
-                            skipped++
-                        }
-                    }
-
-                    ENTITY_EVENT -> {
-                        val event = eventDao.byId(intent.entityId)
-                        if (event != null) {
-                            gateway.writeEvent(event)
-                            written++
-                        } else if (intent.op == OP_DELETE) {
-                            gateway.deleteEvent(intent.entityId, clock.millis())
-                            tombstoned++
-                        } else {
-                            skipped++
-                        }
-                    }
-
-                    else -> skipped++
-                }
-                outboxDao.delete(intent.id)
+            val outcome = try {
+                withTimeoutOrNull(writeTimeoutMs) { perform(intent) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                return DrainResult(written, tombstoned, skipped, error = failure.describe())
+                return DrainResult(
+                    written = written,
+                    tombstoned = tombstoned,
+                    skipped = skipped,
+                    error = failure.describe(),
+                    remaining = outboxDao.pending().size,
+                )
             }
+
+            // Null means the gateway never answered. The intent stays exactly where it is, so the next
+            // trigger retries it; a repeat write cannot duplicate a document because every write is a
+            // merge keyed by the row's own id.
+            if (outcome == null) {
+                return DrainResult(
+                    written = written,
+                    tombstoned = tombstoned,
+                    skipped = skipped,
+                    error = NO_ANSWER,
+                    remaining = outboxDao.pending().size,
+                    timedOut = true,
+                )
+            }
+
+            when (outcome) {
+                Outcome.WRITTEN -> written++
+                Outcome.TOMBSTONED -> tombstoned++
+                Outcome.SKIPPED -> skipped++
+            }
+            outboxDao.delete(intent.id)
         }
 
         return DrainResult(written, tombstoned, skipped)
+    }
+
+    private suspend fun perform(intent: OutboxEntity): Outcome = when (intent.entityType) {
+        ENTITY_CHILD -> {
+            val child = childDao.byId(intent.entityId)
+            if (child != null) {
+                gateway.writeChild(child)
+                Outcome.WRITTEN
+            } else if (intent.op == OP_DELETE) {
+                gateway.deleteChild(intent.entityId, clock.millis())
+                Outcome.TOMBSTONED
+            } else {
+                // The row was permanently deleted and its own DELETE intent already carries the news,
+                // so this pointer has nothing left to write.
+                Outcome.SKIPPED
+            }
+        }
+
+        ENTITY_EVENT -> {
+            val event = eventDao.byId(intent.entityId)
+            if (event != null) {
+                gateway.writeEvent(event)
+                Outcome.WRITTEN
+            } else if (intent.op == OP_DELETE) {
+                gateway.deleteEvent(intent.entityId, clock.millis())
+                Outcome.TOMBSTONED
+            } else {
+                Outcome.SKIPPED
+            }
+        }
+
+        else -> Outcome.SKIPPED
     }
 
     private fun Exception.describe(): String = message?.takeIf { it.isNotBlank() }
@@ -99,6 +147,12 @@ class OutboxDrainer(
         const val ENTITY_EVENT = "EVENT"
         const val OP_UPSERT = "UPSERT"
         const val OP_DELETE = "DELETE"
+
+        /** Ten seconds for one document. Slow enough for a bad connection, short enough to notice. */
+        const val DEFAULT_WRITE_TIMEOUT_MS = 10_000L
+
+        /** The error a timed-out write reports; the Sync card turns it into one of two sentences. */
+        const val NO_ANSWER = "The server did not answer."
     }
 }
 

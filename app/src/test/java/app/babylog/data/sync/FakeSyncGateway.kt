@@ -2,6 +2,7 @@ package app.babylog.data.sync
 
 import app.babylog.data.local.ChildEntity
 import app.babylog.data.local.EventEntity
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -22,6 +23,22 @@ class FakeSyncGateway : SyncGateway {
     /** How many writes succeed before the next one throws. [Int.MAX_VALUE] means never fail. */
     var failAfter: Int = Int.MAX_VALUE
     var failure: Exception = IllegalStateException("The server is unreachable.")
+
+    /**
+     * Fail exactly one write, then succeed.
+     *
+     * This is how a test makes the pre-listener drain fail and still expects the queue to empty: the
+     * retry that matters is the one after the first inbound snapshot.
+     */
+    var failOnce: Boolean = false
+
+    /**
+     * Accept the call and never answer — what Firestore actually does with no network.
+     *
+     * Distinct from [failAfter]: a failure throws, a hang suspends forever, and the difference is the
+     * whole Phase-14 finding (the drain never returned, so `drainLock` stayed held).
+     */
+    var hangForever: Boolean = false
 
     /** What the inbound listener emits. A `flowOf`, so a test does not need a live snapshot stream. */
     var inbound: RemoteDataset = RemoteDataset()
@@ -55,7 +72,12 @@ class FakeSyncGateway : SyncGateway {
 
     override fun observe(): Flow<RemoteDataset> = flowOf(inbound)
 
-    private fun record() {
+    private suspend fun record() {
+        if (hangForever) awaitCancellation()
+        if (failOnce) {
+            failOnce = false
+            throw failure
+        }
         if (successes >= failAfter) throw failure
         successes++
     }

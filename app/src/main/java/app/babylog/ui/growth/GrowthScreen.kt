@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.EventType
 import app.babylog.domain.percentileLabel
+import app.babylog.ui.common.iconPainter
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
@@ -68,6 +69,9 @@ fun GrowthChartPane(
                         label = option.label,
                         selected = state.metric == option,
                         accent = accent,
+                        // The metric's own mark: a scale, an up arrow, a head. The activity glyph would
+                        // be the same on all three, which is the one thing a chip must not be.
+                        icon = option.iconPainter(),
                         onClick = { onSelectMetric(option) },
                     )
                 }

@@ -82,8 +82,8 @@ fun BottleSheet(
     val amountOk = amount.isBlank() || (millilitres != null && millilitres in MIN_BOTTLE_ML..MAX_BOTTLE_ML)
 
     ActivitySheet(
+        type = EventType.BOTTLE,
         title = if (initial != null) "Edit feed" else "Bottle feed",
-        accent = accent,
         subtitle = "for $childLabel",
         saveEnabled = amountOk,
         onDismiss = onDismiss,

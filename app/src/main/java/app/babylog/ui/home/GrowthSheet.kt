@@ -44,7 +44,6 @@ import java.time.ZoneId
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GrowthSheet(
-    accent: Color,
     childLabel: String,
     units: UnitPreferences,
     zone: ZoneId,
@@ -72,8 +71,8 @@ fun GrowthSheet(
     val lengthLabel = if (units.length == LengthUnit.CENTIMETRES) "cm" else "in"
 
     ActivitySheet(
+        type = EventType.GROWTH,
         title = if (initial != null) "Edit measurement" else "Measurement",
-        accent = accent,
         subtitle = "for $childLabel",
         saveEnabled = read.error == null && !read.values.isEmpty,
         onDismiss = onDismiss,

@@ -64,6 +64,8 @@ fun EventListOverlay(
     onDismiss: () -> Unit,
     onEditEntry: (BabyEvent) -> Unit,
     onDeleteEntry: (BabyEvent) -> Unit,
+    /** `id -> name` for the solids catalogue, so the full list names a meal the way its card does. */
+    foodNames: Map<String, String> = emptyMap(),
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(type)
@@ -145,6 +147,7 @@ fun EventListOverlay(
                         EntryRow(
                             event = event,
                             units = units,
+                            foodNames = foodNames,
                             initials = childInitials[event.childId],
                             showChild = showChildBadge,
                             // Same marker as the card: the list and the card must flag the same readings.

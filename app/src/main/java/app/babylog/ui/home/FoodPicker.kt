@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import app.babylog.data.local.FoodEntity
+import app.babylog.domain.EventType
 import kotlinx.coroutines.launch
 
 /**
@@ -41,8 +42,8 @@ fun FoodPickerScreen(
     val alreadyExists = foods.any { it.name.equals(trimmed, ignoreCase = true) }
 
     ActivitySheet(
+        type = EventType.SOLIDS,
         title = "Foods",
-        accent = accent,
         saveLabel = "Done",
         onDismiss = onClose,
         onSave = onClose,

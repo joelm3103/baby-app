@@ -52,6 +52,14 @@ data class HomeUiState(
     val childIds: List<String> = emptyList(),
     val cards: List<CardUi> = emptyList(),
     val units: app.babylog.domain.UnitPreferences = app.babylog.domain.UnitPreferences(),
+    /**
+     * `id -> name` for the solids catalogue.
+     *
+     * A solids row stores ids only; every surface that SHOWS one needs the name. Carried in the state
+     * rather than fed to the cards one by one so the card, the entry rows and the full list cannot
+     * disagree about what a meal was called.
+     */
+    val foodNames: Map<String, String> = emptyMap(),
 ) {
     val anyRunning: Boolean get() = cards.any { it.running != null }
 
@@ -137,19 +145,22 @@ class HomeViewModel(
         children.observeAll(),
         settings.selectedChild,
         settings.units,
-    ) { kids, selection, units -> Triple(kids, selection, units) }
+        // The solids catalogue: `id -> name`, for every surface that shows a meal.
+        foodList,
+    ) { kids, selection, units, foods -> Quad(kids, selection, units, foods) }
         .flatMapLatest { combined ->
-            val kids = combined.first
-            val units = combined.third
+            val kids = combined.kids
+            val units = combined.units
             // Defense in depth, and not paranoia: a null here takes the entire app down on launch,
             // and it already happened once (see ChildSelection.default - Android stored null). Note
-            // the nullable local: writing `combined.second ?: X` instead is constant-folded away
+            // the nullable local: writing `combined.selection ?: X` instead is constant-folded away
             // because the declared type is non-null, which is how the first attempt at this fallback
             // silently did nothing at all.
-            val nullableSelection: ChildSelection? = combined.second
+            val nullableSelection: ChildSelection? = combined.selection
             val selection: ChildSelection = nullableSelection ?: ChildSelection.Both
             val ids = selection.resolve(kids.map { it.id })
-            events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units) }
+            val names = combined.foods.associate { it.id to it.name }
+            events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units, names) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
@@ -287,12 +298,14 @@ class HomeViewModel(
         ids: List<String>,
         all: List<BabyEvent>,
         units: app.babylog.domain.UnitPreferences,
+        foodNames: Map<String, String>,
     ) = HomeUiState(
         children = kids,
         selection = selection,
         childIds = ids,
         units = units,
         cards = buildCards(all, kids.map { it.id }),
+        foodNames = foodNames,
     )
 
     fun select(selection: ChildSelection) = viewModelScope.launch { settings.setSelectedChild(selection) }
@@ -415,4 +428,18 @@ private data class ReminderRules(
     val night: NightWindow,
     val format: TimeFormat,
     val selection: ChildSelection,
+)
+
+/**
+ * The dashboard's four inputs.
+ *
+ * A named type rather than a `data class Quadruple`, so `combined.kids` reads as what it is. `Triple`
+ * was the previous shape and its `.first` / `.third` made the food catalogue easy to insert in the
+ * wrong slot.
+ */
+private data class Quad(
+    val kids: List<Child>,
+    val selection: ChildSelection,
+    val units: app.babylog.domain.UnitPreferences,
+    val foods: List<app.babylog.data.local.FoodEntity>,
 )

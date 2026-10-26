@@ -67,6 +67,10 @@ fun TrendsScreen(
         start = contentPadding.calculateStartPadding(layoutDirection),
         end = contentPadding.calculateEndPadding(layoutDirection),
         top = contentPadding.calculateTopPadding(),
+        // The pane's first item is the range chips, and the pane drops its own top padding because the tab
+        // row has already consumed it — so without this bottom inset the two chip rows touch. Found on the
+        // S23 looking at the screen, not in any test: a `Column` above a `LazyColumn` has no gap of its own.
+        bottom = 8.dp,
     )
     // The pane's padding drops the top, which the tab row has already consumed.
     val panePadding = PaddingValues(

@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Consistency: Mucousy — the streak. A wide bar falling into a stem with a hanging drop, which is what
-  distinguishes a mucousy stool from a blobby one: it SLIDES rather than sits.
+  Consistency: Mucousy — two slanted streaks, a jelly rather than a lump.
+
+  REDRAWN after the owner read the first version on the phone and asked what the letter T was doing in
+  the consistency row. It was: a wide bar across the top, a stem below it, and a dot under that — a T
+  with a tail, at 16dp, next to six shapes that all read as forms.
+
+  The idea worth keeping was "it SLIDES rather than sits", so the new drawing says that with two
+  streaks at the same angle and different lengths, which is what stringy stool looks like and what
+  nothing else in the set does. Diarrhea keeps the droplets above a spreading pool; Runny keeps the
+  mass over a wide pool; neither has a streak.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -10,5 +18,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M4.6,7 A1.8,1.8 0 0,1 4.6,3.4 L19.4,3.4 A1.8,1.8 0 0,1 19.4,7 Z M10.2,5 a1.8,1.8 0 0,1 3.6,0 L13.8,14 a1.8,1.8 0 0,1 -3.6,0 Z M10.1,16.1 a1.9,1.9 0 1,1 3.8,0 a1.9,1.9 0 1,1 -3.8,0 Z M10.1,20.1 a1.9,1.9 0 1,1 3.8,0 a1.9,1.9 0 1,1 -3.8,0 Z" />
+        android:pathData="M3.4,13.2 l11.4,-6.4 a1.7,1.7 0 0 1 1.7,2.9 l-11.4,6.4 a1.7,1.7 0 0 1 -1.7,-2.9 z M7.2,19.2 l8,-4.5 a1.5,1.5 0 0 1 1.5,2.6 l-8,4.5 a1.5,1.5 0 0 1 -1.5,-2.6 z" />
 </vector>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Growth metric: Weight — a bathroom scale, dial and needle.
+
+  The metric chips are measurements, not activities, so they do not borrow `ic_glyph_growth`: four chips
+  carrying the same picture would say nothing about which one is selected. Stroke line-art at 1.7dp and a
+  24dp viewport, the same style and weight as the activity glyphs.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5.2,6.8 h13.6 a1.9,1.9 0 0 1 1.9,1.9 v6.6 a1.9,1.9 0 0 1 -1.9,1.9 h-13.6 a1.9,1.9 0 0 1 -1.9,-1.9 v-6.6 a1.9,1.9 0 0 1 1.9,-1.9 z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.6,13.8 a4.6,4.6 0 0 1 8.8,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,13.8 L14.1,11.1" />
+</vector>

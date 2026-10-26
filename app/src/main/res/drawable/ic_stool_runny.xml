@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Consistency: Runny — a mass that is sinking into a spreading pool. The pool is the whole difference
-  between this and Mushy, so it is wider than the mass above it.
+  Consistency: Runny — a small mass sinking into a WIDE, flat pool.
+
+  REDRAWN in Phase 14, for the same reason as Mucousy: on the phone the old drawing was three heavy
+  circles stacked on an ellipse, and at 16dp inside a chip the whole thing merged into one lumpy blob that
+  read the same as Mushy. Two shapes that are supposed to mean different things cannot look alike.
+
+  So the pool is now the point: it is nearly twice the width of the mound and sits below it with visible
+  shoulders on both sides. Mushy has no pool at all — it is lumps all the way down — which is the
+  difference a parent is being asked to record.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -10,5 +17,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M5,14.6 a4.6,4.6 0 1,1 9.2,0 a4.6,4.6 0 1,1 -9.2,0 Z M9.4,12.4 a4.2,4.2 0 1,1 8.4,0 a4.2,4.2 0 1,1 -8.4,0 Z M5.6,17.6 a6.4,2.4 0 1,1 12.8,0 a6.4,2.4 0 1,1 -12.8,0 Z" />
+        android:pathData="M4,18.6 a8,2.2 0 1,0 16,0 a8,2.2 0 1,0 -16,0 Z M8.8,14.2 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0 Z M6,16.6 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0 Z" />
 </vector>

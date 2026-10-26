@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.displayName
 import app.babylog.domain.TrendLine
@@ -156,6 +158,10 @@ fun RangeChips(range: TrendRange, onSelectRange: (TrendRange) -> Unit) {
                 // navActive, exactly as Summary's range chips use: a range is not an activity, so it must
                 // not borrow one of the six hues.
                 accent = colors.navActive,
+                // `2W` aloud is not "2 weeks", and this chip's only label is the abbreviation.
+                modifier = Modifier.semantics(mergeDescendants = true) {
+                    contentDescription = option.spoken
+                },
                 onClick = { onSelectRange(option) },
             )
         }

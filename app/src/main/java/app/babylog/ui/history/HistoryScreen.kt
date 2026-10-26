@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.displayName
 import app.babylog.domain.ActivityTotal
@@ -97,6 +99,10 @@ fun HistoryScreen(
                         label = range.label,
                         selected = state.range == range,
                         accent = colors.navActive,
+                        // `D` is the whole chip, so the spoken form has to come from the enum.
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = range.spoken
+                        },
                         onClick = { onSelectRange(range) },
                     )
                 }

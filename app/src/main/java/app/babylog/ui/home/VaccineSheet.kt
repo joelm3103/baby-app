@@ -32,7 +32,6 @@ import java.time.ZoneId
  */
 @Composable
 fun VaccineSheet(
-    accent: Color,
     childLabel: String,
     zone: ZoneId,
     now: Long,
@@ -50,8 +49,8 @@ fun VaccineSheet(
     val read = readVaccine(fields)
 
     ActivitySheet(
+        type = EventType.HEALTH,
         title = if (initial != null) "Edit vaccine" else "Vaccine",
-        accent = accent,
         subtitle = "for $childLabel",
         saveEnabled = read.vaccineName != null,
         onDismiss = onDismiss,

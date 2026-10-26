@@ -609,6 +609,7 @@ fun AppScaffold(container: AppContainer) {
                 type = listType,
                 entries = state.entriesOf(listType),
                 units = state.units,
+                foodNames = state.foodNames,
                 childLabel = state.childLabel,
                 childInitials = badgesFor(state.children),
                 showChildBadge = state.childIds.size > 1,
@@ -698,7 +699,6 @@ fun AppScaffold(container: AppContainer) {
                         onDelete = onDeleteEntry,
                     )
                     EventType.GROWTH -> GrowthSheet(
-                        accent = accent,
                         childLabel = sheetChildLabel,
                         units = state.units,
                         zone = zone,
@@ -709,7 +709,6 @@ fun AppScaffold(container: AppContainer) {
                         onDelete = onDeleteEntry,
                     )
                     EventType.HEALTH -> if (target.vaccine) VaccineSheet(
-                        accent = accent,
                         childLabel = sheetChildLabel,
                         zone = zone,
                         now = sheetNow,
@@ -718,7 +717,6 @@ fun AppScaffold(container: AppContainer) {
                         initial = editingEvent,
                         onDelete = onDeleteEntry,
                     ) else HealthSheet(
-                        accent = accent,
                         childLabel = sheetChildLabel,
                         medications = medicationNames,
                         medicationPresets = medicationPresets,

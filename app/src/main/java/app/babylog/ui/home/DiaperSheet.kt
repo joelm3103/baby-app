@@ -61,8 +61,8 @@ fun DiaperSheet(
     var consistencies by remember { mutableStateOf(initial?.diaperConsistency.orEmpty().toSet()) }
 
     ActivitySheet(
+        type = EventType.DIAPER,
         title = if (initial != null) "Edit diaper" else "Diaper",
-        accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,
         onDelete = onDelete,

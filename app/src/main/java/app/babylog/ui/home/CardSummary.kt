@@ -23,6 +23,15 @@ import app.babylog.domain.formatDose
  * afterthought.
  */
 
+/**
+ * What a card says when the record's own number was never recorded.
+ *
+ * A bottle can be logged with a blank amount on purpose — a parent who did not measure, or who is
+ * finishing a bottle someone else started. The app must not invent a volume for it (see `AGENTS.md`),
+ * so the honest card names the gap instead of echoing its own title.
+ */
+const val NO_AMOUNT = "No amount recorded"
+
 /** Returns null when there is no value to shout about (sleep shows a duration or a timer instead). */
 fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = when (event.type) {
     EventType.BOTTLE -> event.amountMl?.let { ml ->
@@ -51,11 +60,27 @@ fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = 
 }
 
 /** The line under the big value: what actually happened. */
-fun detailLine(event: BabyEvent, units: UnitPreferences): String = when (event.type) {
-    EventType.BOTTLE -> event.formulaBrand ?: "Bottle"
+fun detailLine(
+    event: BabyEvent,
+    units: UnitPreferences,
+    /**
+     * `id -> catalogue name`.
+     *
+     * A solids row stores ids, because a rename must not orphan a meal (the catalogue deliberately uses
+     * stable slugs). The card is the one place a person reads it, so the name has to come from the
+     * catalogue, not from the id with its hyphens swapped for spaces — which is what this line used to
+     * show, and read as `mango lassi` in a list of proper nouns.
+     */
+    foodNames: Map<String, String> = emptyMap(),
+): String = when (event.type) {
+    // A bottle's line is its brand, because the VOLUME is the big number above it. When there is no
+    // volume to show, the fallback used to be the word `Bottle` — so an amount-less feed read
+    // `Bottle feed` over `Bottle`, naming itself twice and saying nothing. A blank amount is a
+    // legitimate record (the sheet allows it), so the line says what is missing instead.
+    EventType.BOTTLE -> event.formulaBrand ?: if (event.amountMl == null) NO_AMOUNT else "Bottle"
     EventType.DIAPER -> diaperDetail(event)
     EventType.SOLIDS -> event.foodIds.takeIf { it.isNotEmpty() }
-        ?.joinToString(", ") { it.replace('-', ' ') }
+        ?.joinToString(", ") { id -> foodNames[id] ?: id.replace('-', ' ') }
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
     EventType.SLEEP -> if (event.isRunning) "Asleep now" else "Slept ${elapsed(event.durationMs ?: 0)}"
     EventType.GROWTH -> growthValues(event, units)
@@ -214,15 +239,21 @@ fun growthByChild(
  * brand is identical on every row and distinguishes nothing, which is why Both mode used to render two
  * identical "Bottle" rows. The child comes from the badge beside this text.
  */
-fun recentRowLabel(event: BabyEvent, units: UnitPreferences): String = when (event.type) {
-    EventType.BOTTLE -> event.amountMl?.let { formatVolume(it.toDouble(), units.volume) } ?: "Bottle"
+fun recentRowLabel(
+    event: BabyEvent,
+    units: UnitPreferences,
+    foodNames: Map<String, String> = emptyMap(),
+): String = when (event.type) {
+    // The row answers "how much", so an amount-less feed has to say so rather than repeat the card's
+    // own activity name. Shorter than [NO_AMOUNT]: a row ellipsises first.
+    EventType.BOTTLE -> event.amountMl?.let { formatVolume(it.toDouble(), units.volume) } ?: "No amount"
     // A health row has to say WHICH record it is. The old label showed only the medication, so a fever
     // row read "Health" and looked identical to a vaccine - while the temperature itself was the card's
     // headline and never appeared in the list. The rows and the headline now agree, which is the rule
     // `PLAN.md`'s Phase 9.1 set for every other card.
     EventType.HEALTH -> healthRecordLine(event, units.temperature)
         .ifEmpty { event.vaccineName?.let(::vaccineLabel) ?: "Health" }
-    else -> detailLine(event, units)
+    else -> detailLine(event, units, foodNames)
 }
 
 /**

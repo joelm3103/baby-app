@@ -56,8 +56,8 @@ fun SolidsSheet(
     var showPicker by remember { mutableStateOf(false) }
 
     ActivitySheet(
+        type = EventType.SOLIDS,
         title = if (initial != null) "Edit solids" else "Solids",
-        accent = accent,
         subtitle = "for $childLabel",
         onDismiss = onDismiss,
         onDelete = onDelete,

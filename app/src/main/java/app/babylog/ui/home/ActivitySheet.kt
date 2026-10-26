@@ -2,14 +2,18 @@ package app.babylog.ui.home
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,8 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.EventType
+import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
+import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
 import app.babylog.ui.theme.labelFor
 
@@ -40,11 +47,16 @@ import app.babylog.ui.theme.labelFor
  * nothing is clipped by the navigation bar; and `BackHandler` is co-located with the surface it
  * dismisses, so system back always closes the sheet. the reference app exits the app instead, which is the bug he
  * reported unprompted.
+ *
+ * The ACTIVITY is a parameter, not just its colour. The sheet covers the card that told the parent which
+ * activity they were logging, so the title bar carries that activity's glyph — the one place in the app
+ * where the glyph restores information rather than repeating it. Deriving the accent here, rather than
+ * taking both, is what stops a caller pairing a Bottle glyph with a Health tint.
  */
 @Composable
 fun ActivitySheet(
+    type: EventType,
     title: String,
-    accent: Color,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     saveEnabled: Boolean = true,
@@ -61,6 +73,7 @@ fun ActivitySheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = BabyLogTheme.colors
+    val accent: Color = colors.accentFor(type)
 
     // On the Activity tab the scaffold's own BackHandler is disabled, so this is the only enabled one.
     BackHandler(enabled = true, onBack = onDismiss)
@@ -89,13 +102,28 @@ fun ActivitySheet(
                             tint = colors.labelFor(accent),
                         )
                     }
-                    Text(
-                        text = title,
+                    // Title row, centred as a unit: glyph + gap on the left and an equal spacer on the
+                    // right, so the words stay centred on the bar rather than on the space left over.
+                    Row(
                         modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.labelFor(accent),
-                    )
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = type.glyphPainter(),
+                            contentDescription = null,
+                            tint = colors.labelFor(accent),
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = title,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.labelFor(accent),
+                        )
+                        Spacer(Modifier.width(22.dp))
+                    }
                     TextButton(onClick = onSave, enabled = saveEnabled) {
                         Text(
                             text = saveLabel,

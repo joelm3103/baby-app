@@ -189,15 +189,47 @@ class CardSummaryTest {
     }
 
     @Test
-    fun `solids names the foods, falling back to the meal slot`() {
+    fun `solids names the foods from the catalogue, falling back to the meal slot`() {
         val withFood = event(EventType.SOLIDS).copy(foodIds = listOf("banana", "sweet-potato"))
-        assertEquals("banana, sweet potato", detailLine(withFood, metric))
+        val catalogue = mapOf("banana" to "Banana", "sweet-potato" to "Sweet potato")
+        assertEquals("Banana, Sweet potato", detailLine(withFood, metric, catalogue))
+        // And on a row, which is a different question asked of the same catalogue.
+        assertEquals("Banana, Sweet potato", recentRowLabel(withFood, metric, catalogue))
 
         val withSlotOnly = event(EventType.SOLIDS).copy(mealSlot = MealSlot.LUNCH)
-        assertEquals("Lunch", detailLine(withSlotOnly, metric))
+        assertEquals("Lunch", detailLine(withSlotOnly, metric, catalogue))
 
         val bare = event(EventType.SOLIDS)
-        assertEquals("Solids", detailLine(bare, metric))
+        assertEquals("Solids", detailLine(bare, metric, catalogue))
+    }
+
+    @Test
+    fun `a food the catalogue no longer has still reads as words`() {
+        // A custom food deleted from the catalogue must not blank the line, and must not print a slug.
+        val e = event(EventType.SOLIDS).copy(foodIds = listOf("mango-lassi"))
+        assertEquals("mango lassi", detailLine(e, metric, emptyMap()))
+    }
+
+    @Test
+    fun `a bottle with no amount says so instead of naming itself`() {
+        // Found on the phone, 2026-10-26: an amount-less feed read `Bottle feed` over `Bottle`. A blank
+        // amount is legitimate (the sheet allows it), so the card has to name the gap.
+        val noAmount = event(EventType.BOTTLE)
+        assertEquals(NO_AMOUNT, detailLine(noAmount, metric))
+        assertEquals("No amount", recentRowLabel(noAmount, metric))
+
+        // A brand the parent typed is still worth more than the apology.
+        val branded = noAmount.copy(formulaBrand = "Aptamil")
+        assertEquals("Aptamil", detailLine(branded, metric))
+        assertEquals("No amount", recentRowLabel(branded, metric))
+
+        // And an amount still wins the row, with the brand left under the big number.
+        val full = noAmount.copy(amountMl = 120, formulaBrand = "Aptamil")
+        assertEquals("Aptamil", detailLine(full, metric))
+        assertEquals("120 ml", recentRowLabel(full, metric))
+
+        // A bottle with a volume and no brand keeps the plain word, because the number is above it.
+        assertEquals("Bottle", detailLine(noAmount.copy(amountMl = 90), metric))
     }
 
     @Test
@@ -211,8 +243,12 @@ class CardSummaryTest {
     }
 
     @Test
-    fun `a bottle row without an amount falls back rather than showing nothing`() {
-        assertEquals("Bottle", recentRowLabel(event(EventType.BOTTLE), metric))
+    fun `a bottle row without an amount says so rather than naming the activity`() {
+        // This used to assert `Bottle` — the row repeated the card's own title and told the parent
+        // nothing. Changed in Phase 14.10 on the owner's instruction, after the phone showed
+        // `Bottle feed` over `Bottle` on a feed that was logged without a volume.
+        assertEquals("No amount", recentRowLabel(event(EventType.BOTTLE), metric))
+        assertEquals(NO_AMOUNT, detailLine(event(EventType.BOTTLE), metric))
     }
 
     @Test

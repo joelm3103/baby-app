@@ -99,8 +99,8 @@ fun ReminderSheet(
     val editing = configs[childId]?.enabled == true
 
     ActivitySheet(
+        type = type,
         title = "Set reminder \u2014 ${type.displayName()}",
-        accent = accent,
         subtitle = children.firstOrNull { it.id == childId }?.name,
         onDismiss = onDismiss,
         onSave = { onSave(childId, config) },

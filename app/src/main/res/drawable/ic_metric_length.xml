@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Growth metric: Length — an up arrow leaving a floor.
+
+  A height measurement is a distance from the ground, so the arrow starts at the tick and points away
+  from it. Deliberately not a ruler: at 14dp a ruler's graduations become a smudge, which is the same
+  reason the consistency set is filled silhouettes rather than outlines.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,19.4 V6.6" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.8,10.6 L12,6.2 L16.2,10.6" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M6.4,20.6 h11.2" />
+</vector>

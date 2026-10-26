@@ -200,6 +200,55 @@ class OutboxDrainerTest {
         assertEquals(listOf("e2"), gateway.eventWrites.map { it.id })
     }
 
+    /**
+     * The Phase-14 finding: with no network Firestore closes its write stream `UNAVAILABLE` and leaves
+     * the Task pending forever, so `awaitTask()` never returned — and because the drain runs inside
+     * `drainLock`, `Sync now` held the lock and could not even report.
+     *
+     * The bounded write turns that into an ordinary failure: an error, a count of what is still queued,
+     * and the intent exactly where it was so the next trigger retries it.
+     */
+    @Test
+    fun `a write that never answers fails the drain and keeps the intent`() = runBlocking {
+        db.eventDao().upsert(event("e1", amountMl = 90, updatedAt = t0))
+        queue(OutboxDrainer.ENTITY_EVENT, "e1", OP_UPSERT)
+        gateway.hangForever = true
+
+        val result = patience().drain()
+
+        assertTrue("a silent write must report, not hang", result.timedOut)
+        assertEquals(OutboxDrainer.NO_ANSWER, result.error)
+        assertEquals(1, result.remaining)
+        assertEquals(0, result.written)
+        assertEquals(1, db.outboxDao().pending().size)
+    }
+
+    @Test
+    fun `the queue is retried, and drained, once the server answers again`() = runBlocking {
+        db.eventDao().upsert(event("e1", amountMl = 90, updatedAt = t0))
+        queue(OutboxDrainer.ENTITY_EVENT, "e1", OP_UPSERT)
+        gateway.hangForever = true
+        val impatient = patience()
+        impatient.drain()
+
+        gateway.hangForever = false
+        val second = impatient.drain()
+
+        assertTrue(second.ok)
+        assertEquals(1, second.written)
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    /** The same drainer with a timeout short enough for a test to sit through. */
+    private fun patience() = OutboxDrainer(
+        outboxDao = db.outboxDao(),
+        childDao = db.childDao(),
+        eventDao = db.eventDao(),
+        gateway = gateway,
+        clock = Clock.fixed(Instant.ofEpochMilli(t0 + 500), ZoneOffset.UTC),
+        writeTimeoutMs = 60,
+    )
+
     private suspend fun queue(
         entityType: String,
         entityId: String,

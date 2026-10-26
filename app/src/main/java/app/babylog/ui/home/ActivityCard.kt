@@ -30,6 +30,7 @@ import app.babylog.domain.BabyEvent
 import app.babylog.domain.TemperatureBand
 import app.babylog.domain.DiaperKind
 import app.babylog.domain.EventType
+import app.babylog.ui.common.glyphPainter
 import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
@@ -118,6 +119,8 @@ fun ActivityCard(
      * because a card showing both children has no single one in mind.
      */
     onReminderAction: ((ReminderAction, childId: String?) -> Unit)? = null,
+    /** `id -> name` for the solids catalogue, so a meal reads as a name and not as a slug. */
+    foodNames: Map<String, String> = emptyMap(),
 ) {
     val colors = BabyLogTheme.colors
     val accent = colors.accentFor(card.type)
@@ -199,6 +202,15 @@ fun ActivityCard(
                                 ChildBadge(
                                     initials = childInitials[column.childId] ?: "?",
                                     size = Spacing.rowBadge,
+                                )
+                                // The card's own activity, small, so a column read on its own still says
+                                // what it is measuring. Drawn from the card's type rather than passed in,
+                                // so no caller can hand a Growth column a bottle.
+                                Icon(
+                                    painter = card.type.glyphPainter(),
+                                    contentDescription = null,
+                                    tint = colors.labelFor(accent),
+                                    modifier = Modifier.size(14.dp),
                                 )
                                 Text(
                                     text = childNames[column.childId] ?: "",
@@ -322,7 +334,7 @@ fun ActivityCard(
                 // the text still ellipsises as one line at 1.3x font scale instead of wrapping the card.
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = growth?.let { growthDetail(it, units) } ?: detailLine(headline, units),
+                        text = growth?.let { growthDetail(it, units) } ?: detailLine(headline, units, foodNames),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textOnCard,
                         maxLines = 1,
@@ -491,6 +503,7 @@ fun ActivityCard(
                 EntryRow(
                     event = event,
                     units = units,
+                    foodNames = foodNames,
                     initials = childInitials[event.childId],
                     showChild = showChildBadge,
                     // The row says its band in a pill, so a flagged reading cannot be read past in a list.

@@ -11,6 +11,7 @@ import java.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /** What the Sync card in Settings renders. */
 sealed interface SyncState {
@@ -61,6 +63,13 @@ class SyncRepository(
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.systemUTC(),
     /**
+     * Whether the phone has a network, for the one sentence a failed drain can honestly say.
+     *
+     * Injected rather than read here: `ConnectivityManager` is an Android fact, `SyncRepository` is
+     * not, and the two sentences need to be provable on the JVM.
+     */
+    private val network: NetworkStatus = NetworkStatus.AlwaysOnline,
+    /**
      * Whether the Google button should be shown at all.
      *
      * A build with a Firebase project but no OAuth web client id can sign in with email and password;
@@ -101,12 +110,25 @@ class SyncRepository(
     }
 
     suspend fun signIn(email: String, password: String) {
-        handle(authenticator.signInWithEmail(email, password))
+        val result = authenticator.signInWithEmail(email, password)
+        applySignIn(result)
     }
 
     suspend fun signInWithGoogle(idToken: String) {
-        handle(authenticator.signInWithGoogle(idToken))
+        val result = authenticator.signInWithGoogle(idToken)
+        applySignIn(result)
     }
+
+    /**
+     * A sign-in that already succeeded must not be thrown away because the screen that started it went
+     * away.
+     *
+     * This is the Phase-13 finding the phone reported as "the seed sits in the outbox": the account is
+     * authenticated on the server, but the attach that seeds, drains and listens happens after a
+     * suspension point, so a `viewModelScope` cancelled in that window (the parent leaving Settings)
+     * loses the listener *and* the drain, and the two seeded rows wait for the next write to notice.
+     */
+    private suspend fun applySignIn(result: SignInResult) = withContext(NonCancellable) { handle(result) }
 
     fun signOut() {
         listenerJob?.cancel()
@@ -125,13 +147,31 @@ class SyncRepository(
     suspend fun syncNow(): DrainResult? {
         val drainer = drainer ?: return null
         val result = drainLock.withLock { drainer.drain() }
-        _message.value = when {
-            result.error != null -> result.error
-            result.written + result.tombstoned == 0 -> "Up to date."
-            else -> "Sent ${result.written + result.tombstoned} change(s)."
-        }
+        _message.value = messageFor(result)
         return result
     }
+
+    /**
+     * The one line of feedback the Sync card shows.
+     *
+     * The three failure shapes are deliberately distinct. A silent `Sync now` was the Phase-13 finding:
+     * the button looked inert because the drain had suspended, and the message line kept whatever the
+     * previous drain said. Now a drain either reports what it sent, or names the queue it could not
+     * move — and a timeout says *which* timeout, because "waiting for a network connection" over four
+     * bars would be a lie.
+     */
+    private fun messageFor(result: DrainResult): String = when {
+        result.error == null && result.written + result.tombstoned == 0 -> "Up to date."
+        result.error == null -> "Sent ${result.written + result.tombstoned} change(s)."
+        result.timedOut && !network.isOnline() ->
+            "Waiting for a network connection — ${queued(result.remaining)} queued."
+        result.timedOut ->
+            "The server did not answer — ${queued(result.remaining)} queued."
+        else -> result.error ?: "Could not reach the server."
+    }
+
+    /** "1 change" / "3 changes", so the card never reads `1 change(s)`. */
+    private fun queued(count: Int): String = "$count change${if (count == 1) "" else "s"}"
 
     /** The after-a-write hook. Fire-and-forget: the intent is already safe in the outbox. */
     fun requestDrain() {
@@ -166,9 +206,20 @@ class SyncRepository(
             try {
                 seedIfNeeded()
                 syncNow()
+                var first = true
                 gateway.observe()
                     .catch { failure -> _message.value = "Listening stopped: ${failure.message ?: "unknown error"}" }
-                    .collect { applyRemote(it) }
+                    .collect { snapshot ->
+                        applyRemote(snapshot)
+                        // One drain once the first snapshot has landed. The drain above can run before
+                        // the client is ready, and a snapshot that lost to a newer local row queues new
+                        // intent — so "the queue emptied on its own" has to be true AFTER the listener,
+                        // not only before it.
+                        if (first) {
+                            first = false
+                            syncNow()
+                        }
+                    }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {

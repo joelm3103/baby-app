@@ -53,7 +53,6 @@ private val MEDICATION_MENU_MAX_HEIGHT = 320.dp
  */
 @Composable
 fun HealthSheet(
-    accent: Color,
     childLabel: String,
     /** The bundled medicine names. Empty is survivable: free text still logs the record. */
     medications: List<String>,
@@ -112,8 +111,8 @@ fun HealthSheet(
     val hints = lastDoses(fields.medication)
 
     ActivitySheet(
+        type = EventType.HEALTH,
         title = if (initial != null) "Edit health record" else "Health record",
-        accent = accent,
         subtitle = "for $childLabel",
         saveEnabled = read.error == null && !read.values.isEmpty,
         onDismiss = onDismiss,

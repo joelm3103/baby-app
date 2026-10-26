@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,7 +20,9 @@ import app.babylog.domain.BabyEvent
 import app.babylog.domain.TemperatureBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
+import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
+import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.Spacing
 import java.time.ZoneId
 
@@ -54,6 +58,8 @@ internal fun EntryRow(
     modifier: Modifier = Modifier,
     onCard: Boolean = true,
     band: TemperatureBand? = null,
+    /** `id -> name` for the solids catalogue: a row shows what was eaten, not its slug. */
+    foodNames: Map<String, String> = emptyMap(),
 ) {
     // The diaper's colour, replayed as the same small circle the sheet's selector draws. Read from the
     // event rather than passed in, so a caller cannot forget it and leave a row that disagrees with the
@@ -73,13 +79,22 @@ internal fun EntryRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // The activity's own glyph, in its raw accent. Derived from the event rather than passed in,
+            // for the same reason the diaper dots are: a caller that forgot it would draw a row that
+            // disagrees with the card it sits on.
+            Icon(
+                painter = event.type.glyphPainter(),
+                contentDescription = null,
+                tint = colors.accentFor(event.type),
+                modifier = Modifier.size(14.dp),
+            )
             // Which child, then how much. In Both mode two rows could otherwise read identically: the
             // brand is the same on every bottle and says nothing.
             if (showChild) {
                 ChildBadge(initials = initials ?: "?", size = Spacing.rowBadge)
             }
             Text(
-                text = recentRowLabel(event, units),
+                text = recentRowLabel(event, units, foodNames),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.textPrimary,
                 maxLines = 1,

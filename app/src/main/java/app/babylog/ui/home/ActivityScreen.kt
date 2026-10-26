@@ -92,6 +92,7 @@ fun ActivityScreen(
             ActivityCard(
                 card = card,
                 units = state.units,
+                foodNames = state.foodNames,
                 childLabel = state.childLabel,
                 childInitials = badgesFor(state.children),
                 childNames = state.children.associate { it.id to it.name },

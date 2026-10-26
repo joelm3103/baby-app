@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +27,14 @@ import app.babylog.ui.theme.BabyLogTheme
  * First Twin · Second Twin · Both, in the HEADER (the owner's choice over the mockup's bottom-pinned placement, because
  * the tabs keep the bottom slot). Selected pill is outlined; `Both` is the default and interleaves
  * both children's data.
+ *
+ * A [FlowRow] of whole pills, not a [Row] of pills with wrapping text. At a 130 % font scale the three
+ * pills do not fit a phone's width, and the old arrangement wrapped the *word* instead: the default pill
+ * read `Bot` over `h`, which looks like a broken build. Pills are now indivisible (`softWrap = false`,
+ * `maxLines = 1`) and the row wraps them as units, so the worst case is a second line rather than a
+ * chopped label.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChildSwitcher(
     children: List<Child>,
@@ -35,7 +44,11 @@ fun ChildSwitcher(
 ) {
     val colors = BabyLogTheme.colors
     val badges = badgesFor(children)
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         children.forEach { child ->
             SwitcherPill(
                 label = child.name,
@@ -85,6 +98,9 @@ private fun SwitcherPill(
             style = MaterialTheme.typography.bodySmall,
             color = if (selected) colors.textPrimary else colors.textSecondary,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            // A pill's name is one word-pair. Never break it across lines.
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

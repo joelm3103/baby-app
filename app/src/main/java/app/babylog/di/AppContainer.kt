@@ -24,6 +24,7 @@ import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
 import app.babylog.data.medications.MedicationCatalogueParser
 import app.babylog.data.sync.AccountAuthenticator
+import app.babylog.data.sync.AndroidNetworkStatus
 import app.babylog.data.sync.FirebaseAuthenticator
 import app.babylog.data.sync.FirebaseSetup
 import app.babylog.data.sync.FirestoreGateway
@@ -130,6 +131,7 @@ class AppContainer(private val context: Context) {
             outboxDao = database.outboxDao(),
             settings = settings,
             scope = scope,
+            network = AndroidNetworkStatus(context),
             googleSignInAvailable = FirebaseSetup.supportsGoogle,
         )
     }

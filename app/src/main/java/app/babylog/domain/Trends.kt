@@ -22,11 +22,17 @@ import kotlin.math.roundToInt
  * point in time, not a per-day quantity, so it gets a dated list instead of a chart; see [healthTrend].
  */
 
-/** The window a chart covers. Three chips, because a fourth would need a scroll and none of the three is a guess. */
-enum class TrendRange(val days: Int, val label: String) {
-    WEEK(7, "7d"),
-    FORTNIGHT(14, "14d"),
-    MONTH(30, "30d"),
+/**
+ * The window a chart covers. Three chips, because a fourth would need a scroll and none of the three is a guess.
+ *
+ * Different windows from [app.babylog.domain.HistoryRange] on purpose — a chart of today is one point — so the
+ * labels differ too: `1W · 2W · 1M` here against `D · 1W · 2W` on Summary. `1M` is the 30-day window this
+ * chip actually draws; it is not a calendar month, and the label must not claim one.
+ */
+enum class TrendRange(val days: Int, val label: String, val spoken: String) {
+    WEEK(7, "1W", "1 week"),
+    FORTNIGHT(14, "2W", "2 weeks"),
+    MONTH(30, "1M", "1 month"),
 }
 
 /** What a day's number measures. The unit comes from the user's preferences at the display edge. */

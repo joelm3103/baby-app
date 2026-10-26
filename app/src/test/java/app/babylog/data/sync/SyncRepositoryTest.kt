@@ -21,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -304,9 +305,110 @@ class SyncRepositoryTest {
         assertEquals(4, repo.pendingWrites.first())
     }
 
+    // ---- a drain that cannot reach the server -------------------------------
+
+    /**
+     * The Phase-13 finding, made into a test: the first drain fails (a client that is not ready yet,
+     * which is what the phone showed as two seeded rows sitting in the outbox), and the queue still
+     * empties without anyone tapping **Sync now** — because the listener drains once its first snapshot
+     * has been applied.
+     */
+    @Test
+    fun `the seed drains itself after the listener's first snapshot, with no Sync now`() = runBlocking {
+        seedLocalLog()
+        gateway.failOnce = true
+
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+
+        assertTrue(
+            "the queue must empty on its own: ${db.outboxDao().pending().size} left",
+            db.outboxDao().pending().isEmpty(),
+        )
+        assertEquals(setOf("first-twin", "second-twin"), gateway.childWrites.map { it.id }.toSet())
+        assertEquals(setOf("e1", "e2"), gateway.eventWrites.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `an offline phone is told it is waiting for a network connection`() = runBlocking {
+        queueOneBottle()
+        gateway.hangForever = true
+
+        val subject = repoWith(NetworkStatus { false })
+        val result = subject.syncNow()
+
+        assertTrue(result!!.timedOut)
+        assertEquals(1, result.remaining)
+        assertEquals("Waiting for a network connection — 1 change queued.", subject.message.first())
+    }
+
+    @Test
+    fun `a silent server on a connected phone is not blamed on the connection`() = runBlocking {
+        queueOneBottle()
+        gateway.hangForever = true
+
+        val subject = repoWith(NetworkStatus { true })
+        subject.syncNow()
+
+        assertEquals("The server did not answer — 1 change queued.", subject.message.first())
+    }
+
+    @Test
+    fun `a timed-out drain releases the lock, so the next Sync now runs`() = runBlocking {
+        queueOneBottle()
+        gateway.hangForever = true
+        val patient = repoWith(NetworkStatus { false })
+        patient.syncNow()
+
+        // The point of the fix: with the Mutex still held this would hang instead of finishing.
+        gateway.hangForever = false
+        val second = withTimeout(5_000) { patient.syncNow() }
+
+        assertTrue(second!!.ok)
+        assertEquals(1, second.written)
+        assertTrue(db.outboxDao().pending().isEmpty())
+        assertEquals("Sent 1 change(s).", patient.message.first())
+    }
+
+    @Test
+    fun `the queued count is pluralised`() = runBlocking {
+        listOf("e1", "e2", "e3").forEach { id ->
+            db.eventDao().upsert(event(id, amountMl = 90, updatedAt = t0))
+            db.outboxDao().enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = false, queuedAt = t0))
+        }
+        gateway.hangForever = true
+
+        val subject = repoWith(NetworkStatus { false })
+        subject.syncNow()
+
+        assertEquals("Waiting for a network connection — 3 changes queued.", subject.message.first())
+    }
+
     // ---- helpers ------------------------------------------------------------
 
     private fun clock() = Clock.fixed(Instant.ofEpochMilli(t0), ZoneOffset.UTC)
+
+    /** The same repository with a chosen network state and a timeout a test can sit through. */
+    private fun repoWith(network: NetworkStatus, writeTimeoutMs: Long = 60): SyncRepository = SyncRepository(
+        authenticator = auth,
+        gateway = gateway,
+        drainer = OutboxDrainer(
+            db.outboxDao(), db.childDao(), db.eventDao(), gateway, clock(), writeTimeoutMs,
+        ),
+        childDao = db.childDao(),
+        eventDao = db.eventDao(),
+        outboxDao = db.outboxDao(),
+        settings = settings,
+        scope = scope,
+        clock = clock(),
+        network = network,
+    )
+
+    /** One bottle, already logged, already queued. */
+    private suspend fun queueOneBottle() {
+        db.eventDao().upsert(event("e1", amountMl = 90, updatedAt = t0))
+        db.outboxDao().enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, "e1", deleted = false, queuedAt = t0))
+    }
 
     /** Waits for the work `signIn` launches: the seed, the drain and the listener. */
     private suspend fun settle() {

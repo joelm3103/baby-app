@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import app.babylog.R
 import app.babylog.domain.DiaperConsistency
 import app.babylog.domain.EventType
+import app.babylog.ui.growth.GrowthMetric
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.patternFor
 
@@ -149,3 +150,25 @@ fun DiaperConsistency.stoolRes(): Int = when (this) {
     DiaperConsistency.PEBBLES -> R.drawable.ic_stool_pebbles
     DiaperConsistency.DIARRHEA -> R.drawable.ic_stool_diarrhea
 }
+
+/**
+ * The shape a growth METRIC is drawn as.
+ *
+ * Not [glyphRes]: an activity glyph says which activity, and all three metric chips belong to the same
+ * activity — the same picture three times would distinguish nothing, which is why the owner asked for
+ * per-metric marks instead. Scale, an up arrow off a floor, and a head with a curl; `BMI_FOR_AGE` exists
+ * in the bundled dataset but has no chip, so there is no fourth.
+ *
+ * Stroke line-art at 1.7dp, the same weight as the activity glyphs, because these sit in the same kind of
+ * chip and a filled silhouette here would read as one of the nappy consistencies.
+ */
+@DrawableRes
+fun GrowthMetric.iconRes(): Int = when (this) {
+    GrowthMetric.WEIGHT -> R.drawable.ic_metric_weight
+    GrowthMetric.LENGTH -> R.drawable.ic_metric_length
+    GrowthMetric.HEAD -> R.drawable.ic_metric_head
+}
+
+/** The same metric mark as a painter, for the chips. */
+@Composable
+fun GrowthMetric.iconPainter(): Painter = painterResource(iconRes())
