@@ -47,7 +47,7 @@ everything after it is additive.**
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; the `Mucousy` glyph read as a `T` at 16dp, kept open here and redrawn in Phase 14.6; 444 tests green |
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
-| 13.5 — Growth dataset update channel | not started — split out of 13; version assigned when landed. **No prerequisite** |
+| 13.5 — Growth dataset update channel | **DONE (built + tested, device pass pending)** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`; 537 tests green. **No prerequisite** |
 | 13.6 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); version assigned when landed. **No prerequisite** |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0` |
@@ -68,8 +68,9 @@ that assumed this work happened per-release ("versionName is 0.1.1 today") was c
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.16.0, versionCode 20); `:app:testDebugUnitTest` is **532/532**
-with 0 failures, 0 errors and 0 skipped (515 at the Phase-13.4 close, +17 in Phase 14: two new
+Verified: `:app:assembleDebug` builds (0.17.0, versionCode 21); `:app:testDebugUnitTest` is **537/537**
+with 0 failures, 0 errors and 0 skipped (532 at the Phase-14 close, +5 in Phase 13.5: manifest and
+repository tests). (515 at the Phase-13.4 close, +17 in Phase 14: two new
 `OutboxDrainerTest`, five `SyncRepositoryTest`, three `StoolAndMetricGlyphTest`, five `RangeLabelTest`
 and two `CardSummaryTest`; the old amount-less-bottle test was changed, not added). The 515 was: `:app:testDebugUnitTest` was **515/515**
 with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`

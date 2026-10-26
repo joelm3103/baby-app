@@ -26,6 +26,7 @@ import app.babylog.domain.EventType
 import app.babylog.domain.percentileLabel
 import app.babylog.ui.common.iconPainter
 import app.babylog.ui.home.ChoiceChip
+import app.babylog.ui.home.SecondaryButton
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.cardFor
@@ -48,6 +49,8 @@ fun GrowthChartPane(
     onSelectMetric: (GrowthMetric) -> Unit,
     listState: LazyListState,
     contentPadding: PaddingValues,
+    updateMessage: String? = null,
+    onCheckForUpdates: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = BabyLogTheme.colors
@@ -167,6 +170,22 @@ fun GrowthChartPane(
                 color = colors.textSecondary,
                 modifier = Modifier.padding(top = 20.dp),
             )
+        }
+
+        item {
+            SecondaryButton(
+                label = "Check for updates",
+                onClick = onCheckForUpdates,
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            )
+            updateMessage?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textPrimary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
         }
     }
 }

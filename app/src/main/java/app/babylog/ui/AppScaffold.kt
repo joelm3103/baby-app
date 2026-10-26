@@ -171,6 +171,7 @@ fun AppScaffold(container: AppContainer) {
                     children = container.children,
                     settings = container.settings,
                     reference = container::growth,
+                    datasetRepository = container.growthDatasetRepository,
                 )
             }
         }
@@ -199,6 +200,7 @@ fun AppScaffold(container: AppContainer) {
                     children = container.children,
                     maintenance = container.maintenance,
                     sync = container.sync,
+                    growthDataset = container.growthDatasetRepository,
                 )
             }
         }
@@ -244,6 +246,11 @@ fun AppScaffold(container: AppContainer) {
         value = container.medications()
     }
     val settingsMessage by settingsVm.message.collectAsState()
+    val growthUpdateMessage by settingsVm.growthUpdateMessage.collectAsState()
+
+    LaunchedEffect(Unit) {
+        container.growthDatasetRepository.checkIfDue()
+    }
 
     // Which growth reference produced a percentile is shown in Settings too. Loaded on demand rather
     // than at launch, so the ~490 KB parse is paid only by whoever opens the screen that displays it.
@@ -486,6 +493,8 @@ fun AppScaffold(container: AppContainer) {
                     growth = growthState,
                     onSelectMetric = growthVm::selectMetric,
                     onEnsureLoaded = growthVm::ensureLoaded,
+                    growthUpdateMessage = growthVm.updateMessage.collectAsState().value,
+                    onCheckGrowthUpdates = growthVm::checkForUpdates,
                     trends = trendsState,
                     onSelectRange = trendsVm::selectRange,
                     onSelectType = trendsVm::selectType,
@@ -500,6 +509,8 @@ fun AppScaffold(container: AppContainer) {
                     presets = settingsPresets,
                     medicationPresets = medicationPresets,
                     growthReference = growthIdentity,
+                    growthUpdateMessage = growthUpdateMessage,
+                    onCheckGrowthUpdates = settingsVm::checkGrowthUpdates,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
                     onLengthUnit = settingsVm::setLengthUnit,

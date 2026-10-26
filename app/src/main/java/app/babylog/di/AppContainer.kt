@@ -22,6 +22,8 @@ import app.babylog.data.reminders.Reminders
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
+import app.babylog.data.growth.GrowthDatasetRepository
+import app.babylog.data.growth.FirestoreGrowthDatasetGateway
 import app.babylog.data.medications.MedicationCatalogueParser
 import app.babylog.data.sync.AccountAuthenticator
 import app.babylog.data.sync.AndroidNetworkStatus
@@ -227,21 +229,21 @@ class AppContainer(private val context: Context) {
         }
     }
 
-    private var cachedGrowth: GrowthReference? = null
-    /**
-     * The bundled growth reference, parsed once.
-     *
-     * Suspending and cached rather than a `by lazy` val: the asset is ~490 KB of JSON, and parsing it on
-     * the main thread would be a visible stall. Cached because a percentile must come from one dataset
-     * for the whole session - two parses would be two copies of the truth.
-     */
-    suspend fun growth(): GrowthReference = cachedGrowth ?: withContext(Dispatchers.IO) {
-        cachedGrowth ?: GrowthReferenceParser.parse(
-            context.assets.open(GrowthReferenceParser.ASSET_PATH)
-                .bufferedReader()
-                .use { it.readText() },
-        ).also { cachedGrowth = it }
+    val growthDatasetRepository: GrowthDatasetRepository by lazy {
+        GrowthDatasetRepository(
+            context = context,
+            dataStore = dataStore,
+            gateway = if (firebaseReady) FirebaseSetup.firestore(context)?.let(::FirestoreGrowthDatasetGateway) else null,
+            bundledJson = context.assets.open(GrowthReferenceParser.ASSET_PATH)
+                .bufferedReader().use { it.readText() },
+        )
     }
+
+    /**
+     * The growth reference this app reads: a cached newer dataset if one was accepted, otherwise the
+     * bundled asset. Parsed once per session.
+     */
+    suspend fun growth(): GrowthReference = growthDatasetRepository.current()
 
     private var cachedMedications: List<String>? = null
 

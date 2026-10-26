@@ -2,6 +2,8 @@ package app.babylog.ui.growth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.babylog.data.growth.GrowthDatasetUpdateResult
+import app.babylog.data.growth.GrowthDatasetRepository
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventRepository
@@ -42,12 +44,28 @@ class GrowthViewModel(
     private val children: ChildRepository,
     private val settings: SettingsRepository,
     private val reference: suspend () -> GrowthReference,
+    private val datasetRepository: GrowthDatasetRepository? = null,
     private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
     private val metric = MutableStateFlow(GrowthMetric.WEIGHT)
 
     private val referenceState = MutableStateFlow<GrowthReference?>(null)
+
+    private val _updateMessage = MutableStateFlow<String?>(null)
+    val updateMessage: StateFlow<String?> = _updateMessage.asStateFlow()
+
+    fun checkForUpdates() {
+        val repo = datasetRepository ?: return
+        viewModelScope.launch {
+            _updateMessage.value = "Checking\u2026"
+            _updateMessage.value = when (val result = repo.checkForUpdates(true)) {
+                is GrowthDatasetUpdateResult.Updated -> "Updated to ${result.version}"
+                GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
+                GrowthDatasetUpdateResult.Failed -> "Could not check"
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val state: StateFlow<GrowthUiState> = combine(

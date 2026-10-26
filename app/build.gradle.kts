@@ -44,11 +44,11 @@ android {
         // which is a new capability and a third schema version, so another MINOR rung.
         // 0.13.0 is Phase 13.4, activity reminders: local notifications per activity and child, which is
         // a new capability with no schema change.
-        // 0.16.0 is Phase 14, polish plus new glyph and metric-chip capabilities. The unused lower
-        // 0.14.0/0.15.0 rungs are not reserved for unfinished phases 13.5/13.6; assign later versions
-        // above versionCode 20 when those phases actually land.
-        versionCode = 20
-        versionName = "0.16.0"
+        // 0.16.0 is Phase 14, polish plus new glyph and metric-chip capabilities.
+        // 0.17.0 is Phase 13.5, the growth dataset update channel: a newer WHO dataset can be fetched,
+        // checksum-verified and cached without an APK release. versionCode rises to 21.
+        versionCode = 21
+        versionName = "0.17.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

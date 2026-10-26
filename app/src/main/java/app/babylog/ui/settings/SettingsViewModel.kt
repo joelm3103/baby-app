@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.MaintenanceRepository
+import app.babylog.data.growth.GrowthDatasetRepository
+import app.babylog.data.growth.GrowthDatasetUpdateResult
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
@@ -40,6 +42,7 @@ class SettingsViewModel(
     private val children: ChildRepository,
     private val maintenance: MaintenanceRepository,
     private val sync: SyncRepository,
+    private val growthDataset: GrowthDatasetRepository? = null,
 ) : ViewModel() {
 
     val childrenList: StateFlow<List<Child>> = children.observeAll()
@@ -66,6 +69,23 @@ class SettingsViewModel(
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    private val _growthUpdateMessage = MutableStateFlow<String?>(null)
+    val growthUpdateMessage: StateFlow<String?> = _growthUpdateMessage.asStateFlow()
+
+    fun checkGrowthUpdates() {
+        val repo = growthDataset ?: return
+        viewModelScope.launch {
+            _growthUpdateMessage.value = "Checking\u2026"
+            _growthUpdateMessage.value = when (val result = repo.checkForUpdates(true)) {
+                is GrowthDatasetUpdateResult.Updated -> "Updated to ${result.version}"
+                GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
+                GrowthDatasetUpdateResult.Failed -> "Could not check"
+            }
+            // Refresh the identity line shown in Settings after a successful update.
+            container.growth()
+        }
+    }
 
     // ---- sync ---------------------------------------------------------------
 

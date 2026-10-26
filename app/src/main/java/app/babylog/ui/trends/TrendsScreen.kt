@@ -50,6 +50,8 @@ fun TrendsScreen(
     growth: GrowthUiState,
     onSelectMetric: (GrowthMetric) -> Unit,
     onEnsureLoaded: () -> Unit,
+    growthUpdateMessage: String? = null,
+    onCheckGrowthUpdates: () -> Unit = {},
     trends: TrendsUiState,
     onSelectRange: (TrendRange) -> Unit,
     onSelectType: (EventType) -> Unit,
@@ -115,6 +117,8 @@ fun TrendsScreen(
                 onSelectMetric = onSelectMetric,
                 listState = listState,
                 contentPadding = panePadding,
+                updateMessage = growthUpdateMessage,
+                onCheckForUpdates = onCheckGrowthUpdates,
                 // The remaining height under the tab row, so the pane cannot overlap the chips.
                 modifier = Modifier.weight(1f),
             )

@@ -124,6 +124,8 @@ fun SettingsScreen(
      * line; Settings is where they can find out which tables the app is reading.
      */
     growthReference: String? = null,
+    growthUpdateMessage: String? = null,
+    onCheckGrowthUpdates: () -> Unit = {},
     /** Signed-in state of the shared log. NotConfigured on a build with no Firebase values. */
     syncState: SyncState = SyncState.NotConfigured,
     /** What the last sign-in or drain did, in one sentence. */
@@ -420,12 +422,25 @@ fun SettingsScreen(
                     color = colors.textPrimary,
                 )
                 Text(
-                    text = "Percentiles are computed from this dataset, which ships inside the app: no " +
-                        "network, and no percentile without saying where it came from.",
+                    text = "Percentiles are computed from this dataset. A newer one can be fetched without " +
+                        "reinstalling the app; the bundled copy stays if the check fails.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 6.dp),
                 )
+                SecondaryButton(
+                    label = "Check for updates",
+                    onClick = onCheckGrowthUpdates,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+                growthUpdateMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textPrimary,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
         }
     }

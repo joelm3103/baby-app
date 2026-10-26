@@ -302,7 +302,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-532 unit tests through Phase 14, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+537 unit tests through Phase 13.5, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -331,7 +331,7 @@ only, and `1.0.0` is the first release.
 | | | 13.3 diaper detail | `0.12.0` |
 | | | 13.4 activity reminders | `0.13.0` |
 | | | 14 Polish/Misc changes | `0.16.0` |
-| | | 13.5 dataset channel (not started) | assigned when landed |
+| | | 13.5 dataset channel | `0.17.0` |
 | | | 13.6 reset to defaults (not started) | assigned when landed |
 | | | 15 update delivery (first release) | `1.0.0` |
 | | | 16 ship | uses delivered release |
