@@ -1380,11 +1380,20 @@ checked before the first tap, every coordinate taken from a `uiautomator dump`. 
 | **`Remind at` is back** | The sheet shows `Mode` with `Remind in` / `Remind at`; `Remind at` lists `8:00 AM` with `Remove`, plus `+ Add time`, and the card's chip then reads **`At 8:00 AM`** |
 | No crash | `logcat -b crash -d` held **0** `FATAL EXCEPTION` across installs, the sheet, both themes, 130% font scale, the alarm and the notification |
 
-**Dated note, 2026-10-25.** Three rounds of phone testing reshaped the UI after the first build: reminders moved out
-of Settings onto each activity's card, the `Both` scope went away, `Start`/`End`/`Snooze` were dropped, the chip gained
-the time it will ring and then split per child with its badge, and the edit sheet gained `Delete this entry`. Each is
-recorded under "Where a reminder lives" and "Three things the third round of phone testing changed" above, with the
-reason the phone gave for it.
+**Dated note, 2026-10-25.** Five rounds of phone testing changed this phase after it first went green, and each change
+is recorded above with the reason the phone gave for it:
+
+1. Reminders moved out of Settings onto each activity's card, and the `Both` scope went away.
+2. `Start`, `End` and `Snooze` were dropped; the sheet kept `Time`, `Notify`, the night window and the days.
+3. The chip gained the time it would ring, then split into one chip per child with that child's badge, and the edit
+   sheet gained `Delete this entry`.
+4. **Reminders arrived late** — the inexact-alarm decision was measured wrong on the device (`window=+37m47s`) and
+   replaced with exact alarms, keeping an inexact fallback rather than dropping a reminder.
+5. **`Remind at` came back**, because a day with a rhythm wants a clock time and not "three hours after the last
+   feed".
+
+A green build approved every one of those five versions. That is the cost of judging a notification feature without a
+phone, and it is why the pass below is a table rather than a sentence.
 
 **Open, deliberately:** the notification says `Time to log bottle feed` when that child has never had the activity
 logged, because there is no log to measure from — the rule's own anchor drives the alarm, but claiming `3h since the
