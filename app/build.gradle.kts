@@ -47,8 +47,11 @@ android {
         // 0.16.0 is Phase 14, polish plus new glyph and metric-chip capabilities.
         // 0.17.0 is Phase 13.5, the growth dataset update channel: a newer WHO dataset can be fetched,
         // checksum-verified and cached without an APK release. versionCode rises to 21.
-        versionCode = 21
-        versionName = "0.17.0"
+        // 0.17.1 is Phase 13.5's device pass: the settings identity line is observed through a StateFlow
+        // instead of being polled on entry, so an accepted update changes it on the screen that ran it.
+        // A fix found by the pass, so a PATCH rung and not a new capability. versionCode rises to 22.
+        versionCode = 22
+        versionName = "0.17.1"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

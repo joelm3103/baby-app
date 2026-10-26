@@ -37,7 +37,6 @@ import kotlinx.coroutines.launch
  * there is exactly one place that decides what a tap means.
  */
 class SettingsViewModel(
-    private val container: app.babylog.di.AppContainer,
     private val settings: SettingsRepository,
     private val children: ChildRepository,
     private val maintenance: MaintenanceRepository,
@@ -82,8 +81,8 @@ class SettingsViewModel(
                 GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
                 GrowthDatasetUpdateResult.Failed -> "Could not check"
             }
-            // Refresh the identity line shown in Settings after a successful update.
-            container.growth()
+            // The identity line needs no refresh here: `GrowthDatasetRepository.identityLine` is a
+            // StateFlow that the update publishes to, so the row above this message moves with it.
         }
     }
 

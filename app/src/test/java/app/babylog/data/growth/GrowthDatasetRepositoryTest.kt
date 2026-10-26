@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -108,6 +109,24 @@ class GrowthDatasetRepositoryTest {
         }
         val repo = GrowthDatasetRepository(context, store, null, bundled)
         assertEquals("who-2006.2026.10", repo.current().version)
+    }
+
+    @Test
+    fun `an accepted update publishes the new identity line`() = runBlocking {
+        // What the phone caught in Phase 13.5: Settings read the identity line once, on entry, so a
+        // successful check printed `Updated to v2026.12` directly above a stale `v2026.10` line until
+        // the screen was left and re-entered. The line is now observed, so a collector sees the change.
+        val updatedJson = minimalDataset("who-2006.2026.12", "2026-12-01")
+        val gateway = FakeGrowthDatasetGateway(
+            manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(updatedJson), "2026-12-01"),
+            dataset = updatedJson,
+        )
+        val repo = GrowthDatasetRepository(context, store, gateway, bundled)
+        assertNull(repo.identityLine.value)
+        repo.current()
+        assertEquals("WHO 2006 · v2026.10 · updated 15 Oct 2026", repo.identityLine.value)
+        assertTrue(repo.checkForUpdates(true) is GrowthDatasetUpdateResult.Updated)
+        assertEquals("WHO 2006 · v2026.12 · updated 1 Dec 2026", repo.identityLine.value)
     }
 
     private fun minimalDataset(version: String, retrievedAt: String): String {

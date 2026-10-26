@@ -9,6 +9,9 @@ import java.io.File
 import java.security.MessageDigest
 import java.time.Clock
 import java.time.LocalDate
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Dispatchers
@@ -41,10 +44,23 @@ class GrowthDatasetRepository(
 
     private var cachedReference: GrowthReference? = null
 
-    suspend fun current(): GrowthReference = cachedReference ?: withContext(Dispatchers.IO) {
-        val fromCache = readCached()
-        (fromCache ?: GrowthReferenceParser.parse(bundledJson)).also { cachedReference = it }
-    }
+    private val _identityLine = MutableStateFlow<String?>(null)
+
+    /**
+     * The identity line of the reference currently in use, so the screen that shows it can observe an
+     * accepted update instead of re-reading it on entry.
+     *
+     * The phone found this the hard way in Phase 13.5: Settings read the line inside a `produceState`
+     * keyed on the destination, so a successful check printed `Updated to v2026.11` directly above a
+     * line still saying `v2026.10` until the parent left the screen and came back.
+     */
+    val identityLine: StateFlow<String?> = _identityLine.asStateFlow()
+
+    suspend fun current(): GrowthReference =
+        (cachedReference ?: withContext(Dispatchers.IO) {
+            val fromCache = readCached()
+            (fromCache ?: GrowthReferenceParser.parse(bundledJson)).also { cachedReference = it }
+        }).also { _identityLine.value = it.identityLine }
 
     suspend fun checkForUpdates(force: Boolean): GrowthDatasetUpdateResult {
         val gateway = gateway ?: return GrowthDatasetUpdateResult.Failed
@@ -72,6 +88,7 @@ class GrowthDatasetRepository(
                     val parsed = GrowthReferenceParser.parse(json)
                     writeCache(json, manifest)
                     cachedReference = parsed
+                    _identityLine.value = parsed.identityLine
                     markChecked()
                     GrowthDatasetUpdateResult.Updated(parsed.version)
                 }

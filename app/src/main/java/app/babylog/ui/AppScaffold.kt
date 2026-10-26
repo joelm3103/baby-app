@@ -195,7 +195,6 @@ fun AppScaffold(container: AppContainer) {
         viewModelFactory {
             initializer {
                 SettingsViewModel(
-                    container = container,
                     settings = container.settings,
                     children = container.children,
                     maintenance = container.maintenance,
@@ -253,9 +252,13 @@ fun AppScaffold(container: AppContainer) {
     }
 
     // Which growth reference produced a percentile is shown in Settings too. Loaded on demand rather
-    // than at launch, so the ~490 KB parse is paid only by whoever opens the screen that displays it.
-    val growthIdentity by produceState<String?>(initialValue = null, destination == Destination.SETTINGS) {
-        value = if (destination == Destination.SETTINGS) container.growth().identityLine else null
+    // than at launch, so the ~490 KB parse is paid only by whoever opens the screen that displays it,
+    // and OBSERVED rather than polled, so an accepted update changes this line on the screen that
+    // triggered it. Found on the phone in Phase 13.5: the line used to keep reading `v2026.10` beside
+    // `Updated to v2026.11` until the parent left Settings and came back.
+    val growthIdentity by container.growthDatasetRepository.identityLine.collectAsState()
+    LaunchedEffect(destination) {
+        if (destination == Destination.SETTINGS) container.growth()
     }
 
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
