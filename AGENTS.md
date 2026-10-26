@@ -332,22 +332,27 @@ only, and `1.0.0` is the first release.
 | | | 13.4 activity reminders | `0.13.0` |
 | | | 14 Polish/Misc changes | `0.16.0` |
 | | | 13.5 dataset channel | `0.17.0` |
-| | | 13.6 reset to defaults (not started) | assigned when landed |
-| | | 15 update delivery (first release) | `1.0.0` |
-| | | 16 ship | uses delivered release |
+| | | 15 reset to defaults (not started) | `0.18.0` at first commit |
+| | | 16 update delivery (first release) | `1.0.0` |
+| | | 17 ship | uses delivered release |
 
-- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.16.0` → `20`); it never goes backwards,
+- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.17.0` → 21); it never goes backwards,
   because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:
   unfinished phases get versions and codes above the latest delivered build when they land, in landing order.
   If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release number.
-- **Phases land in the order they are done.** 13.5 and 13.6 have no prerequisites. Phase 15 creates and
-  backs up the release keystore outside the repo, then registers its SHA-1 with the Google Sign-In OAuth
-  client **before delivery**. Phase 16 requires a build delivered over the air from Phase 15.
+- **Phases are numbered in the order they land (re-ruled 2026-10-26).** A phase's number is fixed when its
+  first commit lands: work that has not started takes the next free integer above the last landed phase, and
+  may be renumbered freely while it still has no commits. **Decimal sub-phases are retired** — `9.1`, `9.2`,
+  `13.1`, `13.1.1` and `13.2`–`13.5` stay as history and nothing new is numbered `13.7`. Phase 13.5 keeps its
+  number and its `0.17.0` because three commits on `main` already say `phase13.5`; a landed rung is never
+  renumbered to match a tidier label. 13.5 and 15 have no prerequisites. Phase 16 creates and backs up the
+  release keystore outside the repo, then registers its SHA-1 with the Google Sign-In OAuth client **before
+  delivery**. Phase 17 requires a build delivered over the air from Phase 16.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
   that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
   in the README.
 - **Nothing is tagged until a release.** Tags are for released builds, so the first tag is `v1.0.0` when
-  the release APK is delivered in Phase 15. A phase ending is not a release.
+  the release APK is delivered in Phase 16. A phase ending is not a release.
 
 ## Where things are
 

@@ -29,7 +29,7 @@ The debug keystore on this machine has SHA-1:
 
 `~/.android/debug.keystore` is **per machine**. A debug APK built on a different computer has a different
 SHA-1 and Google Sign-In will refuse it until that certificate is registered too. Email/password does not
-care, which is why it is the primary route. The release certificate does not exist until Phase 15.
+care, which is why it is the primary route. The release certificate does not exist until Phase 16.
 
 **A different debug key also means a different app signature, and that blocks the install, not just
 Google.** `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when the existing copy was built
@@ -210,7 +210,7 @@ The app can fetch a newer WHO dataset without an APK release. Publish two docume
 Clients read both documents and never write them. The rules above allow that for the two accounts.
 If either document is missing or fails its checksum, the app keeps the bundled dataset.
 
-## What is still Phase 15
+## What is still Phase 16
 
 The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above
 depends on them: email/password works on any signing key, which is exactly why it is the primary route.

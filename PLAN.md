@@ -47,23 +47,51 @@ everything after it is additive.**
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; the `Mucousy` glyph read as a `T` at 16dp, kept open here and redrawn in Phase 14.6; 444 tests green |
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
-| 13.5 — Growth dataset update channel | **DONE (built + tested, device pass pending)** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`; 537 tests green. **No prerequisite** |
-| 13.6 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); version assigned when landed. **No prerequisite** |
+| 13.5 — Growth dataset update channel | **built and tested — device pass pending** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`; 537 tests green. **No prerequisite.** Keeps this number and this rung: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Next: the device pass** |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0` |
-| 16 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 15**; use it for a week before more code |
+| 15 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); `0.18.0` / versionCode 22, set at its first commit. **No prerequisite.** Was 13.6 |
+| 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
+| 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**; use it for a week before more code. Was 16 |
 
 **Versions: one rung per delivered phase**, and the ladder is a fact of the history rather than a
 reservation for unstarted work — `versionCode`/`versionName` were rewritten so each phase's commits
 carry that phase's rung, set at the **first commit of the phase's work** so a build on a phone says which
 phase produced it. `0.MINOR` is a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is
-the first release. Phase 14 is `0.16.0` / versionCode 20; the unused lower `0.14.0` / `0.15.0`
-rungs are not reserved for 13.5 or 13.6. Assign each unfinished phase a version and code above the
-latest delivered build when it lands, even if its phase number is lower. If it lands after `1.0.0`,
-its version must be newer than `1.0.0`. Landed rungs are listed in dated `CHANGELOG.md` sections
-under `### Versions`; the rule is in `AGENTS.md`.
-Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 15. The original scheme note
+the first release. **Landed rungs are never renumbered**, even where a phase's number moved afterwards:
+Phase 14 is `0.16.0` / versionCode 20 and Phase 13.5 is `0.17.0` / versionCode 21, so the ladder rises in
+**landing** order rather than in phase-number order. The next new work — Phase 15, reset to defaults —
+takes `0.18.0` / versionCode 22 at its first commit, and a code fix found during the Phase-13.5 device
+pass takes `0.17.1`, because a PATCH is fixes only. Landed rungs are listed in dated `CHANGELOG.md`
+sections under `### Versions`; the rule is in `AGENTS.md`.
+Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 16. The original scheme note
 that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
+
+### Renumbering, 2026-10-26 — the ladder reads in landing order
+
+The owner asked for the phase numbers to run in the order the work actually happens. Three phases had
+**no commits**, so they were renumbered for free; nothing else moved.
+
+| Deliverable | Was | Now | Version |
+|---|---|---|---|
+| Reset to defaults | 13.6 | **15** | `0.18.0` / code 22, at its first commit |
+| Update delivery (first release) | 15 | **16** | `1.0.0` |
+| Ship | 16 | **17** | uses the delivered release |
+
+- **Phase 13.5 keeps its number and its `0.17.0`.** Three commits on `main` already say `phase13.5`
+  (`29ccd6c`, `ba4bbb4`, `848c924`), and renaming a landed phase to match a tidier label would mean
+  rewriting history. It sits below Phase 14 on purpose, and the property that actually matters — the
+  version ladder rising in landing order — still holds.
+- **The rule is now: a phase's number is fixed when its first commit lands.** Work that has not started
+  takes the next free integer above the last landed phase, and may be renumbered freely while it still
+  has no commits. This supersedes the 2026-10-26 ruling *phases land in the order they are done* (C12 in
+  Phase 14's table); that day's `CHANGELOG.md` section records the ruling as it was closed and this
+  reversal beneath it, rather than being edited to agree with the future.
+- **Decimal sub-phases are retired.** `9.1`, `9.2`, `13.1`, `13.1.1` and `13.2`–`13.5` stay as the history
+  they are. Nothing new is ever numbered `13.7`; the next piece of work is a whole number.
+- **Live policy documents follow; dated records do not.** This note, the Status table, `AGENTS.md`,
+  `docs/firebase-setup.md` and the 2026-10-26 `CHANGELOG.md` section use the new numbers. Older
+  `CHANGELOG.md` sections, the `docs/timeline` screenshot directories and the git commit messages keep the
+  numbers they were written with — they record what happened, which is not the same job as the plan.
 
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
@@ -694,7 +722,7 @@ Six decisions were taken before any code, because each one changes the shape of 
   with whatever key the APK was signed with. Google Sign-In needs an OAuth client plus a registered
   certificate SHA-1 — this machine's debug print is recorded in `docs/firebase-setup.md` and has to be
   added to the Android app in the console, which nobody has confirmed yet — and **the release key only
-  exists in Phase 15**, so that step is a Phase 15 checklist item rather than a Phase 13 one.
+  exists in Phase 16**, so that step is a Phase 16 checklist item rather than a Phase 13 one.
 - **No `com.google.gms.google-services` plugin.** That plugin fails the build when
   `app/google-services.json` is missing, and that file is gitignored because it carries the project's
   keys — so a fresh clone could not even run the tests. The same values are read from an optional local
@@ -1429,39 +1457,6 @@ line on a phone. The bundled dataset and percentile maths are unchanged.
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.6 — Reset to defaults — scoped 2026-10-22, re-scoped 2026-10-25, not started (version assigned when landed)
-
-Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
-Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
-it is not lost, and **deliberately not started in the session that scoped it.**
-
-Shape agreed with the owner (re-scoped 2026-10-25 — **two buttons, not one row and a checkbox**):
-
-- **Local reset** — wipes **events**, **children** (re-seeding *First Twin* / *Second Twin*), and
-  **settings and presets** — theme, units, night window, bottle and medication presets. Export files are
-  not touched. Its confirmation names what will go.
-- **Delete all server data** — removes the log from the server *and* resets locally, because a server wipe
-  against a live local copy would simply be re-uploaded by the seed. Its confirmation says plainly that the
-  data **cannot be recovered from the server**, and it is offered only while signed in: a button that
-  cannot work is a button that lies.
-- Two buttons rather than one plus an opt-in switch, so the destructive-and-unrecoverable action is its own
-  visible choice rather than a checkbox a parent can leave ticked by accident.
-
-The reason that last point is not optional detail: **sync makes a local-only wipe a trap.** `replaceAll`
-wipes the tables *and* the outbox, so a reset that did not queue DELETEs would leave Firestore holding the
-whole log, and the next snapshot would merge it straight back in — the exact defect Phase 13 fixed for
-Import with `reseedAfterRestore`. **Local reset therefore pushes tombstones for every row and drains, and is
-refused while a drain cannot reach the server**; *Delete all server data* is the deliberate escape from that
-refusal.
-
-Reuse, not reinvention: `MaintenanceRepository` already owns the wipe-in-one-transaction pattern
-(`replaceAll`) and `OutboxDrainer` already knows how to travel a permanent delete as an id-and-timestamp
-tombstone. The tests to write mirror the ones there: the wipe is atomic, the queue is left consistent, and
-a reset while signed out cannot resurrect rows on the next sign-in.
-
-**Prerequisite:** none. It is numbered after 13.5 only because it is ordered after it, not because it waits
-on it.
-
 ## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
 
 Eight findings the owner ruled on while closing Phase 13.4, given one phase and one branch because each is
@@ -1550,7 +1545,41 @@ device pass is recorded at the end of this file, on `<handset>`.
 
 **Prerequisite:** none.
 
-## Phase 15 — Update delivery
+## Phase 15 — Reset to defaults — scoped 2026-10-22, re-scoped 2026-10-25, not started (`0.18.0` / versionCode 22, set at its first commit)
+
+Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
+Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
+it is not lost, and **deliberately not started in the session that scoped it.**
+
+Shape agreed with the owner (re-scoped 2026-10-25 — **two buttons, not one row and a checkbox**):
+
+- **Local reset** — wipes **events**, **children** (re-seeding *First Twin* / *Second Twin*), and
+  **settings and presets** — theme, units, night window, bottle and medication presets. Export files are
+  not touched. Its confirmation names what will go.
+- **Delete all server data** — removes the log from the server *and* resets locally, because a server wipe
+  against a live local copy would simply be re-uploaded by the seed. Its confirmation says plainly that the
+  data **cannot be recovered from the server**, and it is offered only while signed in: a button that
+  cannot work is a button that lies.
+- Two buttons rather than one plus an opt-in switch, so the destructive-and-unrecoverable action is its own
+  visible choice rather than a checkbox a parent can leave ticked by accident.
+
+The reason that last point is not optional detail: **sync makes a local-only wipe a trap.** `replaceAll`
+wipes the tables *and* the outbox, so a reset that did not queue DELETEs would leave Firestore holding the
+whole log, and the next snapshot would merge it straight back in — the exact defect Phase 13 fixed for
+Import with `reseedAfterRestore`. **Local reset therefore pushes tombstones for every row and drains, and is
+refused while a drain cannot reach the server**; *Delete all server data* is the deliberate escape from that
+refusal.
+
+Reuse, not reinvention: `MaintenanceRepository` already owns the wipe-in-one-transaction pattern
+(`replaceAll`) and `OutboxDrainer` already knows how to travel a permanent delete as an id-and-timestamp
+tombstone. The tests to write mirror the ones there: the wipe is atomic, the queue is left consistent, and
+a reset while signed out cannot resurrect rows on the next sign-in.
+
+**Prerequisite:** none. It carried 13.6 until 2026-10-26, when it took the first free number above the last
+landed phase (14) so the ladder reads in the order the work happens — see *Renumbering* near the Status
+table. It does not wait on 13.5; it waits on nothing.
+
+## Phase 16 — Update delivery
 
 Getting a new build onto both phones without a cable. This has to precede the ship step, because a
 release-signed APK is the thing being delivered.
@@ -1571,8 +1600,8 @@ compares it to decide whether a build is newer, which is why it has been a risin
 **Verify:** a build reaches both phones over the air, without a cable.
 **Commit:** `chore(release): signed builds and over-the-air delivery`
 
-## Phase 16 — Ship
-Use the release APK already delivered over the air to both phones in Phase 15 for **a week before
+## Phase 17 — Ship
+Use the release APK already delivered over the air to both phones in Phase 16 for **a week before
 writing another line of code**. No second cable install is required.
 
 ---
@@ -1603,7 +1632,7 @@ The owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    same thing for the same reason.
 3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
-   Add it at Phase 15, not Phase 1.
+   Add it at Phase 16, not Phase 1.
 
 ### Not cheap to reverse later
 

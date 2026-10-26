@@ -39,6 +39,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Phase 13.5 lands the growth dataset update channel.** A newer WHO dataset can now be fetched from
   Firestore, checksum-verified, and cached without an APK release; the bundled dataset stays on every
   failure. Built and unit-tested; the phone check is still pending.
+- **The phase ladder is renumbered so it reads in landing order** (docs only, no build): reset-to-defaults
+  13.6 → 15, update delivery 15 → 16, ship 16 → 17. 13.5 keeps its number and its `0.17.0`, because three
+  commits already carry it. This supersedes the `phases land in the order they are done` ruling closed
+  earlier the same day, below.
 
 ### Versions
 
@@ -130,6 +134,25 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   fallbacks. The existing amount-less-bottle test was rewritten to pin `No amount`, not counted as new.
 - **532 → 537.** Five in `GrowthDatasetRepositoryTest`: newer dataset with matching checksum, stale version,
   checksum mismatch, unreachable gateway, and corrupt cache fallback.
+
+### Changed — the phase ladder is renumbered (documents only)
+
+No code, no schema, no version bump: the build on the phone remains `0.17.0` / versionCode 21. Recorded here
+because it reverses a ruling closed above, not because it ships anything.
+
+- **Renumbered: 13.6 reset to defaults → 15, 15 update delivery → 16, 16 ship → 17.** Those three had no
+  commits, so the change cost nothing but prose; the documents that carry it are `PLAN.md`, `AGENTS.md` and
+  `docs/firebase-setup.md`.
+- **13.5 keeps its number and its `0.17.0`.** Three commits on `main` already say `phase13.5`
+  (`29ccd6c`, `ba4bbb4`, `848c924`); renaming a landed phase would mean rewriting history to match a label.
+- **Supersedes *Phases land in the order they are done* (C12, closed above).** The new rule: a phase's number
+  is fixed when its first commit lands, unstarted work takes the next free integer above the last landed
+  phase, and decimal sub-phases are retired — `9.1`, `9.2`, `13.1`, `13.1.1` and `13.2`–`13.5` are history.
+  The ruling above is left as it was closed, so the reversal is visible rather than silently edited away.
+- **Also sorted:** `PLAN.md`'s phase sections were physically out of order (13.2 before 13.1.1 before 13.1)
+  and are now in numeric order — a pure block move, proven by an identical sorted-line multiset.
+- **Not touched:** older dated entries in this file, the `docs/timeline` screenshot directories and their
+  links, and every git commit message. They record what happened; the plan records what will happen.
 
 ## [2026-10-25]
 
