@@ -36,14 +36,18 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   up arrow, a head); the range chips carry no glyph and read `D · 1W · 2W` and `1W · 2W · 1M`. No window changed.
 - **Four findings closed without code**, by the owner's ruling: the `8:55 PM` tombstone stays deleted, `Reminders
   differ` stays gone, the Trends chip clipping was fine, and phases land in the order they are done.
+- **Phase 13.5 lands the growth dataset update channel.** A newer WHO dataset can now be fetched from
+  Firestore, checksum-verified, and cached without an APK release; the bundled dataset stays on every
+  failure. Built and unit-tested; the phone check is still pending.
 
 ### Versions
 
 - `0.16.0` / `versionCode 20`. Phase 14 is polish and fixes, but it also adds two capabilities the owner asked for
   (per-metric marks and the wider glyph reach), so it takes the next `0.MINOR` rung rather than a `0.PATCH`. The
-  unfinished dataset-channel and reset-to-defaults phases are not assigned the lower, unused `0.14.0` /
-  `0.15.0` rungs; they receive increasing versions and codes when they land. `1.0.0` is the first
-  delivered release, with Ship as the last step.
+  unused `0.14.0` / `0.15.0` rungs are not reserved for unfinished phases; they receive increasing versions
+  and codes when they land. `1.0.0` is the first delivered release, with Ship as the last step.
+- `0.17.0` / `versionCode 21`. Phase 13.5 adds the growth dataset update channel. Built and unit-tested;
+  device verification is pending.
 
 ### Changed
 
@@ -124,6 +128,8 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   queue-count wording; three in `StoolAndMetricGlyphTest` check the stool and metric mappings; five in
   `RangeLabelTest` pin the labels, windows and spoken forms; two in `CardSummaryTest` check catalogue-name
   fallbacks. The existing amount-less-bottle test was rewritten to pin `No amount`, not counted as new.
+- **532 → 537.** Five in `GrowthDatasetRepositoryTest`: newer dataset with matching checksum, stale version,
+  checksum mismatch, unreachable gateway, and corrupt cache fallback.
 
 ## [2026-10-25]
 

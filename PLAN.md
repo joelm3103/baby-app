@@ -1408,18 +1408,24 @@ phone, and it is why the pass below is a table rather than a sentence.
 logged, because there is no log to measure from — the rule's own anchor drives the alarm, but claiming `3h since the
 last feed` when no feed exists would be a lie. Also `Reminders differ` is gone by design: two children get two chips.
 
-## Phase 13.5 — the growth dataset update channel — not started (version assigned when landed)
+## Phase 13.5 — the growth dataset update channel — built and tested, device pass pending (`0.17.0`)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
 
-- A `reference/growth_manifest` document pointing at `reference/growth_dataset`.
-- A **checksum gate**: a manifest that fails its sha256, is older than the bundled dataset, or is
-  unreachable keeps the current dataset and shows nothing. A failed check is silent, not an error dialog.
-- A **90-day** silent check on app start, and `Check for updates` rows on the Growth screen and in
-  Settings.
-- `GrowthReference.identityLine` already exists for the display line — this adds the fetch, not the
-  format.
+### As built — 2026-10-26
+
+- `GrowthDatasetGateway` reads `reference/growth_manifest` and `reference/growth_dataset`; Firestore rules
+  allow the two accounts to read those documents and never write them.
+- `GrowthDatasetRepository` keeps the bundled dataset as the fallback, caches an accepted update in
+  app-private storage, verifies the manifest's SHA-256 against the payload, and refuses stale versions.
+- A 90-day silent check runs on app start; manual `Check for updates` rows exist on the Growth tab and
+  in Settings, with short status text. Automatic checks fail silently.
+- `GrowthReference.identityLine` is unchanged; the repository supplies the current reference.
+- Tests: `GrowthDatasetRepositoryTest` (5 cases) plus the existing Growth tests; 537 total, 0 failures.
+
+**Device pass pending:** publish the two reference documents and verify an update changes the identity
+line on a phone. The bundled dataset and percentile maths are unchanged.
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 

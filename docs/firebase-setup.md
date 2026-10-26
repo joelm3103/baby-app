@@ -199,6 +199,17 @@ after fixing the cause (or relaunch to trigger another drain); there is no perio
 | Count stuck above 0, failure message shown | The intent stays queued, not automatically retried on a timer. Read the message, fix the cause, then press **Sync now** or relaunch. |
 | Writes appear on B, then revert | Clock skew between the phones: the merge is `updatedAt`-wins, so a phone whose clock is ahead wins every tie. |
 
+## Growth dataset updates (Phase 13.5)
+
+The app can fetch a newer WHO dataset without an APK release. Publish two documents in the
+`reference` collection:
+
+- `reference/growth_manifest` with `datasetVersion`, `sha256` and `retrievedAt`.
+- `reference/growth_dataset` with a `data` field containing the full GrowthReference JSON.
+
+Clients read both documents and never write them. The rules above allow that for the two accounts.
+If either document is missing or fails its checksum, the app keeps the bundled dataset.
+
 ## What is still Phase 15
 
 The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above
