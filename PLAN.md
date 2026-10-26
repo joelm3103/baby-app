@@ -41,29 +41,37 @@ everything after it is additive.**
 | 10 — Growth | **DONE, device-verified** — WHO LMS checked against WHO's own tables, growth sheet, per-child summary with W/L/H codes, trajectory lines, percentile chart as a Trends tab, 255 tests green |
 | 11 — Health | **DONE, device-verified** — temperature, medication picker + dose, vaccines as their own form, a measured Fever pill, schema v2 additive migration, 308 tests green |
 | 12 — Trends | **DONE, device-verified** — five per-day charts on a 7/14/30-day window, one line per child (solid/dashed), and a fever table for Health instead of a chart; axis maths shared with Growth, 339 tests green |
-| 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. Two open findings: "Sync now" is silent offline, and the first-sign-in seed sits queued until a drain is triggered |
+| 13 — Two accounts, one shared log | **DONE, device-verified** — two accounts on one shared log, an outbox that is the only queue, an inbound listener that applies another device's rows, and tombstones that stay dead across the hop; 398 tests green. Three passes on 2026-10-22: an unconfigured build (`<handset>`) proved launch, the "not set up" card, every write path queueing and a permanent delete queueing DELETE intents; the configured build proved sign-in, the seed draining, a live ack in under five seconds, and three airplane-mode writes arriving exactly once; then a wipe plus a fresh sign-in pulled the whole log back by row id, and a **second device signed in with the second account** (`emulator-5554`, uid `B43h…`) received the phone's six rows, took a bottle each way, took an offline trio as exactly three rows with no duplicates, and lost a row when the phone deleted it — still gone after that device's process restarted. Runbook: `docs/firebase-setup.md`. The later offline `Sync now` and first-sign-in seed findings were fixed in Phase 14 |
 | 13.1 — Time and temperature preferences | **DONE, device-verified** — independent 12/24-hour and °C/°F display/input choices, canonical storage unchanged, 409 tests green |
 | 13.1.1 — Twelve-hour default | **DONE, device-verified** — fresh installs and no-choice fallbacks use 12-hour time without migrating an existing saved choice; `0.10.1`; 409 tests green |
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
-| 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; two findings kept open by the owner (the `Mucousy` glyph reads as a `T` at 16dp); 444 tests green |
+| 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; the `Mucousy` glyph read as a `T` at 16dp, kept open here and redrawn in Phase 14.6; 444 tests green |
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
-| 13.5 — Growth dataset update channel | not started — split out of 13, `0.14.0` |
-| 13.6 — Reset to defaults | not started — scoped 2026-10-22, `0.15.0`; **not started in this session, by the owner's instruction** |
-| 14 — Update delivery | not started |
-| 15 — Ship | not started |
+| 13.5 — Growth dataset update channel | not started — split out of 13; version assigned when landed. **No prerequisite** |
+| 13.6 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); version assigned when landed. **No prerequisite** |
+| 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
+| 15 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0` |
+| 16 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 15**; use it for a week before more code |
 
-**Versions: one rung per phase**, and the ladder is a fact of the history rather than a paragraph about
-it — `versionCode`/`versionName` were rewritten so each phase's commits carry that phase's rung, set at
-the **first commit of the phase's work** so a build on a phone says which phase produced it. `0.MINOR` is
-a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is the first release. The rungs are
-listed in every dated `CHANGELOG.md` section under `### Versions`, and the rule is in `AGENTS.md`.
-Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 14. The original scheme note
+**Versions: one rung per delivered phase**, and the ladder is a fact of the history rather than a
+reservation for unstarted work — `versionCode`/`versionName` were rewritten so each phase's commits
+carry that phase's rung, set at the **first commit of the phase's work** so a build on a phone says which
+phase produced it. `0.MINOR` is a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is
+the first release. Phase 14 is `0.16.0` / versionCode 20; the unused lower `0.14.0` / `0.15.0`
+rungs are not reserved for 13.5 or 13.6. Assign each unfinished phase a version and code above the
+latest delivered build when it lands, even if its phase number is lower. If it lands after `1.0.0`,
+its version must be newer than `1.0.0`. Landed rungs are listed in dated `CHANGELOG.md` sections
+under `### Versions`; the rule is in `AGENTS.md`.
+Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 15. The original scheme note
 that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
 
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.13.0, versionCode 17); `:app:testDebugUnitTest` is **515/515**
+Verified: `:app:assembleDebug` builds (0.16.0, versionCode 20); `:app:testDebugUnitTest` is **532/532**
+with 0 failures, 0 errors and 0 skipped (515 at the Phase-13.4 close, +17 in Phase 14: two new
+`OutboxDrainerTest`, five `SyncRepositoryTest`, three `StoolAndMetricGlyphTest`, five `RangeLabelTest`
+and two `CardSummaryTest`; the old amount-less-bottle test was changed, not added). The 515 was: `:app:testDebugUnitTest` was **515/515**
 with 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
 (51 XML files) — the 444 of the Phase-13.3 close plus the 52 of Phase 13.4's first build and the 19 the
 reminder UI added while it was reshaped on the phone and corrected for exact alarms and `Remind at`. The 444 were the 417 of the
@@ -685,7 +693,7 @@ Six decisions were taken before any code, because each one changes the shape of 
   with whatever key the APK was signed with. Google Sign-In needs an OAuth client plus a registered
   certificate SHA-1 — this machine's debug print is recorded in `docs/firebase-setup.md` and has to be
   added to the Android app in the console, which nobody has confirmed yet — and **the release key only
-  exists in Phase 14**, so that step is a Phase 14 checklist item rather than a Phase 13 one.
+  exists in Phase 15**, so that step is a Phase 15 checklist item rather than a Phase 13 one.
 - **No `com.google.gms.google-services` plugin.** That plugin fails the build when
   `app/google-services.json` is missing, and that file is gitignored because it carries the project's
   keys — so a fresh clone could not even run the tests. The same values are read from an optional local
@@ -1399,7 +1407,7 @@ phone, and it is why the pass below is a table rather than a sentence.
 logged, because there is no log to measure from — the rule's own anchor drives the alarm, but claiming `3h since the
 last feed` when no feed exists would be a lie. Also `Reminders differ` is gone by design: two children get two chips.
 
-## Phase 13.5 — the growth dataset update channel — not started (`0.14.0`)
+## Phase 13.5 — the growth dataset update channel — not started (version assigned when landed)
 
 Split out of Phase 13 on 2026-10-19, not dropped: Phase 13 is the half that two phones must prove first.
 The Firebase project already exists by then, which is the only precondition this channel ever had.
@@ -1414,32 +1422,128 @@ The Firebase project already exists by then, which is the only precondition this
 
 The four datasets' curation still matters: a fix to our own bundled data should not need an APK release.
 
-## Phase 13.6 — Reset to defaults — scoped 2026-10-22, not started (`0.15.0`)
+## Phase 13.6 — Reset to defaults — scoped 2026-10-22, re-scoped 2026-10-25, not started (version assigned when landed)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
 it is not lost, and **deliberately not started in the session that scoped it.**
 
-Shape agreed with the owner:
+Shape agreed with the owner (re-scoped 2026-10-25 — **two buttons, not one row and a checkbox**):
 
-- A **Reset to defaults** row in Settings → Data, behind a confirmation that names what will go.
-- It wipes **events**, **children** (re-seeding *First Twin* / *Second Twin*), and **settings and presets**
-  — theme, units, night window, bottle and medication presets. Export files are not touched.
-- **Server deletion is a separate, opt-in choice**, and its own confirmation must say plainly that the
-  data will be removed from the server and **cannot be recovered**. Off by default.
+- **Local reset** — wipes **events**, **children** (re-seeding *First Twin* / *Second Twin*), and
+  **settings and presets** — theme, units, night window, bottle and medication presets. Export files are
+  not touched. Its confirmation names what will go.
+- **Delete all server data** — removes the log from the server *and* resets locally, because a server wipe
+  against a live local copy would simply be re-uploaded by the seed. Its confirmation says plainly that the
+  data **cannot be recovered from the server**, and it is offered only while signed in: a button that
+  cannot work is a button that lies.
+- Two buttons rather than one plus an opt-in switch, so the destructive-and-unrecoverable action is its own
+  visible choice rather than a checkbox a parent can leave ticked by accident.
 
 The reason that last point is not optional detail: **sync makes a local-only wipe a trap.** `replaceAll`
 wipes the tables *and* the outbox, so a reset that did not queue DELETEs would leave Firestore holding the
 whole log, and the next snapshot would merge it straight back in — the exact defect Phase 13 fixed for
-Import with `reseedAfterRestore`. A reset therefore has to either push tombstones for every row and drain,
-or refuse while signed in. Pick one deliberately; do not let it be an accident of implementation order.
+Import with `reseedAfterRestore`. **Local reset therefore pushes tombstones for every row and drains, and is
+refused while a drain cannot reach the server**; *Delete all server data* is the deliberate escape from that
+refusal.
 
 Reuse, not reinvention: `MaintenanceRepository` already owns the wipe-in-one-transaction pattern
 (`replaceAll`) and `OutboxDrainer` already knows how to travel a permanent delete as an id-and-timestamp
 tombstone. The tests to write mirror the ones there: the wipe is atomic, the queue is left consistent, and
 a reset while signed out cannot resurrect rows on the next sign-in.
 
-## Phase 14 — Update delivery
+**Prerequisite:** none. It is numbered after 13.5 only because it is ordered after it, not because it waits
+on it.
+
+## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
+
+Eight findings the owner ruled on while closing Phase 13.4, given one phase and one branch because each is
+too small to be a phase on its own and together they are a week of small, real defects. The rulings are
+recorded so a later pass does not re-open them:
+
+| # | Item | Ruling |
+|---|---|---|
+| 14.1 | `Sync now` with no network was silent and held the drain lock (B5) | **fixed** |
+| 14.2 | The first-sign-in seed waited for a write or a tap (B6) | **fixed** |
+| 14.3 | `Both` wrapped to `Bot` / `h` at 130 % (B8) | **fixed** |
+| 14.4 | A solids card showed the food id, not its name (B9) | **fixed** |
+| 14.5 | Trends' pinned activity chips touched the range chips (B7) | **fixed** |
+| 14.6 | Consistency silhouettes that do not read as forms (A1) | **redrawn** |
+| 14.7 | Activity glyph on sheet title bars, entry rows, Both-mode columns (C10) | **added** |
+| 14.8 | Growth metric chips carry per-metric marks (C10) | **added** |
+| 14.9 | Range chips: `D · 1W · 2W` and `1W · 2W · 1M` (C10, revised) | **relabelled** |
+| 14.10 | A bottle card with no amount read `Bottle` over `Bottle feed` (found on the phone, 2026-10-26) | **fixed** |
+| — | The chip clipping was fine (B7); `Reminders differ` stays gone (A4); the `8:55 PM` tombstone stays deleted (A2); phases land in the order they are done (C12) | **closed, no code** |
+| — | The "never logged this activity" notification wording (A3) | **deferred, unchanged** |
+
+### As built
+
+- **14.1 — a drain that cannot reach the server now says so, and lets go of the lock.** `OutboxDrainer`
+  bounds each write with `writeTimeoutMs` (10 s). Firestore with no network closes its write stream
+  `UNAVAILABLE` and leaves the `Task` pending, so `awaitTask()` never returned, `syncNow()` never returned,
+  and the `Mutex` stayed held — which is why the button looked inert and could not resolve itself. The
+  timeout lives in the **drainer**, not the gateway, so `FakeSyncGateway` can prove it without a Firestore
+  client. `DrainResult` gained `remaining` and `timedOut`, and `NetworkStatus` (new, one method, real
+  implementation over `ConnectivityManager`) picks between two honest sentences: *Waiting for a network
+  connection* and *The server did not answer* — the second matters, because four bars is not an offline
+  phone. Four tests, including one proving a second `Sync now` after a timeout returns instead of queueing
+  behind a dead one.
+- **14.2 — the seed drains itself.** `attach()` already drained before attaching the listener, so the fix
+  is at the seam the finding actually names: the sign-in result is applied under `NonCancellable` (a
+  `viewModelScope` cancelled in that window used to lose the listener *and* the drain), and the drain runs
+  again once the first inbound snapshot has been applied. The test fails without the second drain: the fake
+  gateway fails one write, and the queue still empties with nobody tapping anything.
+- **14.3 — pills wrap, words do not.** `ChildSwitcher` is a `FlowRow`, each label is `maxLines = 1` and
+  `softWrap = false`, so 130 % gets a second line of whole pills instead of a chopped `Bot` / `h`.
+- **14.4 — a meal reads as its name.** `HomeViewModel` observes the catalogue it already had and carries
+  `foodNames`; `detailLine` and `recentRowLabel` take the map, and an id the catalogue no longer has still
+  renders as words rather than a blank.
+- **14.5 — the two chip rows have a gap.** The tab row is pinned above the pane and the pane drops its own
+  top padding, so the pinned row and the pane's first item (the range chips) touched. One 8 dp bottom inset
+  on the pinned row.
+- **14.6 — two silhouettes redrawn.** `Mucousy` was a wide bar over a stem with a dot under it: a letter `T`
+  at 16 dp, beside six shapes that read as forms. It is now two slanted streaks — stringy, which is what the
+  word means. `Runny` was three heavy circles on an ellipse that merged into `Mushy` at 16 dp; it is now a
+  small mass sinking into a **wide flat pool** with shoulders on both sides, which is the difference the
+  field is asking a parent to record. Both were rendered at 16/24/48 dp and compared before and after; the
+  other five were checked and left alone. `StoolAndMetricGlyphTest` now pins all seven as distinct
+  drawables — the mapping had no test before, which is how a `T` shipped.
+- **14.7 — the glyph reaches three more surfaces.** `ActivitySheet` takes the **activity** rather than an
+  accent and draws its glyph at 16 dp in `labelFor(accent)` with a mirrored 22 dp spacer so the title stays
+  centred; entry rows draw it at 14 dp in the raw accent, derived from the event so a caller cannot hand a
+  row the wrong one; Both-mode column heads draw the card's own glyph before the child's name.
+- **14.8 — Growth's chips carry metric marks.** Three new stroke drawables — a scale, an up arrow off a
+  floor, a head with a curl — plus `GrowthMetric.iconRes()` / `iconPainter()`. Not the Growth activity
+  glyph: it would be identical on all three chips, which is the one thing a chip must not be. Local
+  drawables rather than `material-icons-extended`, matching the six activity glyphs (the project depends on
+  `material-icons-core` only). `BMI_FOR_AGE` is in the bundled dataset but has no chip, so nothing was left
+  blank.
+- **14.9 — range chips are labels, not glyphs.** `HistoryRange` is `D · 1W · 2W` (1/7/14 days) and
+  `TrendRange` is `1W · 2W · 1M` (7/14/30 days) — two rows, because they are two different windows, and
+  `1M` names the 30-day window it draws rather than claiming a calendar month. **No window changed.** Both
+  enums gained a `spoken` form (`"1 day"`, `"2 weeks"`) carried as the chips' `contentDescription`, because
+  `2W` read aloud is not an instruction. `RangeLabelTest` pins every label to its own `days`.
+- **14.10 — an amount-less bottle names the gap.** Found during this phase's device pass, not in the
+  original eight: a feed logged without a volume read `Bottle feed` over `Bottle`, because `detailLine`'s
+  fallback for a bare bottle was the word `Bottle` — the card named itself twice and showed no number.
+  A blank amount is a legitimate record (`BottleSheet` allows it, and the app must not invent a volume), so
+  the line now says `No amount recorded` and the row says `No amount`. A brand the parent typed still wins
+  the line, and a bottle that HAS a volume is unchanged. The existing test that pinned `Bottle` was
+  rewritten to pin the new behaviour, with the reason in it.
+- **Design-contract reversal, deliberate:** the activity glyph now appears on five surfaces, the range chips
+  carry no glyph at all, and the Growth metric chips carry their own marks. This reverses the earlier
+  reasoning that the glyph belongs only on cards and activity chips — the owner asked for it on 2026-10-25
+  after seeing the five surfaces rendered side by side. Do not "restore" the old rule.
+
+**Verified in code:** `:app:assembleDebug` builds (`0.16.0`, versionCode 20) and `:app:testDebugUnitTest`
+is **532/532**, 0 failures, 0 errors, 0 skipped — 515 when the phase started, +17 across two drainer,
+five sync-repository, three glyph, five range-label and two card-summary tests. The amount-less-bottle
+test was updated to assert the new wording. The
+device pass is recorded at the end of this file, on `<handset>`.
+
+**Prerequisite:** none.
+
+## Phase 15 — Update delivery
 
 Getting a new build onto both phones without a cable. This has to precede the ship step, because a
 release-signed APK is the thing being delivered.
@@ -1460,9 +1564,9 @@ compares it to decide whether a build is newer, which is why it has been a risin
 **Verify:** a build reaches both phones over the air, without a cable.
 **Commit:** `chore(release): signed builds and over-the-air delivery`
 
-## Phase 15 — Ship
-`adb install -r` the release APK on both phones — the last time a cable is needed — then **use it for a
-week before writing another line of code**.
+## Phase 16 — Ship
+Use the release APK already delivered over the air to both phones in Phase 15 for **a week before
+writing another line of code**. No second cable install is required.
 
 ---
 
@@ -1492,7 +1596,7 @@ The owner asked (2026-10-12) whether post-build changes are easy. Honest answer,
    same thing for the same reason.
 3. **Update delivery that doesn't need a cable.** Firebase App Distribution (free, no Play Store) or a
    hosted APK link, so installing a new build on both phones is a tap instead of `adb install` twice.
-   Add it at Phase 14, not Phase 1.
+   Add it at Phase 15, not Phase 1.
 
 ### Not cheap to reverse later
 
@@ -1949,3 +2053,40 @@ from the newest day.
 **Not exercised on the device:** the empty state for an activity with no records inside the window —
 every activity has data within the last 7 days on this phone. The branch is covered by `TrendsTest`
 (`hasData` false) and mirrors the empty states Summary and Growth already ship.
+
+## Phase 14 device verification — 2026-10-26, `<handset>`
+
+**Status: PASSED**, on the S23 Ultra (`<handset>`, Android 16) with the `0.16.0` APK installed over the
+`0.13.0` one — same signing key, so the log and its ids survived the install. The app was foreground
+(`topResumedActivity=app.babylog/.MainActivity`) before any input was sent, and `logcat -b crash -d` held
+**0** `FATAL EXCEPTION` across the whole pass.
+
+| Check | What was seen | Result |
+|---|---|---|
+| `Sync now` with no network | Airplane mode on, one diaper logged: the card set **`Waiting for a network connection — 1 change queued.`** by itself, beside `1 change waiting to sync.`, and the count did not move across two taps 13 s apart | **pass** |
+| The drain lock is released | Network restored, `Sync now` → **`Up to date.`** and the pending line gone within seconds. If the timed-out drains had held `drainLock`, this could never have reported | **pass** |
+| The seed drains itself | Sign-in drained the queue with no tap: the card went from the sign-in form to `Signed in as …` with no `N changes waiting` line at all | **pass** |
+| `Both` at 130 % | `font_scale 1.3`: `First Twin`/`Second Twin` on one line, `Both` wrapped to a second line **as a whole pill** — no `Bot` / `h` | **pass** |
+| Consistency silhouettes | All seven read as forms; `Mucousy` is two slanted streaks (no `T`), `Runny` is a mound with a wide pool and no longer a copy of `Mushy` | **pass** |
+| Sheet title glyph | `✕ · ⟨diaper⟩ Diaper · Save`, and the title stayed centred — title centre 525 px, available-space centre 525 px | **pass** |
+| Solids name | Logged `Banana` through the sheet: card detail line `Banana`, entry row `⟨glyph⟩ Banana · 9:58 AM`. Deleted afterwards (`Solids deleted` + Undo); the card went back to empty | **pass** |
+| Trends chip gap | ~8 dp between the pinned activity chips and the range chips below (text bounds 171 → 250 px), where there was none | **pass** |
+| Range labels | Summary `D · 1W · 2W`, Trends `1W · 2W · 1M` — and Trends' `2W` matched its own `14 days` caption | **pass** |
+| Growth metric marks | Three chips carrying a scale, an up arrow and a head — not the growth glyph | **pass** |
+| 14.10, amount-less bottle | A feed logged with a blank amount read `Bottle feed` over `Bottle` on this phone; after the fix it reads **`No amount recorded`** (re-installed and re-checked) | **found + fixed in this pass** |
+| No crash | 0 `FATAL EXCEPTION`; font scale and airplane mode restored afterwards (1.0, off) | **pass** |
+
+**Data written during the pass, and removed:** one solids meal and one Wet diaper, both logged on purpose
+and both deleted through the app. They remain as soft-deleted tombstones by design, and both drained
+(`Up to date.` with an empty queue at the end). The second phone was not checked during this pass, so
+cross-device arrival of these two tombstones is not claimed. The owner's 25 Oct 6:55 PM bottle with no amount was left alone, on instruction, and is what
+prompted 14.10.
+
+**Found on the phone, not by any test:** a bottle card whose record has no amount used to repeat its own
+activity name instead of naming the gap — see 14.10 above. The unit tests pinned the old word, which is
+why it survived: `a bottle row without an amount falls back rather than showing nothing` asserted
+`Bottle`, and that case now asserts `No amount`.
+
+**Also seen, out of scope and not fixed:** on Trends, a bottle series with no volume in the window draws
+its y-axis as `0.1 / 0 / 0` — three tiers of which two read `0`. Nothing in Phase 14 touches the axis
+maths Phase 12 signed off, so this is recorded rather than changed.

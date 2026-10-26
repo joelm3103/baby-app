@@ -128,7 +128,17 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **Each card is watermarked with its activity's OWN GLYPH, tiled tone-on-tone.** Six stroke drawables
   (`res/drawable/ic_glyph_*`) go through `EventType.glyphRes()`; `Modifier.activityPattern()` fills the card
   with the glyph repeated at 26dp on a 64dp pitch, alternate rows offset half a pitch, and the same glyphs
-  sit solid at 14dp inside the activity chips. The pattern colour is `patternFor(accent)` — the card fill
+  sit solid at 14dp inside the activity chips.
+- **Three kinds of chip carry three different pictures (Phase 14, 2026-10-25).** *Activity* chips carry the
+  activity's glyph. *Growth metric* chips carry their OWN mark — `GrowthMetric.iconRes()`: a scale for
+  Weight, an up arrow off a floor for Length, a head with a curl for Head — because the activity glyph would
+  be identical on all three and a chip that says nothing about which one is selected is decoration.
+  *Range* chips carry **no glyph at all**: `1d · 7d · 14d` became `D · 1W · 2W` on Summary and `1W · 2W · 1M`
+  on Trends, because a range is a span and not an activity — the `navActive` fill they use has been the
+  evidence of that all along. Each short label carries a `spoken` form as its `contentDescription`; `2W` read
+  aloud is not an instruction. The owner asked for the full glyph reach on 2026-10-25 (sheet title bars,
+  entry rows, Both-mode column heads), so do not "restore" the old rule that the glyph belongs on cards and
+  activity chips only. The pattern colour is `patternFor(accent)` — the card fill
   pushed **0.14** toward its own accent (dE 7–11 dark, 7–10 light), NEVER white: white over a 26% tint
   measures dE 3 and 4.2:1 at alpha 0.04, and is invisible in the light theme. Because the pattern sits
   behind every word, `textOnCard` was lifted (`#DCDEE7` / `#404E69`) so meta text still clears 4.5:1 on a
@@ -147,10 +157,20 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   edge — the fill clears 3:1 against the sheet OR the ring clears 3:1 against the fill — for six fills ×
   both themes. **Selection adds a ring; it never changes a swatch's size**, so a row cannot shift as boxes
   are ticked.
+- **A record with a missing number names the gap, never its own activity.** A bottle can be logged with a
+  blank amount, and the app must not invent a volume — so the card says `No amount recorded` (row:
+  `No amount`) rather than falling back to the word `Bottle`, which repeated the card's title and showed no
+  number. Found on the phone in Phase 14.10. The same rule applies to anything else that can be recorded
+  without its value.
 - **Consistency is identified by SHAPE + word, never by colour** — the same rule the fever band follows, so
   the field survives a colour-blind parent. Its seven silhouettes (`res/drawable/ic_stool_*`, mapped by
   `DiaperConsistency.stoolRes()`) are FILLED, unlike the stroke line-art of the activity glyphs: at 16dp
   inside a chip a 1.7dp outline muddies, and what these have to show is a form (pebbles are pebbles).
+- **A silhouette must be checked at 16dp, and two of them were wrong.** `Mucousy` shipped as a wide bar over
+  a stem with a dot under it, which is a letter `T` at chip size; `Runny` was three heavy circles on an
+  ellipse that merged into `Mushy`. Both were redrawn in Phase 14 and rendered at 16/24/48dp before and after
+  — a path that is right at 48dp says nothing about 16dp. `StoolAndMetricGlyphTest` pins all seven as distinct
+  drawables, because a mapping with no test is how a `T` shipped.
 - **`DiaperKind.MIXED` is how "both" is spelled**, and `DiaperKind.of(wet, dirty)` / `toggle(...)` are the
   only places that decide it. The column has carried WET/DIRTY/MIXED since schema v1, so a two-part answer
   costs no migration and no existing row, sync document or export changes meaning. A quick pill on the card
@@ -253,6 +273,17 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **Later `updatedAt` wins, and a deletion wins a tie.** `domain/SyncMerge.kt` is the only place that
   decides it, and it is pure. A tie going to the live row resurrects a deleted bottle with nobody having
   logged it.
+- **A drain that cannot reach the server must say so, and must let go of the lock.** Firestore with no
+  network closes its write stream `UNAVAILABLE` and leaves the `Task` pending, so `awaitTask()` never
+  returns: `syncNow()` never returned and `drainLock` stayed held, which is why `Sync now` looked inert and
+  could not resolve itself. `OutboxDrainer` bounds each write with `writeTimeoutMs`, so a silent server is an
+  ordinary failure with a `remaining` count, and `NetworkStatus` picks between *Waiting for a network
+  connection* and *The server did not answer* — do not claim the phone is offline on four bars.
+- **A sign-in that already succeeded is applied under `NonCancellable`.** The attach that seeds, drains and
+  listens happens after a suspension point, so a `viewModelScope` cancelled in that window (the parent
+  leaving Settings) lost the listener *and* the drain, and the seeded rows waited for the next write. The
+  listener also drains once after its first snapshot, which is what makes "the queue empties on its own" true
+  *after* the listener rather than only before it.
 - **The outbox stores intent, never a payload**, and the drain re-reads the row by id at send time. The
   one exception is a *permanent* delete, whose row is already gone: it travels as an id-and-timestamp
   tombstone, which is why `OutboxDrainer` tries the row first and falls back to the tombstone.
@@ -271,7 +302,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-515 unit tests, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+532 unit tests through Phase 14, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -299,17 +330,24 @@ only, and `1.0.0` is the first release.
 | | | 13.2 temperature bands | `0.11.0` |
 | | | 13.3 diaper detail | `0.12.0` |
 | | | 13.4 activity reminders | `0.13.0` |
-| | | 13.5 dataset channel | `0.14.0` |
-| | | 13.6 reset to defaults | `0.15.0` |
-| | | 14/15 release | `1.0.0` |
+| | | 14 Polish/Misc changes | `0.16.0` |
+| | | 13.5 dataset channel (not started) | assigned when landed |
+| | | 13.6 reset to defaults (not started) | assigned when landed |
+| | | 15 update delivery (first release) | `1.0.0` |
+| | | 16 ship | uses delivered release |
 
-- **`versionCode` is a sequential counter**, one per rung (`0.1.0` → `1` … `0.8.0` → `10`). It only ever
-  goes up, because App Distribution decides "newer" from it.
+- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.16.0` → `20`); it never goes backwards,
+  because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:
+  unfinished phases get versions and codes above the latest delivered build when they land, in landing order.
+  If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release number.
+- **Phases land in the order they are done.** 13.5 and 13.6 have no prerequisites. Phase 15 creates and
+  backs up the release keystore outside the repo, then registers its SHA-1 with the Google Sign-In OAuth
+  client **before delivery**. Phase 16 requires a build delivered over the air from Phase 15.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
   that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
   in the README.
 - **Nothing is tagged until a release.** Tags are for released builds, so the first tag is `v1.0.0` when
-  the release APK is delivered in Phase 14. A phase ending is not a release.
+  the release APK is delivered in Phase 15. A phase ending is not a release.
 
 ## Where things are
 

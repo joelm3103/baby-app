@@ -1,18 +1,17 @@
 # Firebase setup — the Phase 13 half that is not code
 
-Phase 13's code is built and tested on the JVM (398 tests, 0 failures). What is left is the part that
-only the console and two real phones can finish: one Firebase project, two accounts, and a device pass
-that proves the log actually crosses between the phones.
+Phase 13's code landed with 398 JVM tests and its Firebase setup and two-device acceptance pass were
+completed on 2026-10-22 (phone plus second device; see `PLAN.md` → Phase 13). This runbook retains the
+setup steps and the pre-setup snapshot below for rebuilding or troubleshooting that configuration.
+Phase 14's later sync fixes were checked on the phone, not across both devices.
 
-This file is the runbook for that. It changes nothing in the app; it tells you exactly what to click and
-what each misconfiguration looks like on screen, so a failure is a sentence and not a mystery.
-
-**Where this sits in the plan:** `PLAN.md` → Phase 13. The acceptance criteria are unchanged — log on A,
-see it on B; three airplane-mode writes on A arrive exactly once after restore.
+It changes nothing in the app; it tells you exactly what to click and what each misconfiguration looks
+like on screen. The Phase 13 acceptance criteria — log on A, see it on B; three airplane-mode writes on A
+arrive exactly once after restore — were verified in that pass.
 
 ---
 
-## What is already known
+## What was known before setup (historical snapshot)
 
 | Value | Where it goes | Status |
 |---|---|---|
@@ -30,7 +29,7 @@ The debug keystore on this machine has SHA-1:
 
 `~/.android/debug.keystore` is **per machine**. A debug APK built on a different computer has a different
 SHA-1 and Google Sign-In will refuse it until that certificate is registered too. Email/password does not
-care, which is why it is the primary route. The release certificate does not exist until Phase 14.
+care, which is why it is the primary route. The release certificate does not exist until Phase 15.
 
 **A different debug key also means a different app signature, and that blocks the install, not just
 Google.** `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when the existing copy was built
@@ -163,7 +162,8 @@ project.
    the card's "waiting to sync" count must be **0**.
 
 If the document is there and the count is 0, the push half is proven. If the count stays above 0, the
-drain is retrying — the message line says why, and Firestore rules are the usual reason.
+intent remains queued. Read the message line for the failure, check Firestore rules, then press **Sync now**
+after fixing the cause (or relaunch to trigger another drain); there is no periodic retry timer.
 
 **Airplane mode, still on one phone:**
 
@@ -196,10 +196,10 @@ drain is retrying — the message line says why, and Firestore rules are the usu
 | No "Sign in with Google" button | `firebase.webClientId` is blank — that is the app choosing not to lie, not a bug. |
 | Google button signs in then refuses, on a debug build | That machine's debug SHA-1 is not registered on the Android app. |
 | `api-key-not-valid` from the console's perspective | An API key restriction that excludes `app.babylog` or the SHA-1. |
-| Count stuck above 0, message repeats | The drain is retrying against Firestore. Read the message line; it is the error text. |
+| Count stuck above 0, failure message shown | The intent stays queued, not automatically retried on a timer. Read the message, fix the cause, then press **Sync now** or relaunch. |
 | Writes appear on B, then revert | Clock skew between the phones: the merge is `updatedAt`-wins, so a phone whose clock is ahead wins every tie. |
 
-## What is still Phase 14
+## What is still Phase 15
 
 The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above
 depends on them: email/password works on any signing key, which is exactly why it is the primary route.

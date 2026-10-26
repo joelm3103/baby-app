@@ -18,21 +18,23 @@ job and both hostile to it. They change under you, gate the useful parts, and pu
 upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
 that will work the same in two years.
 
-**Status:** `0.9.0`, through Phase 13. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
-the logging sheets, Settings, Summary, Growth, Health, Trends and the sync layer are built. Every screen up
-to Trends is device-verified. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
+**Status:** `0.16.0`, through Phase 14. Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+the logging sheets, Settings, Summary, Growth, Health, Trends and the sync layer are built and device-verified.
+Phase 14 fixed offline sync reporting and seed draining, and polished activity and metric glyphs, range chips
+and entry labels. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
 Health records a temperature, a medication with its dose and vaccines, and Trends charts bottle volume,
 solids, diapers and sleep per day over a 7/14/30-day window (Health is a dated fever table rather than a
 chart, because a temperature is a reading and not a daily amount).
 
-**Sync (Phase 13) is built and tested, and its Firebase-free half is now on a phone:** two accounts, one
-shared log, with an outbox drained to Firestore and an inbound listener applying `updatedAt`-wins. Email +
-password is the primary sign-in and Google Sign-In is the second button. The build reads five values from a
-local, gitignored `firebase.properties` — `google-services.json` is only where you copy four of them from,
-because the usual plugin would break a fresh clone — plus the two uids in `firebase/firestore.rules`, and a
-build without them is the single-phone logger it has always been, which is what Settings → Sync reports.
-`docs/firebase-setup.md` is the console runbook; `PLAN.md` records what a phone has already proved and the
-outstanding two-phone acceptance run.
+**Sync (Phase 13) is built and device-verified across two accounts:** an outbox drains to Firestore and
+an inbound listener applies `updatedAt`-wins. The 2026-10-22 acceptance pass used a phone and a second
+device to verify both directions and cross-device deletion; Phase 14's later offline-sync and seed-drain
+fixes were checked on the phone, not re-checked on the second device. Email + password is the primary
+sign-in and Google Sign-In is the second button. The build reads five values from a local, gitignored
+`firebase.properties` — `google-services.json` is where four come from, because the usual plugin would
+break a fresh clone — plus the two uids in `firebase/firestore.rules`; without those values it remains a
+single-phone logger, as Settings → Sync reports. `docs/firebase-setup.md` is the console runbook;
+`PLAN.md` records the device evidence and the unfinished phases.
 
 **Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
 new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release. Every dated
@@ -54,8 +56,8 @@ Shaped by 15 real screenshots of an existing tracker plus three bugs reported fr
 | 6 | **Sleep** | Present with a running timer even though it's rarely used — explicitly requested |
 | 7 | **Growth** | Weight / height / head size, WHO percentile charts |
 | 8 | **Health** | Temperature, medication (from a bundled names-only list) with its dose, and vaccines |
-| 9 | **Summary** | 1d / 7d / 14d totals per activity, with activity filter chips and one `All` / `None` bulk chip |
-| 10 | **Trends** | Charts over time: bottle volume, solids, diapers and sleep per day (7d / 14d / 30d), one line per child; Growth's percentiles keep their own tab, and Health is a dated fever table |
+| 9 | **Summary** | D / 1W / 2W totals per activity, with activity filter chips and one `All` / `None` bulk chip |
+| 10 | **Trends** | Charts over time: bottle volume, solids, diapers and sleep per day (1W / 2W / 1M), one line per child; Growth's percentiles keep their own tab, and Health is a dated fever table |
 | 11 | **Premature / adjusted age** | **Both born prematurely**. Gestational age per child + a "use adjusted age" toggle; age shown both ways |
 | 11b | **Units: Metric / Imperial / Custom** | Length in/cm, weight lb&oz / kg, volume fl oz / ml — each independently selectable. Temperature has an independent °C / °F preference, and time has an independent 12 / 24-hour preference |
 | 12 | **Three tabs** | Activity · Summary · Trends. Settings is a header icon |

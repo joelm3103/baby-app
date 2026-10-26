@@ -17,6 +17,114 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-26]
+
+**In short:**
+
+- **Phase 14: Polish/Misc changes** — the eight findings the owner ruled on at the end of Phase 13.4, one branch,
+  `0.16.0`. Two sync defects, two layout defects, two redrawn silhouettes, and the activity glyph's reach.
+- **`Sync now` offline now answers, and lets go of the lock.** A drain that could not reach Firestore used to
+  suspend forever with the `Mutex` held, so the button looked inert and could not recover. Each write is now
+  bounded, and the card says either *Waiting for a network connection* or *The server did not answer* — the
+  second because four bars is not an offline phone.
+- **The first-sign-in seed drains itself.** The sign-in result is applied under `NonCancellable`, and the
+  listener drains once after its first snapshot, so the "N changes waiting to sync" card empties without a tap.
+- **Two consistency silhouettes redrawn.** `Mucousy` read as a letter `T` at 16dp on the phone; it is two slanted
+  streaks now. `Runny` merged into `Mushy` at the same size; it is a mass sinking into a wide flat pool.
+- **The glyph reaches five surfaces, and two chip rows stop borrowing it.** Sheet title bars, entry rows and
+  Both-mode column heads carry the activity glyph; Growth's three metric chips carry their own marks (a scale, an
+  up arrow, a head); the range chips carry no glyph and read `D · 1W · 2W` and `1W · 2W · 1M`. No window changed.
+- **Four findings closed without code**, by the owner's ruling: the `8:55 PM` tombstone stays deleted, `Reminders
+  differ` stays gone, the Trends chip clipping was fine, and phases land in the order they are done.
+
+### Versions
+
+- `0.16.0` / `versionCode 20`. Phase 14 is polish and fixes, but it also adds two capabilities the owner asked for
+  (per-metric marks and the wider glyph reach), so it takes the next `0.MINOR` rung rather than a `0.PATCH`. The
+  unfinished dataset-channel and reset-to-defaults phases are not assigned the lower, unused `0.14.0` /
+  `0.15.0` rungs; they receive increasing versions and codes when they land. `1.0.0` is the first
+  delivered release, with Ship as the last step.
+
+### Changed
+
+- **`Sync now` reports instead of hanging.** `OutboxDrainer` bounds every write with `writeTimeoutMs` (10 s);
+  `DrainResult` now carries `remaining` and `timedOut`. The timeout lives in the drainer rather than the Firestore
+  gateway, so `FakeSyncGateway` can prove it — and `hangForever` was added to it for exactly that.
+- **`NetworkStatus`** (`data/sync/NetworkStatus.kt`, `AndroidNetworkStatus.kt`) is a one-method seam over
+  `ConnectivityManager`, so the two failure sentences are provable on the JVM. `ACCESS_NETWORK_STATE` was already
+  declared.
+- **A sign-in that succeeded is applied under `NonCancellable`**, and `attach()` drains once after the listener's
+  first snapshot. `FakeSyncGateway.failOnce` exists so a test can fail the pre-listener drain and still expect an
+  empty queue.
+- **`ChildSwitcher` is a `FlowRow`**, and its labels are `maxLines = 1, softWrap = false`: at 130 % the pills wrap
+  as whole pills instead of breaking `Both` into `Bot` / `h`.
+- **A solids meal reads as its name.** `HomeViewModel` carries `foodNames` from the catalogue it already observed;
+  `detailLine` and `recentRowLabel` take the map. An id the catalogue no longer has still renders as words.
+- **Trends' pinned activity row has an 8 dp bottom inset**, so it no longer touches the range chips in the pane
+  below it.
+- **`ActivitySheet` takes the activity, not an accent**, and draws its glyph at 16 dp with a mirrored spacer so the
+  title stays centred. Entry rows draw the glyph at 14 dp, and Both-mode column heads draw the card's own glyph
+  before the child's name.
+- **Growth's metric chips carry their own marks** — `ic_metric_weight` (a scale), `ic_metric_length` (an up arrow
+  off a floor), `ic_metric_head` (a head with a curl) — via `GrowthMetric.iconRes()`. Local stroke drawables, not
+  `material-icons-extended`; the project depends on `material-icons-core` only. `BMI_FOR_AGE` is a bundled dataset
+  measure with no chip, so nothing was left blank.
+- **An amount-less bottle now names the gap.** `detailLine`'s fallback for a bare bottle was the word
+  `Bottle`, so a feed logged without a volume read `Bottle feed` over `Bottle` — the card naming itself twice
+  and showing no number at all. It now says `No amount recorded` (the row says `No amount`). A brand the
+  parent typed still wins the line, and a bottle with a volume is unchanged. Found on the phone during this
+  phase's device pass, not in the original eight findings, and added as 14.10 on the owner's instruction.
+- **Range chips are labels.** `HistoryRange` is `D · 1W · 2W`, `TrendRange` is `1W · 2W · 1M` — two rows because
+  they are two different windows, and `1M` names the 30-day window it actually draws. Both enums gained a `spoken`
+  form used as the chips' `contentDescription`.
+
+### Verified on the phone — `<handset>`, 2026-10-26
+
+- **Installed `0.16.0` over `0.13.0`** with the same signing key, so the log and its row ids survived; the app
+  was foreground before any input was sent, and the crash buffer stayed at 0 `FATAL EXCEPTION` throughout.
+- **`Sync now` with no network** set `Waiting for a network connection — 1 change queued.` by itself and left
+  the queue untouched across two taps; restoring the network and tapping again reported `Up to date.` with the
+  queue empty — which the old code could not have done, because the timed-out drain held the lock.
+- **Sign-in drained the seed with no tap.** `font_scale 1.3` wrapped `Both` to a second line **as a whole
+  pill**. All seven consistency silhouettes read as forms, `Mucousy` no longer a `T`. A sheet's title bar
+  carried its glyph with the title still centred (525 px of 525 px).
+- **`Banana`** logged through the solids sheet showed as `Banana` on the card and on the row, then was deleted;
+  a throwaway Wet diaper proved the offline sync message and was deleted too. Both left tombstones and
+  the first phone reported an empty queue after draining; the second phone was not checked in this pass.
+- **A defect no test caught, found here:** a feed with no amount read `Bottle feed` over `Bottle`. Fixed as
+  14.10 (`No amount recorded`), and the test that had pinned the old word now pins the new one.
+
+### Fixed
+
+- **Two consistency silhouettes.** `Mucousy` was a wide bar over a stem with a dot under it — a `T` at 16 dp, found
+  by the owner on the phone and kept open rather than redrawn in the moment. `Runny` was three heavy circles on an
+  ellipse that merged into `Mushy` at the same size. Both redrawn, and both were rendered at 16/24/48 dp before and
+  after rather than judged at 48 dp.
+- **A `T` could ship because no test looked at the mapping.** `StoolAndMetricGlyphTest` now asserts all seven
+  consistencies and all three metrics resolve to distinct, non-zero drawables, and that the metric marks are not
+  activity glyphs.
+
+### Closed, by the owner's ruling — no code
+
+- **The soft-deleted `8:55 PM` bottle row stays deleted.** It was a test record tombstoned by a mis-aimed
+  long-press; the owner chose to leave the tombstone standing (2026-10-24) and confirmed it closes here (2026-10-25).
+- **`Reminders differ` stays gone by design** — two children get two chips, so a comparison sentence has nothing
+  left to say.
+- **The Trends chip clipping was fine.** The owner looked at it and closed it; what was actually wrong was the
+  missing gap *below* the chip row, which is now item 14.5.
+- **Phases land in the order they are done.** The question of which of 13.5 and 13.6 comes first is closed: each
+  phase states its prerequisite before it starts, and there is no imposed sequence beyond that.
+- **Deferred, unchanged:** the notification says `Time to log bottle feed` when that child has never logged the
+  activity. Kept, because there is no log to measure from and claiming an interval would be a lie.
+
+### Tests
+
+- **515 → 532: 17 added tests.** Two in `OutboxDrainerTest` cover timeout and recovery; five in
+  `SyncRepositoryTest` cover seed draining, offline/connected failure messages, retry after timeout and
+  queue-count wording; three in `StoolAndMetricGlyphTest` check the stool and metric mappings; five in
+  `RangeLabelTest` pin the labels, windows and spoken forms; two in `CardSummaryTest` check catalogue-name
+  fallbacks. The existing amount-less-bottle test was rewritten to pin `No amount`, not counted as new.
+
 ## [2026-10-25]
 
 **In short:**
