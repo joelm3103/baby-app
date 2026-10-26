@@ -47,7 +47,7 @@ everything after it is additive.**
 | 13.2 — Temperature bands | **DONE, device-verified** — four bands marked by shape (filled `Fever`, outlined `Mild` / `Low`, no pill on normal), classified from the value as displayed; Trends lists and counts mild readings too; `0.11.0`; 417 tests green |
 | 13.3 — Diaper detail: Wet/Dirty toggles, colour, consistency | **DONE, device-verified** — two independent answers, colour as six ringed circles, consistency as seven silhouettes, schema v3 additive migration; the `Mucousy` glyph read as a `T` at 16dp, kept open here and redrawn in Phase 14.6; 444 tests green |
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
-| 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below |
+| 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); `0.18.0` / versionCode 22, set at its first commit. **No prerequisite.** Was 13.6 |
 | 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
@@ -1499,6 +1499,33 @@ Not exercised on the phone: the Growth tab's identity line and percentile chart,
 measurements yet and the empty state replaces the chart body. The line for that surface is the same
 `StateFlow` read, and it is covered by `GrowthDatasetRepositoryTest` rather than by a measurement being
 invented for the test — the app must not record a number nobody took.
+
+### Known gap — an accepted dataset cannot be withdrawn (recorded 2026-10-26, not built)
+
+`isNewer()` refuses anything that is not newer, and `deleteCache()` is reached only when the cached file is
+*corrupt*. So a reference a phone has accepted can be superseded but never recalled: publishing an older,
+corrected manifest returns `NoUpdate` and leaves the phone reading the copy you were trying to withdraw. The
+only recovery today is clearing the app's data — the server copy survives, so a wipe plus sign-in restores the
+log (Phase 13 proved that twice), but that is a rescue, not a rollback.
+
+The pass above turned that from a thought into a task. To prove the channel end to end it published
+`who-2006.2026.11` — the bundled LMS rows with only `version` and `retrievedAt` bumped — and the identity line
+then named a version that does not exist upstream. Restoring the shipped reference took **two** steps, and
+either alone was insufficient:
+
+1. Correct `reference/growth_manifest` and `reference/growth_dataset` back to `who-2006.2026.10` / `2026-10-15`
+   with the bundled asset's own SHA-256 (`2df3475…18cb5c`, byte-identical to `assets/growth/who-igrowup.json`,
+   488 449 bytes).
+2. Force-stop the app, delete `files/growth/updated.json`, relaunch. The force-stop is part of it: the parsed
+   reference is cached in memory for the life of the process.
+
+Done in the other order, a check in the gap re-adopts the synthetic dataset. Verified afterwards: the line reads
+`WHO 2006 · v2026.10 · updated 15 Oct 2026`, a manual check reports `Already up to date`, and no cache file is
+written — nothing was accepted, so the cloud side is telling the truth again.
+
+A `withdrawn` flag on the manifest, or treating a manifest equal to the bundled version as *drop the cache*,
+would close this. **It is not built.** It belongs to whichever phase next touches the growth reference; nothing
+in Phases 15-17 depends on it, which is why it is recorded here rather than opened as a phase on its own.
 
 ## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
 

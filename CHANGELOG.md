@@ -193,6 +193,24 @@ because it reverses a ruling closed above, not because it ships anything.
 - **Not touched:** older dated entries in this file, the `docs/timeline` screenshot directories and their
   links, and every git commit message. They record what happened; the plan records what will happen.
 
+### Changed — the shipped growth dataset is restored
+
+The Phase 13.5 pass published `who-2006.2026.11` — the bundled LMS rows with only `version` and `retrievedAt`
+bumped — so the update path could be proven end to end. That version does not exist upstream and the identity
+line named it, so both `reference` documents went back to the shipped `who-2006.2026.10` / `2026-10-15` with the
+bundled asset's own SHA-256 (`2df3475…18cb5c`, byte-identical to `assets/growth/who-igrowup.json`, 488 449
+bytes). No percentile ever changed: only the two label fields were synthetic.
+
+**The order was not optional.** `isNewer()` refuses anything not newer, so a corrected (older) manifest returns
+`NoUpdate` and a phone that had accepted `v2026.11` would have kept it indefinitely. The documents were corrected
+first; then this phone was force-stopped, `files/growth/updated.json` deleted, and the app relaunched. It now reads
+`WHO 2006 · v2026.10 · updated 15 Oct 2026`, a manual check reports `Already up to date`, no cache file is written,
+and the crash buffer stayed at 0. The second phone never adopted `v2026.11` in the first place.
+
+**Recorded, not built:** an accepted dataset can never be withdrawn, because `deleteCache()` fires only for a
+corrupt file — so recalling a bad reference today means clearing app data. The mechanism, the two-step restore and
+the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
+
 ## [2026-10-25]
 
 **In short:**
