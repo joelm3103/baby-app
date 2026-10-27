@@ -17,6 +17,78 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-27]
+
+**In short:**
+
+- **Phase 15: reset to defaults** — Settings → Data gains the two buttons the owner scoped on 2026-10-25,
+  one branch, `0.18.0`. *Reset local data* and *Delete all server data*, each with its own confirmation.
+- **The reset tells the server what it deleted.** Every row travels as a tombstone queued in the same
+  transaction that removes it, which is the only thing the other phone treats as an instruction.
+- **The device pass found a reset that partially undid itself**, and the fix is `withoutInboundApply`:
+  the listener is cancelled and *joined* around the wipe, so a snapshot taken before the deletes cannot put
+  the log back. Found by pulling the database, not by reading the screen.
+
+### Versions
+
+- `0.18.0` / `versionCode 23`. Phase 15 is a new capability — two destructive paths that did not exist — so
+  it takes a `0.MINOR` rung. The next version is the first release, `1.0.0`, in Phase 16.
+
+### Added
+
+- **Reset local data** (`MaintenanceRepository.resetLocal`) — one transaction: queue a DELETE intent for
+  every child and every event, then `deleteAll()` on both tables, then drop the now-orphaned UPSERTs. Then
+  `SettingsRepository.clearForReset()` clears this phone's choices and every reminder rule, both twins are
+  re-seeded, and `Reminders.refresh()` cancels the alarms the cleared rules owned.
+- **Delete all server data** (`SyncRepository.queueTombstonesForEveryRemoteRow`) — `fetchAll()` first, then a
+  DELETE intent per id the server reports, *including rows this phone never received*, then the same local
+  reset and one drain. Offered only while signed in. No `SyncGateway` change: the outbox already travels
+  tombstones by id, and a bulk collection delete would be ignored by the other phone's listener.
+- **`SyncRepository.resetGate()`** — refuses a reset when the probe drain fails **or the phone is offline**.
+  The connectivity check is not redundant: an empty queue drains successfully without a network call, so the
+  probe alone would allow a reset on a plane. Signed out is allowed; the tombstones wait for the next sign-in.
+
+### Changed
+
+- **The two seeded children are exempt from the tombstone pass.** `seedIfEmpty` re-creates `first-twin` /
+  `second-twin` with the same ids, so a DELETE that drained would erase them on the other phone. Their intents
+  are dropped and the re-seed queues the UPSERTs instead.
+- **`clearForReset` keeps two things on purpose:** `sync.seeded` (a reset must not re-upload the log it just
+  deleted) and `growth.dataset.*` (which reference produced a percentile is not the family's log).
+
+### Fixed
+
+- **A reset could partially undo itself.** The wipe emptied the tables and the tombstone drain deleted the
+  server rows, and then the inbound listener applied a snapshot it had taken *before* the deletes landed —
+  re-inserting 15 events into the emptied database with an empty outbox, so the phone showed a log the server
+  no longer had and would never send again. `SyncRepository.withoutInboundApply {}` cancels and **joins** the
+  listener around the wipe and re-attaches after; `attach()` drains before it observes. A test pushes a stale
+  snapshot mid-wipe through a new `FakeSyncGateway.observeFlow` hook and asserts the tables stay empty.
+
+### Verified on the phone — `<handset>`, `0.18.0`, 2026-10-27
+
+- **A local reset held.** 0 events at +10 s and +30 s after the message, both twins re-seeded, outbox empty —
+  where the pre-fix build had 15 rows back within seconds.
+- **The refusal is real.** With `airplane_mode_on=1` verified immediately before the tap and two events in the
+  log, the reset reported `Nothing was deleted: Waiting for a network connection. Use Delete all server data
+  if the log must go anyway.` and the database still held both events.
+- **The server wipe found the rows this phone never had:** `118 row(s) only the server knew about were
+  queued`, then `events 0, children 2, outbox 0`.
+- **29 `app.babylog.reminders.FIRE` records sat under `Removal history`** and none were armed, which is the
+  cancelled-alarm evidence rather than an assumption. Crash buffer stayed at 0 `FATAL EXCEPTION`.
+- **The second phone was not checked** — only one device was attached. Its copies are handled by the same
+  tombstones, which is what the `118 rows` case proves, but it was not observed.
+
+### Tests
+
+- **538 → 549: 11 added.** Four in `MaintenanceRepositoryTest` (a tombstone per event before the rows go, no
+  delete for the seed ids, an added child still tombstoned, an UPSERT replaced by its DELETE); two in
+  `SettingsRepositoryTest` (`clearForReset` drops choices and reminders; it keeps `sync.seeded` and keys
+  outside this repository); five in `SyncRepositoryTest` (signed-out reset allowed, refused when the queue
+  cannot travel, refused offline with an empty queue, remote-only ids tombstoned, and a stale snapshot during
+  a wipe does not resurrect rows). The suite is 549 with 0 failures, 0 errors and 0 skipped, summed from 54
+  XML files under `app/build/test-results/testDebugUnitTest/`.
+
 ## [2026-10-26]
 
 **In short:**

@@ -49,7 +49,7 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | not started — scoped 2026-10-22, re-scoped 2026-10-25 to **two buttons** (Local reset · Delete all server data); `0.18.0` / versionCode 22, set at its first commit. **No prerequisite.** Was 13.6 |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, both twins re-seeded, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23; 549 tests green. **No prerequisite.** Was 13.6. Its device pass found the inbound-listener race fixed by `withoutInboundApply` |
 | 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
 | 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**; use it for a week before more code. Was 16 |
 
@@ -58,9 +58,9 @@ reservation for unstarted work — `versionCode`/`versionName` were rewritten so
 carry that phase's rung, set at the **first commit of the phase's work** so a build on a phone says which
 phase produced it. `0.MINOR` is a new capability, `0.PATCH` is fixes and polish only, and `1.0.0` is
 the first release. **Landed rungs are never renumbered**, even where a phase's number moved afterwards:
-Phase 14 is `0.16.0` / versionCode 20 and Phase 13.5 is `0.17.1` / versionCode 22, so the ladder rises in
-**landing** order rather than in phase-number order. The next new work — Phase 15, reset to defaults —
-takes `0.18.0` / versionCode 23 at its first commit. Landed rungs are listed in dated `CHANGELOG.md`
+Phase 14 is `0.16.0` / versionCode 20, Phase 13.5 is `0.17.1` / versionCode 22 and Phase 15 is `0.18.0` /
+versionCode 23, so the ladder rises in **landing** order rather than in phase-number order. The next rung
+is the first release: Phase 16 delivers `1.0.0`. Landed rungs are listed in dated `CHANGELOG.md`
 sections under `### Versions`; the rule is in `AGENTS.md`.
 Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 16. The original scheme note
 that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
@@ -95,9 +95,11 @@ The owner asked for the phase numbers to run in the order the work actually happ
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.17.1, versionCode 22); `:app:testDebugUnitTest` is **538/538**
+Verified: `:app:assembleDebug` builds (0.18.0, versionCode 23); `:app:testDebugUnitTest` is **549/549**
 with 0 failures, 0 errors and 0 skipped, summed from the 54 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-26 (537 at the Phase-13.5 code close, +1 for the
+`app/build/test-results/testDebugUnitTest/` on 2026-10-27 (538 at the Phase-13.5 close, +11 in Phase 15:
+four `MaintenanceRepositoryTest`, two `SettingsRepositoryTest`, five `SyncRepositoryTest`). (537 at the
+Phase-13.5 code close, +1 for the
 identity-line defect its device pass found). (532 at the Phase-14 close, +5 in Phase 13.5: manifest and
 repository tests). (515 at the Phase-13.4 close, +17 in Phase 14: two new
 `OutboxDrainerTest`, five `SyncRepositoryTest`, three `StoolAndMetricGlyphTest`, five `RangeLabelTest`
@@ -1615,7 +1617,7 @@ device pass is recorded at the end of this file, on `<handset>`.
 
 **Prerequisite:** none.
 
-## Phase 15 — Reset to defaults — scoped 2026-10-22, re-scoped 2026-10-25, not started (`0.18.0` / versionCode 22, set at its first commit)
+## Phase 15 — Reset to defaults — DONE, device-verified (`0.18.0`)
 
 Asked for while closing out Phase 13: **Settings → Data has no way to return the app to first-run state.**
 Export and Import are the only rows there, and Import needs a file it does not have. This is scoped now so
@@ -1648,6 +1650,61 @@ a reset while signed out cannot resurrect rows on the next sign-in.
 **Prerequisite:** none. It carried 13.6 until 2026-10-26, when it took the first free number above the last
 landed phase (14) so the ladder reads in the order the work happens — see *Renumbering* near the Status
 table. It does not wait on 13.5; it waits on nothing.
+
+### As built — 2026-10-27
+
+Two rows in Settings → Data, each with its own confirmation, built on machinery that already existed:
+
+- **`MaintenanceRepository.resetLocal(at)`** — one transaction: queue a DELETE intent for every child and
+  every event **first**, then `deleteAll()` on both tables, then `deleteUpserts` for the ids that just
+  vanished. Intents before deletes for the same reason `deleteChildPermanently` does it: the other
+  direction leaves a window where the rows are gone and nothing remembers them.
+- **The two seeded children are the trap, and the code says so.** `ChildRepository.seedIfEmpty` re-creates
+  `first-twin` / `second-twin` with the *same* ids, so a queued DELETE for them would erase them on the
+  server the moment it drained. `SEED_CHILD_IDS` is subtracted from the tombstone pass and
+  `deleteByEntityIds(SEED_CHILD_IDS)` drops any intent that survived; the re-seed then queues the UPSERTs
+  that replace them.
+- **`SettingsRepository.clearForReset()`** — drops this phone's choices and every reminder key (found by
+  shape with `decodeReminderKey`, since the keys are dynamic), and deliberately keeps `sync.seeded` (a reset
+  must not re-upload a log it just deleted) and `growth.dataset.*` (not the family's log).
+- **`Reminders.refresh()` cancels the alarms** the cleared rules owned, which is the same pass that keeps a
+  switched-off rule silent.
+- **`SyncRepository.resetGate()`** — allowed unless signed in AND the probe drain failed or the phone is
+  offline. The connectivity check is not redundant: an **empty** queue drains "successfully" without making
+  a network call, so the probe alone would allow a reset on a plane and queue deletions that cannot travel.
+- **`SyncRepository.queueTombstonesForEveryRemoteRow()`** — `fetchAll()` then one DELETE intent per remote
+  id, including rows this phone never received. No new gateway method, because the outbox already travels
+  tombstones by id. A bulk collection delete would not do: the other phone's listener does not read
+  "document absent" as a deletion.
+- **The device pass found a real defect, and it is the reason `withoutInboundApply` exists.** The first
+  reset wiped the tables and drained its tombstones correctly, and then the inbound listener applied a
+  snapshot it had taken *before* the deletes landed — re-inserting 15 events into the emptied database, with
+  an empty outbox, so the phone showed a log the server no longer had and would never send again. Pulling
+  the database (not reading the screen) is what proved it: `events 15 live, children 2, outbox []`.
+  `SyncRepository.withoutInboundApply {}` cancels **and joins** the listener around the wipe and re-attaches
+  afterwards, and `attach()` drains before it observes, so a tombstone the wipe queued travels before any
+  snapshot can be applied.
+
+### Device pass, 2026-10-27 — `<handset>` (SM-S918U1), `0.18.0`
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r` `0.18.0` (versionCode 23), launch, foreground before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 2 | Local reset, with the listener fix in place | message `This phone is back to first run. Nothing is left waiting to sync.` ✅ |
+| 3 | Database pulled right after, and again at +10 s and +30 s | `events 0, children 2 (re-seeded), outbox 0` at every point — where the pre-fix build had re-inserted 15 rows ✅ |
+| 4 | Airplane mode on (verified `airplane_mode_on=1` **before** tapping), 2 events in the log, reset attempted | `Nothing was deleted: Waiting for a network connection. Use Delete all server data if the log must go anyway.`; database still `2 events, 2 children` ✅ |
+| 5 | *Delete all server data*, online, with real rows present | `The log is gone from this phone and the server. Nothing is left waiting to sync.` **118 row(s) only the server knew about were queued** ✅ |
+| 6 | Database after the drain | `events 0, children 2, outbox 0` ✅ |
+| 7 | Reminder alarms after the reset | 29 `app.babylog.reminders.FIRE` records, **all under `Removal history`** — none armed ✅ |
+| 8 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` ✅ |
+
+Not performed: the second phone (only `<handset>` was attached), and the theme/units defaults by eye —
+`SettingsRepositoryTest` asserts `clearForReset` drops them, and re-driving that screen risked another
+blind tap on a destructive row.
+
+One honest note on this pass: the first attempt at check 4 was lost to an ADB disconnect mid-sequence, and
+the taps landed online — so the reset *executed* instead of refusing. That is what surfaced the listener
+race in the first place. The check was re-run with the radio state verified immediately before the tap.
 
 ## Phase 16 — Update delivery
 

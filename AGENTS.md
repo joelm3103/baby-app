@@ -299,10 +299,24 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   the build when its JSON is missing — which would break a fresh clone's test run.
 - **An import re-seeds the queue** (`reseedAfterRestore`). `replaceAll` wipes the tables *and* the outbox,
   so without this the next snapshot would merge the pre-restore log back in.
+- **A reset pauses the inbound listener, or it undoes itself.** `SyncRepository.withoutInboundApply {}`
+  cancels and **joins** the listener around the wipe and re-attaches after. Found on the phone in Phase 15:
+  the wipe and its tombstone drain both worked, and the listener then applied a snapshot taken *before* the
+  deletes landed — 15 events back in an emptied database with an empty outbox, so the phone showed a log
+  the server no longer had and would never send again. `attach()` drains before it observes, so a tombstone
+  the wipe queued travels before any snapshot can be applied.
+- **A reset never queues a delete for the two children it re-creates.** `ChildRepository.seedIfEmpty`
+  re-creates `first-twin` / `second-twin` with the SAME ids, so `MaintenanceRepository.resetLocal`
+  subtracts `SEED_CHILD_IDS` from the tombstone pass and drops any surviving intent for them; a DELETE that
+  drained would erase them on the other phone while this one kept its own copy.
+- **A reset is refused when the queue cannot travel, and "could not travel" includes being offline.**
+  `SyncRepository.resetGate()` probes with a drain, but an EMPTY queue drains "successfully" without making a
+  network call, so a connectivity check is what stops a reset on a plane from queuing deletions that never
+  leave. *Delete all server data* is the deliberate escape and is offered only while signed in.
 
 ## Tests
 
-538 unit tests through Phase 13.5, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+549 unit tests through Phase 15, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -332,11 +346,11 @@ only, and `1.0.0` is the first release.
 | | | 13.4 activity reminders | `0.13.0` |
 | | | 14 Polish/Misc changes | `0.16.0` |
 | | | 13.5 dataset channel | `0.17.1` |
-| | | 15 reset to defaults (not started) | `0.18.0` at first commit |
+| | | 15 reset to defaults | `0.18.0` |
 | | | 16 update delivery (first release) | `1.0.0` |
 | | | 17 ship | uses delivered release |
 
-- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.17.1` → 22); it never goes backwards,
+- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.18.0` → 23); it never goes backwards,
   because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:
   unfinished phases get versions and codes above the latest delivered build when they land, in landing order.
   If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release number.
@@ -345,9 +359,10 @@ only, and `1.0.0` is the first release.
   may be renumbered freely while it still has no commits. **Decimal sub-phases are retired** — `9.1`, `9.2`,
   `13.1`, `13.1.1` and `13.2`–`13.5` stay as history and nothing new is numbered `13.7`. Phase 13.5 keeps its
   number because three commits on `main` already say `phase13.5`, and its rung is `0.17.1` after its own device
-  pass; a landed rung is never renumbered to match a tidier label. 13.5 and 15 have no prerequisites. Phase 16 creates and backs up the
-  release keystore outside the repo, then registers its SHA-1 with the Google Sign-In OAuth client **before
-  delivery**. Phase 17 requires a build delivered over the air from Phase 16.
+  pass; a landed rung is never renumbered to match a tidier label. Only Phase 16 and 17 remain, and they are
+  ordered by dependency: Phase 16 creates and backs up the release keystore outside the repo, then registers
+  its SHA-1 with the Google Sign-In OAuth client **before delivery**. Phase 17 requires a build delivered
+  over the air from Phase 16.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
   that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
   in the README.
