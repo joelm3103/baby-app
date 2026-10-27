@@ -10,6 +10,8 @@ import app.babylog.data.local.ChildEntity
 import app.babylog.data.local.EventEntity
 import app.babylog.data.local.FoodEntity
 import app.babylog.data.local.OutboxEntity
+import app.babylog.data.sync.OutboxDrainer
+import app.babylog.data.sync.outboxIntent
 import java.time.Clock
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
@@ -181,6 +183,54 @@ class MaintenanceRepositoryTest {
             ).sortedBy { it.second },
             queued.sortedBy { it.second },
         )
+    }
+
+
+    // ---- Phase 15: reset to defaults ---------------------------------------
+
+    @Test
+    fun `a reset queues a tombstone for every event before the rows are gone`() = runBlocking {
+        repo.resetLocal()
+
+        assertEquals(0, db.eventDao().allIncludingDeleted().size)
+        assertEquals(0, db.childDao().allIncludingDeleted().size)
+        val pending = db.outboxDao().pending()
+        val eventIntents = pending.filter { it.entityType == OutboxDrainer.ENTITY_EVENT }
+        // Every event, INCLUDING the one already soft-deleted: the other phone may still be showing it.
+        assertEquals(setOf("e1", "e2", "e3"), eventIntents.map { it.entityId }.toSet())
+        assertTrue(eventIntents.all { it.op == "DELETE" })
+    }
+
+    @Test
+    fun `a reset never queues a delete for the two children it re-creates`() = runBlocking {
+        repo.resetLocal()
+
+        val childIntents = db.outboxDao().pending().filter { it.entityType == OutboxDrainer.ENTITY_CHILD }
+        // The seed ids come back with the SAME ids, so a delete for them would erase them on the server
+        // while this phone kept its own copy. Nothing may be queued for them at all.
+        assertTrue(childIntents.none { it.entityId in MaintenanceRepository.SEED_CHILD_IDS })
+    }
+
+    @Test
+    fun `a reset tombstones a child the parent added, because that one does not come back`() = runBlocking {
+        db.childDao().upsert(child("third-child", order = 2, deleted = false))
+
+        repo.resetLocal()
+
+        val queued = db.outboxDao().pending().single { it.entityId == "third-child" }
+        assertEquals("DELETE", queued.op)
+        assertEquals(OutboxDrainer.ENTITY_CHILD, queued.entityType)
+    }
+
+    @Test
+    fun `a reset replaces a queued upsert with the delete, so the queue cannot resurrect a row`() = runBlocking {
+        db.outboxDao().enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, "e1", deleted = false, queuedAt = t0))
+
+        repo.resetLocal()
+
+        val forE1 = db.outboxDao().pending().filter { it.entityId == "e1" }
+        assertEquals(1, forE1.size)
+        assertEquals("DELETE", forE1.single().op)
     }
 
     private fun child(id: String, order: Int, deleted: Boolean) = ChildEntity(

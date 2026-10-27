@@ -12,6 +12,7 @@ import app.babylog.domain.EventType
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.ReminderKey
+import app.babylog.data.sync.ResetGate
 import app.babylog.data.sync.SyncRepository
 import app.babylog.data.sync.SyncState
 import app.babylog.domain.Child
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -42,6 +44,11 @@ class SettingsViewModel(
     private val maintenance: MaintenanceRepository,
     private val sync: SyncRepository,
     private val growthDataset: GrowthDatasetRepository? = null,
+    /**
+     * Recompute and re-arm every reminder. Injected rather than reached for, because the engine lives in
+     * the container and a ViewModel that grabbed it would make the reset untestable.
+     */
+    private val refreshReminders: () -> Unit = {},
 ) : ViewModel() {
 
     val childrenList: StateFlow<List<Child>> = children.observeAll()
@@ -83,6 +90,76 @@ class SettingsViewModel(
             }
             // The identity line needs no refresh here: `GrowthDatasetRepository.identityLine` is a
             // StateFlow that the update publishes to, so the row above this message moves with it.
+        }
+    }
+
+    // ---- reset to defaults (Phase 15) ---------------------------------------
+
+    /**
+     * Back to first-run state on this phone, telling the server what went.
+     *
+     * The gate runs FIRST, so a reset that could not travel is refused rather than performed and silently
+     * undone by the next snapshot. Signed out is allowed: the tombstones wait for the next sign-in.
+     */
+    fun resetLocal() {
+        viewModelScope.launch {
+            when (val gate = sync.resetGate()) {
+                is ResetGate.Refused -> {
+                    _message.value = "Nothing was deleted: ${gate.message} " +
+                        "Use Delete all server data if the log must go anyway."
+                }
+
+                ResetGate.Allowed -> {
+                    resetEverything()
+                    _message.value = drainSummary("This phone is back to first run.")
+                }
+            }
+        }
+    }
+
+    /**
+     * The whole log goes, on the server too.
+     *
+     * `queueTombstonesForEveryRemoteRow` runs first and is allowed to fail: if the server cannot be read,
+     * nothing below it happens, because wiping this phone on a guess about what the server holds is how a
+     * log comes back from the dead.
+     */
+    fun deleteAllServerData() {
+        viewModelScope.launch {
+            val queued = runCatching { sync.queueTombstonesForEveryRemoteRow() }.getOrElse { failure ->
+                _message.value = "Nothing was deleted: the server could not be read " +
+                    "(${failure.message ?: "no answer"})."
+                return@launch
+            }
+            resetEverything()
+            _message.value = drainSummary("The log is gone from this phone and the server.") +
+                if (queued > 0) " $queued row(s) only the server knew about were queued." else ""
+        }
+    }
+
+    /** One implementation for both buttons, so the two can never drift apart. */
+    private suspend fun resetEverything() {
+        // Detached from the inbound listener for the whole wipe: a snapshot taken before the deletions
+        // landed used to re-insert every event into the emptied tables (found on the phone, Phase 15).
+        sync.withoutInboundApply {
+            maintenance.resetLocal()
+            settings.clearForReset()
+            // The children a reset leaves behind are the two seeded ones; the seed queues their UPSERTs,
+            // which is what replaces the tombstones that deliberately were not queued for those ids.
+            children.seedIfEmpty()
+            settings.markChildSeedDone()
+            // Rules anchored to a log that no longer exists are cancelled here, not merely forgotten.
+            refreshReminders()
+            sync.syncNow()
+        }
+    }
+
+    private suspend fun drainSummary(done: String): String {
+        val pending = sync.pendingWrites.first()
+        return if (pending == 0) {
+            "$done Nothing is left waiting to sync."
+        } else {
+            "$done $pending deletion(s) are still queued for the other phone."
         }
     }
 

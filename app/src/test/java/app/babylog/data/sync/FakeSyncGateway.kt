@@ -40,8 +40,17 @@ class FakeSyncGateway : SyncGateway {
      */
     var hangForever: Boolean = false
 
-    /** What the inbound listener emits. A `flowOf`, so a test does not need a live snapshot stream. */
+    /** What `fetchAll` (and therefore the first-sign-in seed) reports. */
     var inbound: RemoteDataset = RemoteDataset()
+
+    /**
+     * The live stream, when a test needs more than one snapshot.
+     *
+     * Default null, so `observe()` stays a single `flowOf(inbound)` and the existing tests read as they
+     * always did. A reset test needs to push a snapshot *while* the wipe is running, which one emission
+     * cannot express.
+     */
+    var observeFlow: kotlinx.coroutines.flow.MutableStateFlow<RemoteDataset>? = null
 
     private var successes = 0
 
@@ -70,7 +79,7 @@ class FakeSyncGateway : SyncGateway {
 
     override suspend fun fetchAll(): RemoteDataset = inbound
 
-    override fun observe(): Flow<RemoteDataset> = flowOf(inbound)
+    override fun observe(): Flow<RemoteDataset> = observeFlow ?: flowOf(inbound)
 
     private suspend fun record() {
         if (hangForever) awaitCancellation()

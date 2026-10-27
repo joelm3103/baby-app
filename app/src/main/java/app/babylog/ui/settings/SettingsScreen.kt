@@ -68,6 +68,14 @@ private const val MIN_GESTATION_DAYS = 140
 /** A preset above this is a typo, not a bottle. */
 private const val MAX_PRESET_ML = 1000
 
+/**
+ * Which of Phase 15's two resets a dialog is asking about.
+ *
+ * One enum rather than two booleans: the two confirmations say different things, and a `server: Boolean`
+ * threaded through the screen is exactly how the wrong sentence ends up on the wrong button.
+ */
+private enum class ResetRequest { LOCAL, SERVER }
+
 /** "18:00" — the night window is hour-granular, so minutes would be false precision. */
 @Composable
 private fun hourLabel(hour: Int): String = java.time.LocalTime.of(hour, 0).format(
@@ -116,6 +124,8 @@ fun SettingsScreen(
     onDeleteChildPermanently: (Child) -> Unit,
     onExport: () -> Unit,
     onImport: () -> Unit,
+    onResetLocal: () -> Unit = {},
+    onDeleteServerData: () -> Unit = {},
     message: String?,
     /**
      * The bundled dataset's identity line, e.g. `WHO 2006 · v2026.10 · updated 15 Oct 2026`.
@@ -155,6 +165,9 @@ fun SettingsScreen(
 
     // The one destructive action is gated by a dialog that NAMES the child.
     var pendingDelete by remember { mutableStateOf<Child?>(null) }
+    // Phase 15: two buttons, not one row and a checkbox, so the destructive-and-unrecoverable choice is
+    // its own visible decision rather than something a parent can leave ticked by accident.
+    var pendingReset by remember { mutableStateOf<ResetRequest?>(null) }
     var presetInput by remember { mutableStateOf("") }
     var medicationInput by remember { mutableStateOf("") }
 
@@ -386,6 +399,25 @@ fun SettingsScreen(
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+                InputRow(
+                    label = "Reset local data",
+                    onClick = { pendingReset = ResetRequest.LOCAL },
+                ) { InputValue("Erases this log") }
+                // Offered only while signed in: a server wipe that cannot reach the server is a button
+                // that lies about what it did.
+                if (syncState is SyncState.SignedIn) {
+                    InputRow(
+                        label = "Delete all server data",
+                        onClick = { pendingReset = ResetRequest.SERVER },
+                    ) { InputValue("Both phones") }
+                }
+                Text(
+                    text = "Both of these put First Twin and Second Twin back and clear your settings, " +
+                        "presets and reminders. Neither deletes an exported backup.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
                 message?.let {
                     Text(
                         text = it,
@@ -443,6 +475,56 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    pendingReset?.let { request ->
+        AlertDialog(
+            onDismissRequest = { pendingReset = null },
+            title = {
+                Text(
+                    when (request) {
+                        ResetRequest.LOCAL -> "Reset this log?"
+                        ResetRequest.SERVER -> "Delete everything, everywhere?"
+                    }
+                )
+            },
+            text = {
+                Text(
+                    when (request) {
+                        ResetRequest.LOCAL ->
+                            "This erases every event and every child on this phone and puts First Twin and " +
+                                "Second Twin back. Your settings, presets and reminders go too. Both phones " +
+                                "share one log, so this deletes it on the other phone as well. It cannot be " +
+                                "undone — export a backup first if you might want it back."
+
+                        ResetRequest.SERVER ->
+                            "This removes the whole log from the server as well as from this phone. It " +
+                                "cannot be recovered from the server, and both phones lose it. Export a " +
+                                "backup first if you might want it back."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    when (request) {
+                        ResetRequest.LOCAL -> onResetLocal()
+                        ResetRequest.SERVER -> onDeleteServerData()
+                    }
+                    pendingReset = null
+                }) {
+                    Text(
+                        when (request) {
+                            ResetRequest.LOCAL -> "Reset this phone"
+                            ResetRequest.SERVER -> "Delete everything"
+                        },
+                        color = colors.danger,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingReset = null }) { Text("Cancel") }
+            },
+        )
     }
 
     pendingDelete?.let { child ->

@@ -50,8 +50,10 @@ android {
         // 0.17.1 is Phase 13.5's device pass: the settings identity line is observed through a StateFlow
         // instead of being polled on entry, so an accepted update changes it on the screen that ran it.
         // A fix found by the pass, so a PATCH rung and not a new capability. versionCode rises to 22.
-        versionCode = 22
-        versionName = "0.17.1"
+        // 0.18.0 is Phase 15, reset to defaults: two buttons that return the app to first-run state, one
+        // local and one that also clears the server. A new capability, so a MINOR rung: versionCode 23.
+        versionCode = 23
+        versionName = "0.18.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

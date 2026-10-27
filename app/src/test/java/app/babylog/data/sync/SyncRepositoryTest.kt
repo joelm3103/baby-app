@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -86,6 +87,100 @@ class SyncRepositoryTest {
         db.close()
         scope.cancel()
         tempDir.deleteRecursively()
+    }
+
+
+
+    @Test
+    fun `a snapshot that arrives during a reset does not resurrect the wiped rows`() = runBlocking {
+        seedLocalLog()
+        val stream = MutableStateFlow(RemoteDataset())
+        gateway.observeFlow = stream
+        repo.signIn("parent-one@example.com", "secret")
+        // NOT settle(): that joins every child of the scope, and the listener collects a StateFlow that
+        // never completes — which is the point of a live stream. A few yields is all this needs.
+        repeat(3) { yield() }
+        // The other phone's copy of e1, as it looked BEFORE the wipe.
+        val stale = RemoteDataset(events = listOf(RemoteRow("e1", t0, deleted = false, payload = emptyMap())))
+
+        // What the phone caught in Phase 15: the wipe emptied the tables, the drain deleted the server
+        // rows, and the listener then applied the pre-delete snapshot — 15 events back in a database with
+        // an empty outbox. Detaching the listener for the duration is what closes that window.
+        val stillEmptyDuringWipe = repo.withoutInboundApply {
+            db.eventDao().deleteAll()
+            stream.value = stale
+            repeat(3) { yield() }
+            val afterSnapshot = db.eventDao().allIncludingDeleted().size
+            stream.value = RemoteDataset()
+            repeat(3) { yield() }
+            afterSnapshot
+        }
+
+        assertEquals(0, stillEmptyDuringWipe)
+        assertTrue(db.eventDao().allIncludingDeleted().isEmpty())
+    }
+
+    // ---- Phase 15: the reset gate and the server wipe ----------------------
+
+    @Test
+    fun `a reset is allowed while signed out, so the tombstones wait for the next sign-in`() = runBlocking {
+        seedLocalLog()
+
+        // Nobody to tell yet. Refusing here would block a parent who is deliberately signed out, and
+        // the queued tombstones are what stop those rows coming back at the next sign-in.
+        assertEquals(ResetGate.Allowed, repo.resetGate())
+    }
+
+    @Test
+    fun `a reset is refused when the queue cannot travel`() = runBlocking {
+        seedLocalLog()
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        // Work that is waiting when the probe runs: an empty queue would drain successfully and the gate
+        // would (correctly) allow the reset, which is not the case under test.
+        db.outboxDao().enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, "e1", deleted = false, queuedAt = t0))
+        gateway.failAfter = 0
+
+        // A wipe the server never hears about is merged straight back in, so this must refuse rather
+        // than perform the reset and let the next snapshot undo it.
+        val gate = repo.resetGate()
+        assertTrue(gate is ResetGate.Refused)
+    }
+
+
+    @Test
+    fun `a reset is refused with an empty queue while the phone is offline`() = runBlocking {
+        seedLocalLog()
+        repo = repoWith(network = { false })
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        db.outboxDao().deleteEverything()
+
+        // An empty queue drains "successfully" without touching the network, so the probe cannot tell the
+        // difference between a reachable server and a phone in a tunnel. The connectivity check is what
+        // stops a reset from queueing deletions that cannot travel.
+        val gate = repo.resetGate()
+        assertTrue(gate is ResetGate.Refused)
+    }
+
+    @Test
+    fun `delete all server data targets rows only the server knows about`() = runBlocking {
+        seedLocalLog()
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        db.outboxDao().deleteEverything()
+        // A row the other phone logged and this one never received.
+        gateway.inbound = RemoteDataset(
+            children = listOf(RemoteRow("ghost-child", t0, deleted = false, payload = emptyMap())),
+            events = listOf(RemoteRow("ghost-event", t0, deleted = false, payload = emptyMap())),
+        )
+
+        val queued = repo.queueTombstonesForEveryRemoteRow()
+
+        assertEquals(2, queued)
+        val intents = db.outboxDao().pending()
+        assertEquals(setOf("ghost-child", "ghost-event"), intents.map { it.entityId }.toSet())
+        assertTrue(intents.all { it.op == "DELETE" })
     }
 
     // ---- the first sign-in seed --------------------------------------------
@@ -385,6 +480,21 @@ class SyncRepositoryTest {
     }
 
     // ---- helpers ------------------------------------------------------------
+
+
+    /** The same repository, with a different idea of whether there is a network. */
+    private fun repoWith(network: () -> Boolean): SyncRepository = SyncRepository(
+        authenticator = auth,
+        gateway = gateway,
+        drainer = OutboxDrainer(db.outboxDao(), db.childDao(), db.eventDao(), gateway, clock()),
+        childDao = db.childDao(),
+        eventDao = db.eventDao(),
+        outboxDao = db.outboxDao(),
+        settings = settings,
+        scope = scope,
+        clock = clock(),
+        network = NetworkStatus { network() },
+    )
 
     private fun clock() = Clock.fixed(Instant.ofEpochMilli(t0), ZoneOffset.UTC)
 

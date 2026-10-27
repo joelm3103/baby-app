@@ -5,6 +5,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.test.core.app.ApplicationProvider
+import app.babylog.domain.ChildSelection
+import app.babylog.domain.EventType
+import app.babylog.domain.ReminderConfig
+import app.babylog.domain.ReminderKey
+import app.babylog.domain.ThemeMode
+import androidx.datastore.preferences.core.edit
 import app.babylog.domain.NightWindow
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +39,7 @@ class SettingsRepositoryTest {
 
     private lateinit var scope: CoroutineScope
     private lateinit var settings: SettingsRepository
+    private lateinit var store: DataStore<Preferences>
     private lateinit var tempDir: File
 
     @Before
@@ -41,7 +48,7 @@ class SettingsRepositoryTest {
         // A unique file per test: DataStore refuses two live instances for one file.
         tempDir = File(context.cacheDir, "settings-${System.nanoTime()}").apply { mkdirs() }
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        val store: DataStore<Preferences> = PreferenceDataStoreFactory.create(scope = scope) {
+        store = PreferenceDataStoreFactory.create(scope = scope) {
             File(tempDir, "settings.preferences_pb")
         }
         settings = SettingsRepository(store)
@@ -141,6 +148,45 @@ class SettingsRepositoryTest {
 
         settings.removeBottlePreset(90)
         assertEquals(listOf(60, 120, 135, 150), settings.bottlePresets.first())
+    }
+
+
+    // ---- Phase 15: clearForReset -------------------------------------------
+
+    @Test
+    fun `a reset drops this phone's choices and every reminder rule`() = runBlocking {
+        settings.setTheme(ThemeMode.DARK)
+        settings.setSelectedChild(ChildSelection.One("first-twin"))
+        settings.setNightStartHour(20)
+        settings.addBottlePreset(135)
+        settings.addMedicationPreset("Calpol")
+        settings.setReminder(
+            ReminderKey(EventType.BOTTLE, "first-twin"),
+            ReminderConfig(enabled = true, intervalMinutes = 180),
+        )
+
+        settings.clearForReset()
+
+        assertEquals(ThemeMode.SYSTEM, settings.theme.first())
+        assertEquals(ChildSelection.default, settings.selectedChild.first())
+        assertEquals(NightWindow(), settings.nightWindow.first())
+        assertEquals(listOf(60, 90, 120, 150), settings.bottlePresets.first())
+        assertEquals(emptyList<String>(), settings.medicationPresets.first())
+        // The whole point: a rule left behind would ring about a log the reset deleted.
+        assertTrue(settings.reminders.first().isEmpty())
+    }
+
+    @Test
+    fun `a reset keeps the sync seed and anything outside this app's own keys`() = runBlocking {
+        settings.markSyncSeedDone()
+        // The growth dataset keys live in the same store but were never this repository's to drop: a
+        // reset must not silently downgrade a reference that was checksum-verified and accepted.
+        store.edit { it[androidx.datastore.preferences.core.stringPreferencesKey("growth.dataset.version")] = "who-2006.2026.11" }
+
+        settings.clearForReset()
+
+        assertTrue(settings.syncSeedDone.first())
+        assertEquals("who-2006.2026.11", store.data.first()[androidx.datastore.preferences.core.stringPreferencesKey("growth.dataset.version")])
     }
 
     @Test

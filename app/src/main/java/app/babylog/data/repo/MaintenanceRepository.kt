@@ -105,10 +105,55 @@ class MaintenanceRepository(
         onQueued()
     }
 
-    private suspend fun enqueueTombstones(childId: String, eventIds: List<String>, at: Long) {
-        outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, childId, deleted = true, queuedAt = at))
+    /**
+     * Reset this phone to first-run state: the log and its children go, and the two seeded children come
+     * back in their place.
+     *
+     * The ordering is the whole feature. A reset that deleted rows without telling the server would be
+     * merged straight back in by the next snapshot, so every deletion travels as a tombstone queued in the
+     * SAME transaction that removes the row — the same rule `deleteChildPermanently` follows, applied to
+     * every row at once.
+     *
+     * The two seeded children are the exception, and the trap. They are re-created with the SAME ids, so a
+     * DELETE for them would erase them on the server the moment it drained, leaving this phone with the
+     * twins and the other phone with nothing. Their intents are therefore dropped rather than queued, and
+     * `ChildRepository.seedIfEmpty` queues the UPSERTs that replace them.
+     */
+    suspend fun resetLocal(at: Long = clock.millis()) {
+        val childIds = childDao.allIncludingDeleted().map { it.id }
+        val eventIds = eventDao.allIncludingDeleted().map { it.id }
+        database.withTransaction {
+            // Intents first, deletes second: the other direction leaves a window where the rows are gone
+            // and nothing remembers them.
+            enqueueTombstones(childIds = childIds - SEED_CHILD_IDS, eventIds = eventIds, at = at)
+            eventDao.deleteAll()
+            childDao.deleteAll()
+            // A queued UPSERT now points at a row that no longer exists; the DELETE just queued is the truth.
+            outboxDao.deleteUpserts(entityIds = eventIds + childIds)
+            // No intent of ANY kind may survive for the children that are about to be re-created.
+            outboxDao.deleteByEntityIds(SEED_CHILD_IDS)
+        }
+        onQueued()
+    }
+
+    private suspend fun enqueueTombstones(childId: String, eventIds: List<String>, at: Long) =
+        enqueueTombstones(childIds = listOf(childId), eventIds = eventIds, at = at)
+
+    private suspend fun enqueueTombstones(childIds: List<String>, eventIds: List<String>, at: Long) {
+        childIds.forEach { id ->
+            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, id, deleted = true, queuedAt = at))
+        }
         eventIds.forEach { id ->
             outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
         }
+    }
+
+    companion object {
+        /**
+         * `ChildRepository.seedIfEmpty` re-creates these two ids, so they must never travel as deletions.
+         * Kept here rather than in the repository that seeds them because the *reset* is what has to know
+         * the difference between "a child the parent added" and "a child the app owns".
+         */
+        val SEED_CHILD_IDS = listOf("first-twin", "second-twin")
     }
 }

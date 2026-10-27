@@ -214,6 +214,32 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         it[stringPreferencesKey(reminderKeyName(key))] = encodeReminder(config)
     }
 
+    /**
+     * Back to first-run preferences — Phase 15's reset.
+     *
+     * Everything this app stores about *this phone's* choices goes, plus every reminder rule, because a
+     * reset deletes the log those rules were anchored to: a rule left behind would ring about a feed the
+     * app no longer has any record of. `Reminders.refresh()` cancels the alarms afterwards, which is the
+     * same pass that keeps a switched-off rule silent.
+     *
+     * Deliberately NOT cleared:
+     * - `sync.seeded` — a reset must not re-upload a log it just deleted; the queued tombstones are the news.
+     * - `growth.dataset.*` — which reference produced a percentile is not the family's log, and a reset
+     *   must not silently downgrade a dataset that was verified and accepted.
+     */
+    suspend fun clearForReset() = dataStore.edit { prefs ->
+        listOf<Preferences.Key<*>>(
+            KEY_LENGTH, KEY_WEIGHT, KEY_VOLUME, KEY_TEMPERATURE, KEY_TIME_FORMAT,
+            KEY_SELECTED_CHILD, KEY_THEME, KEY_CHILD_SEEDED,
+            KEY_NIGHT_START, KEY_NIGHT_END, KEY_BOTTLE_PRESETS, KEY_MEDICATION_PRESETS,
+        ).forEach { prefs.remove(it) }
+        // Reminder keys are dynamic (one per activity and child), so they are found by shape: the same
+        // scan `reminders` uses to read them.
+        prefs.asMap().keys
+            .filter { decodeReminderKey(it.name) != null }
+            .forEach { prefs.remove(stringPreferencesKey(it.name)) }
+    }
+
     private companion object {
         val KEY_LENGTH = stringPreferencesKey("units.length")
         val KEY_WEIGHT = stringPreferencesKey("units.weight")

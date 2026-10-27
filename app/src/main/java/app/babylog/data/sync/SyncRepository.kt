@@ -11,6 +11,7 @@ import java.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,14 @@ sealed interface SyncState {
 
     /** Signed in to Firebase but not one of the two accounts this log belongs to. */
     data class Refused(val email: String?) : SyncState
+}
+
+/** Whether a reset may run now, and why not when it may not. */
+sealed interface ResetGate {
+    data object Allowed : ResetGate
+
+    /** The drain could not reach the server, so a wipe now would be merged straight back in. */
+    data class Refused(val message: String) : ResetGate
 }
 
 /**
@@ -225,6 +234,85 @@ class SyncRepository(
             } catch (failure: Exception) {
                 _message.value = "Sync could not start: ${failure.message ?: "unknown error"}"
             }
+        }
+    }
+
+    /**
+     * May a reset run now?
+     *
+     * A reset queues a tombstone for every row and then deletes the rows, so if the queue cannot travel,
+     * the server keeps the log and the next snapshot merges it straight back in — a reset that undoes
+     * itself. Hence the probe: drain first, and refuse if that drain could not reach the server.
+     *
+     * Signed out is NOT a refusal. There is no queue to move yet, the tombstones stay in the outbox, and
+     * they drain at the next sign-in — which is what stops a reset while signed out from resurrecting the
+     * log. A build with no sync at all (`drainer == null`) is allowed for the same reason: nothing else
+     * holds a copy.
+     */
+    suspend fun resetGate(): ResetGate {
+        if (drainer == null || _state.value !is SyncState.SignedIn) return ResetGate.Allowed
+        val probe = syncNow() ?: return ResetGate.Allowed
+        if (!probe.ok) return ResetGate.Refused(messageFor(probe))
+        // A successful drain proves the server answered — but only if there was something to send. An EMPTY
+        // queue drains "successfully" with no network call at all, so a reset on a plane would queue
+        // deletions that cannot travel while the server keeps the log. That is the case this check exists
+        // for, and why the probe alone is not enough.
+        return if (network.isOnline()) {
+            ResetGate.Allowed
+        } else {
+            ResetGate.Refused("Waiting for a network connection.")
+        }
+    }
+
+    /**
+     * Queue a tombstone for every row the SERVER reports, including rows this phone never received.
+     *
+     * "Delete all server data" cannot be a bulk collection delete: the other phone's listener does not read
+     * "document absent" as a deletion, so it would keep its rows and re-upload them on its next drain. An
+     * id-and-timestamp tombstone is the only thing it treats as an instruction.
+     *
+     * Returns how many intents were queued. Throws if the server cannot be read — the caller must not go on
+     * to wipe the local copy on the strength of a guess about what the server holds.
+     */
+    suspend fun queueTombstonesForEveryRemoteRow(): Int {
+        val gateway = gateway ?: return 0
+        if (_state.value !is SyncState.SignedIn) return 0
+        val remote = gateway.fetchAll()
+        val at = clock.millis()
+        val alreadyQueued = outboxDao.pending().map { it.entityId }.toSet()
+        var queued = 0
+        remote.children.map { it.id }.filterNot { it in alreadyQueued }.forEach { id ->
+            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, id, deleted = true, queuedAt = at))
+            queued++
+        }
+        remote.events.map { it.id }.filterNot { it in alreadyQueued }.forEach { id ->
+            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
+            queued++
+        }
+        return queued
+    }
+
+    /**
+     * Run a reset with the inbound listener detached, then put it back.
+     *
+     * The phone found this the hard way in Phase 15's device pass: a local reset wiped the tables and
+     * drained its tombstones, and the listener then applied a snapshot it had taken *before* the deletes
+     * landed — re-inserting 15 events into the emptied database with an empty outbox, so the phone showed
+     * a log the server no longer had and would never send again.
+     *
+     * Cancelling and JOINING the listener is what closes that window: no `applyRemote` can be in flight
+     * while the wipe runs, and the re-attach below starts from a snapshot taken after it.
+     */
+    suspend fun <T> withoutInboundApply(block: suspend () -> T): T {
+        val job = listenerJob
+        listenerJob = null
+        job?.cancelAndJoin()
+        return try {
+            block()
+        } finally {
+            // Re-attach only when there is a server to listen to. `attach()` drains before it observes,
+            // so any tombstone the block left queued travels before a snapshot can be applied.
+            if (_state.value is SyncState.SignedIn) attach()
         }
     }
 

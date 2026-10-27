@@ -200,6 +200,9 @@ fun AppScaffold(container: AppContainer) {
                     maintenance = container.maintenance,
                     sync = container.sync,
                     growthDataset = container.growthDatasetRepository,
+                    // The reminder engine lives in the container; the reset clears rules and then asks it
+                    // to cancel the alarms they owned, which is the same pass that keeps a disabled rule silent.
+                    refreshReminders = { container.refreshReminders() },
                 )
             }
         }
@@ -533,6 +536,8 @@ fun AppScaffold(container: AppContainer) {
                     onDeleteChildPermanently = settingsVm::deleteChildPermanently,
                     onExport = { exportLauncher.launch(backupFileName()) },
                     onImport = { importLauncher.launch(arrayOf("*/*")) },
+                    onResetLocal = settingsVm::resetLocal,
+                    onDeleteServerData = settingsVm::deleteAllServerData,
                     message = settingsMessage,
                     syncState = syncState,
                     syncMessage = syncMessage,
