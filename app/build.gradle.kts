@@ -52,8 +52,11 @@ android {
         // A fix found by the pass, so a PATCH rung and not a new capability. versionCode rises to 22.
         // 0.18.0 is Phase 15, reset to defaults: two buttons that return the app to first-run state, one
         // local and one that also clears the server. A new capability, so a MINOR rung: versionCode 23.
-        versionCode = 23
-        versionName = "0.18.0"
+        // 0.18.1 fixes the three defects Phase 15 shipped with — a drain that stopped at the first slow
+        // write, a reset that re-seeded the twins, and an import that merged instead of replacing. The
+        // reset now leaves NO children, so it also ships the empty state that state needs. versionCode 24.
+        versionCode = 24
+        versionName = "0.18.1"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

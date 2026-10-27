@@ -202,13 +202,28 @@ class MaintenanceRepositoryTest {
     }
 
     @Test
-    fun `a reset never queues a delete for the two children it re-creates`() = runBlocking {
+    fun `a reset leaves no children at all`() = runBlocking {
         repo.resetLocal()
 
+        // Phase 15 shipped a reset that re-seeded First Twin and Second Twin. The owner asked for an empty
+        // app, so the repository deletes every child and nothing here puts any back — the seeding is the
+        // caller's business, and the caller no longer does it.
+        assertEquals(0, db.childDao().allIncludingDeleted().size)
+        assertEquals(0, db.eventDao().allIncludingDeleted().size)
+        // An added child is tombstoned on its way out; the seeded ids simply go.
         val childIntents = db.outboxDao().pending().filter { it.entityType == OutboxDrainer.ENTITY_CHILD }
-        // The seed ids come back with the SAME ids, so a delete for them would erase them on the server
-        // while this phone kept its own copy. Nothing may be queued for them at all.
         assertTrue(childIntents.none { it.entityId in MaintenanceRepository.SEED_CHILD_IDS })
+    }
+
+    @Test
+    fun `a reset does not queue the same row twice when it is already queued`() = runBlocking {
+        // What a server wipe does: reconcile queues a tombstone per remote id, then the local reset runs over
+        // the same ids. The count the parent sees must mean rows, not intents.
+        db.outboxDao().enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, "e1", deleted = true, queuedAt = t0))
+
+        repo.resetLocal()
+
+        assertEquals(1, db.outboxDao().pending().count { it.entityId == "e1" })
     }
 
     @Test

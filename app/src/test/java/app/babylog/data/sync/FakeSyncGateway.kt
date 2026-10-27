@@ -40,6 +40,14 @@ class FakeSyncGateway : SyncGateway {
      */
     var hangForever: Boolean = false
 
+    /**
+     * Ids whose write never answers, so one intent can be timed out without silencing the rest.
+     *
+     * A batch of ~160 tombstones over a cold connection is exactly this shape: the first write hangs, the
+     * others would have gone. [hangForever] cannot express that.
+     */
+    val hangIds = mutableSetOf<String>()
+
     /** What `fetchAll` (and therefore the first-sign-in seed) reports. */
     var inbound: RemoteDataset = RemoteDataset()
 
@@ -58,22 +66,22 @@ class FakeSyncGateway : SyncGateway {
         get() = childWrites.size + eventWrites.size + childTombstones.size + eventTombstones.size
 
     override suspend fun writeChild(child: ChildEntity) {
-        record()
+        record(child.id)
         childWrites += child
     }
 
     override suspend fun writeEvent(event: EventEntity) {
-        record()
+        record(event.id)
         eventWrites += event
     }
 
     override suspend fun deleteChild(id: String, updatedAt: Long) {
-        record()
+        record(id)
         childTombstones += id to updatedAt
     }
 
     override suspend fun deleteEvent(id: String, updatedAt: Long) {
-        record()
+        record(id)
         eventTombstones += id to updatedAt
     }
 
@@ -81,8 +89,9 @@ class FakeSyncGateway : SyncGateway {
 
     override fun observe(): Flow<RemoteDataset> = observeFlow ?: flowOf(inbound)
 
-    private suspend fun record() {
+    private suspend fun record(id: String? = null) {
         if (hangForever) awaitCancellation()
+        if (id != null && id in hangIds) awaitCancellation()
         if (failOnce) {
             failOnce = false
             throw failure

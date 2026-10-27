@@ -45,11 +45,15 @@ fun ScreenHeader(
 ) {
     val colors = BabyLogTheme.colors
     Column(modifier = modifier.fillMaxWidth()) {
-        ChildSwitcher(
-            children = children,
-            selection = selection,
-            onSelect = onSelectChild,
-        )
+        // Nothing to switch between with no children — and pills for nobody are the kind of empty control
+        // that reads as a bug. The empty state on Activity is what explains the situation instead.
+        if (children.isNotEmpty()) {
+            ChildSwitcher(
+                children = children,
+                selection = selection,
+                onSelect = onSelectChild,
+            )
+        }
         Text(
             text = headerDate.format(today),
             style = MaterialTheme.typography.bodySmall,

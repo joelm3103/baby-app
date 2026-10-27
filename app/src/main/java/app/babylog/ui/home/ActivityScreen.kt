@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.badgesFor
 import app.babylog.ui.common.rememberNow
@@ -79,12 +81,11 @@ fun ActivityScreen(
         }
 
         if (state.children.isEmpty()) {
-            item {
-                Text(
-                    text = "Setting up\u2026",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary,
-                )
+            // Phase 15 fix: this used to read "Setting up…", a load placeholder that became permanent once
+            // a reset could leave the app with no children. It is now a real empty state, and the only
+            // place that can explain why every card below has nobody to log for.
+            item(key = "no-children") {
+                NoChildrenCard(onOpenSettings = onOpenSettings)
             }
         }
 
@@ -118,5 +119,34 @@ fun ActivityScreen(
                 },
             )
         }
+    }
+}
+
+/**
+ * The empty state for an app with no children.
+ *
+ * Reachable only after a reset: a fresh install still seeds the two twins, so this is not a first-run
+ * screen — it is what a parent sees when they asked for everything to be erased.
+ */
+@Composable
+private fun NoChildrenCard(onOpenSettings: () -> Unit) {
+    val colors = BabyLogTheme.colors
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(
+            text = "No children yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+        )
+        Text(
+            text = "Add a child in Settings and the cards below will start logging for them.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        SecondaryButton(
+            label = "Add a child",
+            onClick = onOpenSettings,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
     }
 }

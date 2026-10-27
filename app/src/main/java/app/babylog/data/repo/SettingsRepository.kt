@@ -224,13 +224,16 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
      *
      * Deliberately NOT cleared:
      * - `sync.seeded` — a reset must not re-upload a log it just deleted; the queued tombstones are the news.
+     * - `children.seeded` — a reset leaves NO children, and the first-run seed must not put the twins back on
+     *   the next launch. The callers set it explicitly with `markChildSeedDone`, so it is only ever set,
+     *   never cleared and re-set — one ordering hazard fewer.
      * - `growth.dataset.*` — which reference produced a percentile is not the family's log, and a reset
      *   must not silently downgrade a dataset that was verified and accepted.
      */
     suspend fun clearForReset() = dataStore.edit { prefs ->
         listOf<Preferences.Key<*>>(
             KEY_LENGTH, KEY_WEIGHT, KEY_VOLUME, KEY_TEMPERATURE, KEY_TIME_FORMAT,
-            KEY_SELECTED_CHILD, KEY_THEME, KEY_CHILD_SEEDED,
+            KEY_SELECTED_CHILD, KEY_THEME,
             KEY_NIGHT_START, KEY_NIGHT_END, KEY_BOTTLE_PRESETS, KEY_MEDICATION_PRESETS,
         ).forEach { prefs.remove(it) }
         // Reminder keys are dynamic (one per activity and child), so they are found by shape: the same

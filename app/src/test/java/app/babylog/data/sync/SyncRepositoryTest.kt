@@ -175,12 +175,39 @@ class SyncRepositoryTest {
             events = listOf(RemoteRow("ghost-event", t0, deleted = false, payload = emptyMap())),
         )
 
-        val queued = repo.queueTombstonesForEveryRemoteRow()
+        val queued = repo.reconcileRemote(emptySet(), emptySet())
 
         assertEquals(2, queued)
         val intents = db.outboxDao().pending()
         assertEquals(setOf("ghost-child", "ghost-event"), intents.map { it.entityId }.toSet())
         assertTrue(intents.all { it.op == "DELETE" })
+    }
+
+    @Test
+    fun `reconciling keeps exactly the ids it is given`() = runBlocking {
+        seedLocalLog()
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        db.outboxDao().deleteEverything()
+        // The server still holds the two seeded children; an import of a file containing only e1's child
+        // must tombstone the twin it does not contain, or the next snapshot brings it back.
+        gateway.inbound = RemoteDataset(
+            children = listOf(
+                RemoteRow("first-twin", t0, deleted = false, payload = emptyMap()),
+                RemoteRow("second-twin", t0, deleted = false, payload = emptyMap()),
+                RemoteRow("imported-child", t0, deleted = false, payload = emptyMap()),
+            ),
+            events = listOf(
+                RemoteRow("kept-event", t0, deleted = false, payload = emptyMap()),
+                RemoteRow("dropped-event", t0, deleted = false, payload = emptyMap()),
+            ),
+        )
+
+        val queued = repo.reconcileRemote(keepChildIds = setOf("imported-child"), keepEventIds = setOf("kept-event"))
+
+        assertEquals(3, queued)
+        val tombstoned = db.outboxDao().pending().map { it.entityId }.toSet()
+        assertEquals(setOf("first-twin", "second-twin", "dropped-event"), tombstoned)
     }
 
     // ---- the first sign-in seed --------------------------------------------

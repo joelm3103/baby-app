@@ -12,6 +12,7 @@ import app.babylog.domain.EventType
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.ReminderKey
+import app.babylog.data.sync.DrainResult
 import app.babylog.data.sync.ResetGate
 import app.babylog.data.sync.SyncRepository
 import app.babylog.data.sync.SyncState
@@ -110,8 +111,11 @@ class SettingsViewModel(
                 }
 
                 ResetGate.Allowed -> {
-                    resetEverything()
-                    _message.value = drainSummary("This phone is back to first run.")
+                    val result = sync.withoutInboundApply {
+                        wipePhone()
+                        sync.drainUntilIdle()
+                    }
+                    _message.value = resetSummary(result, wipedServer = false)
                 }
             }
         }
@@ -120,46 +124,62 @@ class SettingsViewModel(
     /**
      * The whole log goes, on the server too.
      *
-     * `queueTombstonesForEveryRemoteRow` runs first and is allowed to fail: if the server cannot be read,
-     * nothing below it happens, because wiping this phone on a guess about what the server holds is how a
-     * log comes back from the dead.
+     * `reconcileRemote` runs inside the same detached block, before the local wipe, so the ids it reads
+     * from the server are the ones about to disappear locally too — and `enqueueTombstones` skips ids that
+     * are already queued, so each row travels once rather than twice.
      */
     fun deleteAllServerData() {
         viewModelScope.launch {
-            val queued = runCatching { sync.queueTombstonesForEveryRemoteRow() }.getOrElse { failure ->
+            val outcome = runCatching {
+                sync.withoutInboundApply {
+                    val queuedRemotely = sync.reconcileRemote(emptySet(), emptySet())
+                    wipePhone()
+                    queuedRemotely to sync.drainUntilIdle()
+                }
+            }
+            outcome.onSuccess { (queuedRemotely, result) ->
+                _message.value = resetSummary(result, wipedServer = true) +
+                    if (queuedRemotely > 0) " $queuedRemotely row(s) only the server knew about were removed." else ""
+            }.onFailure { failure ->
                 _message.value = "Nothing was deleted: the server could not be read " +
                     "(${failure.message ?: "no answer"})."
-                return@launch
             }
-            resetEverything()
-            _message.value = drainSummary("The log is gone from this phone and the server.") +
-                if (queued > 0) " $queued row(s) only the server knew about were queued." else ""
         }
     }
 
-    /** One implementation for both buttons, so the two can never drift apart. */
-    private suspend fun resetEverything() {
-        // Detached from the inbound listener for the whole wipe: a snapshot taken before the deletions
-        // landed used to re-insert every event into the emptied tables (found on the phone, Phase 15).
-        sync.withoutInboundApply {
-            maintenance.resetLocal()
-            settings.clearForReset()
-            // The children a reset leaves behind are the two seeded ones; the seed queues their UPSERTs,
-            // which is what replaces the tombstones that deliberately were not queued for those ids.
-            children.seedIfEmpty()
-            settings.markChildSeedDone()
-            // Rules anchored to a log that no longer exists are cancelled here, not merely forgotten.
-            refreshReminders()
-            sync.syncNow()
-        }
+    /**
+     * Empty this phone and leave NO children behind.
+     *
+     * The first-run seed is deliberately not run: the owner asked for a reset that leaves an empty app
+     * rather than the two seeded twins, so the flag is set to keep `seedChildrenOnce` from putting them
+     * back on the next launch. `clearForReset` no longer clears that flag, which is why this is the only
+     * place that decides it.
+     */
+    private suspend fun wipePhone() {
+        maintenance.resetLocal()
+        settings.clearForReset()
+        settings.markChildSeedDone()
+        // Rules anchored to a log that no longer exists are cancelled here, not merely forgotten.
+        refreshReminders()
     }
 
-    private suspend fun drainSummary(done: String): String {
-        val pending = sync.pendingWrites.first()
-        return if (pending == 0) {
-            "$done Nothing is left waiting to sync."
-        } else {
-            "$done $pending deletion(s) are still queued for the other phone."
+    /**
+     * A summary that is allowed to say "the server too" only when that is true.
+     *
+     * The owner was told "The log is gone from this phone and the server" while ~160 deletions were still
+     * queued — two contradictory statements in one sentence. Whatever is left is now named.
+     */
+    private fun resetSummary(result: DrainResult?, wipedServer: Boolean): String {
+        val left = result?.remaining ?: 0
+        return when {
+            left == 0 && wipedServer ->
+                "This phone is empty and so is the server. Add a child in Settings to start again."
+            left == 0 -> "This phone is empty. Every deletion reached the server."
+            wipedServer ->
+                "This phone is empty. $left deletion(s) are still waiting for the server, so the log is " +
+                    "NOT gone from there yet — they will go when the connection allows."
+            else ->
+                "This phone is empty. $left deletion(s) are still waiting for the server."
         }
     }
 
@@ -240,12 +260,36 @@ class SettingsViewModel(
      * done afterwards, so a restored database is never overwritten by the first-run seed.
      */
     suspend fun importJson(json: String) {
-        maintenance.replaceAll(json)
-        settings.markChildSeedDone()
-        // The file's rows are the new truth and the queue was wiped with the tables, so tell the server
-        // about the restored log instead of letting the next snapshot merge the old one back in.
-        sync.reseedAfterRestore()
-        _message.value = "Backup imported. Everything now matches the file."
+        // Read first: a bad or newer-schema file throws here, before anything is wiped, and its ids are the
+        // keep set the server is reconciled against.
+        val snapshot = maintenance.readSnapshot(json)
+        val keepChildren = snapshot.children.map { it.id }.toSet()
+        val keepEvents = snapshot.events.map { it.id }.toSet()
+
+        val outcome = runCatching {
+            sync.withoutInboundApply {
+                maintenance.replaceAll(json)
+                settings.markChildSeedDone()
+                // The file's rows are the new truth and must travel.
+                sync.reseedAfterRestore()
+                val removed = sync.reconcileRemote(keepChildren, keepEvents)
+                removed to sync.drainUntilIdle()
+            }
+        }
+
+        outcome.onSuccess { (removed, result) ->
+            val left = result?.remaining ?: 0
+            _message.value = when {
+                left > 0 ->
+                    "Backup imported on this phone. $left change(s) are still waiting for the server."
+                removed > 0 ->
+                    "Backup imported. This phone and the server now match the file — $removed old row(s) removed."
+                else ->
+                    "Backup imported. This phone and the server now match the file."
+            }
+        }.onFailure { failure ->
+            _message.value = failure.message ?: "That file could not be imported."
+        }
     }
 
     fun showMessage(text: String) {

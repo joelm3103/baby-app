@@ -41,8 +41,12 @@ data class DrainResult(
  *    with `deleted = true`; if the row is already gone (a permanent delete) only an id-and-timestamp
  *    tombstone is written. Either way the other phone learns the row is deleted.
  *
- * The drain stops at the first failure instead of skipping ahead: the queue is ordered by when it was
- * written, and a later write to the same row must not overtake the earlier one on the wire.
+ * The drain keeps the queue's order per row, but a write that never answers is DEFERRED to the end of
+ * the pass rather than ending it. A wipe queues one tombstone per row — about 160 for one family's log —
+ * and the first write on a cold connection is the one most likely to be slow; letting it stop the batch
+ * left the other 159 reported as "still queued" under a summary that already claimed the server was
+ * clear. So: try every intent, retry the unanswered ones once at the end, and report what is genuinely
+ * left. An exception still ends the pass, because a systematic failure should not burn 160 attempts.
  *
  * 4. **A write that never answers is a failure, not a wait.** Firestore closes its write stream
  *    `UNAVAILABLE` with no network and leaves the `Task` pending forever, so `awaitTask()` never
@@ -66,35 +70,28 @@ class OutboxDrainer(
         var written = 0
         var tombstoned = 0
         var skipped = 0
+        val unanswered = mutableListOf<OutboxEntity>()
 
-        for (intent in outboxDao.pending()) {
+        /** True when the intent was answered and settled; false when the gateway stayed silent. */
+        suspend fun attempt(intent: OutboxEntity): Boolean {
             val outcome = try {
                 withTimeoutOrNull(writeTimeoutMs) { perform(intent) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                return DrainResult(
+                throw DrainAborted(failure.describe(), DrainResult(
                     written = written,
                     tombstoned = tombstoned,
                     skipped = skipped,
                     error = failure.describe(),
                     remaining = outboxDao.pending().size,
-                )
+                ))
             }
 
             // Null means the gateway never answered. The intent stays exactly where it is, so the next
             // trigger retries it; a repeat write cannot duplicate a document because every write is a
             // merge keyed by the row's own id.
-            if (outcome == null) {
-                return DrainResult(
-                    written = written,
-                    tombstoned = tombstoned,
-                    skipped = skipped,
-                    error = NO_ANSWER,
-                    remaining = outboxDao.pending().size,
-                    timedOut = true,
-                )
-            }
+            if (outcome == null) return false
 
             when (outcome) {
                 Outcome.WRITTEN -> written++
@@ -102,10 +99,35 @@ class OutboxDrainer(
                 Outcome.SKIPPED -> skipped++
             }
             outboxDao.delete(intent.id)
+            return true
         }
 
-        return DrainResult(written, tombstoned, skipped)
+        try {
+            for (intent in outboxDao.pending()) {
+                if (!attempt(intent)) unanswered += intent
+            }
+            // One retry, at the end of the pass: a cold connection usually answers by then, and going
+            // last keeps a row's own writes in the order they were queued.
+            for (intent in unanswered.toList()) {
+                if (attempt(intent)) unanswered -= intent
+            }
+        } catch (aborted: DrainAborted) {
+            return aborted.result
+        }
+
+        val remaining = outboxDao.pending().size
+        return DrainResult(
+            written = written,
+            tombstoned = tombstoned,
+            skipped = skipped,
+            error = if (unanswered.isEmpty()) null else NO_ANSWER,
+            remaining = remaining,
+            timedOut = unanswered.isNotEmpty(),
+        )
     }
+
+    /** Carries a hard failure out of the pass without pretending the batch finished. */
+    private class DrainAborted(val description: String, val result: DrainResult) : Exception(description)
 
     private suspend fun perform(intent: OutboxEntity): Outcome = when (intent.entityType) {
         ENTITY_CHILD -> {

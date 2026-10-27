@@ -265,43 +265,70 @@ class SyncRepository(
     }
 
     /**
-     * Queue a tombstone for every row the SERVER reports, including rows this phone never received.
+     * Make the server match a keep set: tombstone every remote row the caller does NOT list.
      *
-     * "Delete all server data" cannot be a bulk collection delete: the other phone's listener does not read
-     * "document absent" as a deletion, so it would keep its rows and re-upload them on its next drain. An
-     * id-and-timestamp tombstone is the only thing it treats as an instruction.
+     * This is the one primitive behind both a reset and an import, because they are the same problem
+     * asked with different sets — after a reset the keep set is empty, after an import it is the file's
+     * ids. Emptying a phone and leaving the server full is what made an import appear to merge: the
+     * deleted rows were never deleted remotely, so the next snapshot handed them back.
      *
-     * Returns how many intents were queued. Throws if the server cannot be read — the caller must not go on
-     * to wipe the local copy on the strength of a guess about what the server holds.
+     * No new gateway method: the outbox already travels tombstones by id, and a bulk collection delete
+     * would not do — the other phone's listener does not read "document absent" as a deletion.
+     *
+     * Returns how many intents were queued. Throws if the server cannot be read: neither caller may go on
+     * to rewrite the local copy on a guess about what the server holds. Ids already queued are skipped, so
+     * a reset that reconciles and then deletes locally queues each row once.
      */
-    suspend fun queueTombstonesForEveryRemoteRow(): Int {
+    suspend fun reconcileRemote(keepChildIds: Set<String>, keepEventIds: Set<String>): Int {
         val gateway = gateway ?: return 0
         if (_state.value !is SyncState.SignedIn) return 0
         val remote = gateway.fetchAll()
         val at = clock.millis()
         val alreadyQueued = outboxDao.pending().map { it.entityId }.toSet()
         var queued = 0
-        remote.children.map { it.id }.filterNot { it in alreadyQueued }.forEach { id ->
-            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, id, deleted = true, queuedAt = at))
-            queued++
-        }
-        remote.events.map { it.id }.filterNot { it in alreadyQueued }.forEach { id ->
-            outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
-            queued++
-        }
+        remote.children.map { it.id }
+            .filterNot { it in keepChildIds || it in alreadyQueued }
+            .forEach { id ->
+                outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, id, deleted = true, queuedAt = at))
+                queued++
+            }
+        remote.events.map { it.id }
+            .filterNot { it in keepEventIds || it in alreadyQueued }
+            .forEach { id ->
+                outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
+                queued++
+            }
         return queued
     }
 
     /**
-     * Run a reset with the inbound listener detached, then put it back.
+     * Drain until the queue is empty, or until [passes] attempts have been made.
+     *
+     * One pass is not enough after a wipe: a batch of ~160 tombstones will not cross a cold connection in
+     * one go, and reporting the rest as "still queued" while also claiming the server was clear is how the
+     * owner was told two contradictory things. The bound is what stops a genuinely offline phone from
+     * spinning; whatever is left is reported as left.
+     */
+    suspend fun drainUntilIdle(passes: Int = 3): DrainResult? {
+        var last: DrainResult? = null
+        repeat(passes) {
+            last = syncNow() ?: return null
+            if (last!!.remaining == 0) return last
+        }
+        return last
+    }
+
+    /**
+     * Run a replace — a reset or an import — with the inbound listener detached, then put it back.
      *
      * The phone found this the hard way in Phase 15's device pass: a local reset wiped the tables and
      * drained its tombstones, and the listener then applied a snapshot it had taken *before* the deletes
      * landed — re-inserting 15 events into the emptied database with an empty outbox, so the phone showed
-     * a log the server no longer had and would never send again.
+     * a log the server no longer had and would never send again. An import had the same hole, which is why
+     * the seeded twins came back beside the imported children.
      *
      * Cancelling and JOINING the listener is what closes that window: no `applyRemote` can be in flight
-     * while the wipe runs, and the re-attach below starts from a snapshot taken after it.
+     * while the replace runs, and the re-attach below starts from a snapshot taken after it.
      */
     suspend fun <T> withoutInboundApply(block: suspend () -> T): T {
         val job = listenerJob

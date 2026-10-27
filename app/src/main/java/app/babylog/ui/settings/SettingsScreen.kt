@@ -168,6 +168,8 @@ fun SettingsScreen(
     // Phase 15: two buttons, not one row and a checkbox, so the destructive-and-unrecoverable choice is
     // its own visible decision rather than something a parent can leave ticked by accident.
     var pendingReset by remember { mutableStateOf<ResetRequest?>(null) }
+    // An import replaces the shared log, so it asks first like the resets do.
+    var confirmImport by remember { mutableStateOf(false) }
     var presetInput by remember { mutableStateOf("") }
     var medicationInput by remember { mutableStateOf("") }
 
@@ -391,7 +393,7 @@ fun SettingsScreen(
         item {
             SectionCard("Data", alternate = true) {
                 InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
-                InputRow(label = "Import backup", onClick = onImport) { InputValue("Replaces everything") }
+                InputRow(label = "Import backup", onClick = { confirmImport = true }) { InputValue("Replaces everything") }
                 Text(
                     text = "The backup includes both children, every event (including deleted ones) and the " +
                         "food list. Keep it somewhere that is not this phone.",
@@ -475,6 +477,28 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (confirmImport) {
+        AlertDialog(
+            onDismissRequest = { confirmImport = false },
+            title = { Text("Replace everything with this file?") },
+            text = {
+                Text(
+                    "The file becomes the whole log. This phone is emptied first, and because both phones " +
+                        "share one log, the server is made to match the file as well — any child or record " +
+                        "it does not contain is deleted on the other phone too. Export the current log " +
+                        "first if you might want it back.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmImport = false
+                    onImport()
+                }) { Text("Choose a file", color = colors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmImport = false }) { Text("Cancel") } },
+        )
     }
 
     pendingReset?.let { request ->

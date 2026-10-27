@@ -35,6 +35,15 @@ class MaintenanceRepository(
         foods = foodDao.all(),
     )
 
+    /**
+     * The file's rows, without applying anything.
+     *
+     * An import has to know the file's ids BEFORE it wipes the tables: those ids are the keep set the
+     * server is reconciled against. `replaceAll` reads the file itself and throws on a bad or newer-schema
+     * file, so this is the same guard, just earlier.
+     */
+    suspend fun readSnapshot(json: String): BackupSnapshot = Backup.read(json)
+
     /** The export file's contents. Indented JSON so it stays human-readable. */
     suspend fun exportJson(): String = Backup.write(snapshot())
 
@@ -140,10 +149,21 @@ class MaintenanceRepository(
         enqueueTombstones(childIds = listOf(childId), eventIds = eventIds, at = at)
 
     private suspend fun enqueueTombstones(childIds: List<String>, eventIds: List<String>, at: Long) {
-        childIds.forEach { id ->
+        // An id that already has a DELETE queued is skipped, not queued twice: a server wipe reconciles the
+        // remote ids and then deletes locally, and both passes see the same rows, so without this the queue
+        // holds two intents per row and the "still queued" count reads double what it means.
+        //
+        // Only DELETE counts. A queued UPSERT is a different fact — the row was edited since — and it must
+        // still be replaced by the tombstone, or the reset would leave a pointer to a row that no longer
+        // exists once `deleteUpserts` clears it.
+        val alreadyDeleted = outboxDao.pending()
+            .filter { it.op == OutboxDrainer.OP_DELETE }
+            .map { it.entityId }
+            .toSet()
+        childIds.filterNot { it in alreadyDeleted }.forEach { id ->
             outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_CHILD, id, deleted = true, queuedAt = at))
         }
-        eventIds.forEach { id ->
+        eventIds.filterNot { it in alreadyDeleted }.forEach { id ->
             outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
         }
     }

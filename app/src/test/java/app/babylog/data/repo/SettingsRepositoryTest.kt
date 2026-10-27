@@ -177,6 +177,15 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `a reset keeps the first-run children flag, so the twins are not seeded back`() = runBlocking {
+        settings.seedChildrenOnce { }   // sets children.seeded = true
+
+        settings.clearForReset()
+
+        assertTrue(settings.childSeedDone.first())
+    }
+
+    @Test
     fun `a reset keeps the sync seed and anything outside this app's own keys`() = runBlocking {
         settings.markSyncSeedDone()
         // The growth dataset keys live in the same store but were never this repository's to drop: a

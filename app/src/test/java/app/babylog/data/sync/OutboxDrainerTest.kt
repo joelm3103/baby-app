@@ -223,6 +223,25 @@ class OutboxDrainerTest {
         assertEquals(1, db.outboxDao().pending().size)
     }
 
+
+    @Test
+    fun `one write that never answers does not block the ones behind it`() = runBlocking {
+        // The shape of a wipe: ~160 tombstones, and the first write is the one a cold connection eats.
+        // Before this fix the whole batch stopped there and the remainder was reported as still queued.
+        listOf("e1", "e2", "e3").forEach { id ->
+            db.eventDao().upsert(event(id, amountMl = 90, updatedAt = t0))
+            queue(OutboxDrainer.ENTITY_EVENT, id, OP_UPSERT)
+        }
+        gateway.hangIds += "e1"
+
+        val result = patience().drain()
+
+        assertEquals("the two behind the silent one still went", 2, result.written)
+        assertTrue(result.timedOut)
+        assertEquals("only the silent intent is left", 1, result.remaining)
+        assertEquals(setOf("e1"), db.outboxDao().pending().map { it.entityId }.toSet())
+    }
+
     @Test
     fun `the queue is retried, and drained, once the server answers again`() = runBlocking {
         db.eventDao().upsert(event("e1", amountMl = 90, updatedAt = t0))
