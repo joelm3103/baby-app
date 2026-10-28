@@ -17,6 +17,86 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-28]
+
+**In short:**
+
+- **`0.18.1` closes the three defects Phase 15 shipped with** — a drain that gave up at the first slow
+  write, a reset that re-seeded the twins, and an import that merged instead of replacing. The code
+  commits landed **2026-10-27** (`0e0c744`); this entry is recorded retrospectively, on the day the device
+  pass ran, because that commit shipped without one.
+- **The pass then found two more, both in the exact state the work was for.** The twins were still exempt
+  from the reset's tombstone pass, so on a signed-in phone the server handed them straight back and the
+  `No children yet` card was never reachable at all; with it reachable, the six activity cards under it
+  were dead buttons reading `+ Log feed for ` with the name missing.
+- **A reset now really empties the log, and the empty state is a screen worth showing**: one card, one
+  line, one button.
+
+### Versions
+
+- `0.18.1` / `versionCode 24`. Fixes and polish on the `0.18.0` rung, so a `0.PATCH` bump — and no second
+  rung was opened when the device pass amended it, because one phase's work takes one version. The next
+  version is the first release, `1.0.0`, in Phase 16.
+
+### Fixed
+
+- **A drain no longer stops at the first slow write.** `OutboxDrainer` returned at the first timeout, so one
+  slow write on a cold connection left the other ~159 intents unanswered under a summary that already
+  claimed the server was clear — the owner's `~160 still queued` after *Delete all server data*. A
+  timed-out intent is now deferred to the end of the pass and retried once, so the rest drain; an
+  exception still ends the pass. `SyncRepository.drainUntilIdle` bounds repeat passes at 3 and reports the
+  real remaining count, and every summary is derived from that result — "from the server too" is only
+  said when nothing is left queued. Resets also stop double-queueing: `enqueueTombstones` skips ids that
+  already have a DELETE queued, while a UPSERT is still replaced.
+- **A reset leaves no children — for real.** `resetLocal` dropped `first-twin` / `second-twin` from the
+  tombstone pass, a leftover from when the reset re-created them. Once it stopped re-creating them the
+  exemption became the bug: the twins stayed on the server, `withoutInboundApply` re-attached after the
+  wipe, and the snapshot put both children back into an emptied phone. Every child is tombstoned now, and
+  `settings.markChildSeedDone()` is what keeps `AppRoot` from seeding them again.
+- **Two strings stopped promising a re-seed.** The Data caption read "Both of these put First Twin and
+  Second Twin back", and the *Reset local data* confirmation said the same — both false in `0.18.1`, and
+  both read at the moment a parent needs the truth.
+- **Import replaces instead of merging.** It wiped the phone but told the server nothing, so the
+  pre-import children came back beside the imported ones. Both the reset and the import now run one
+  sequence through `SyncRepository.reconcileRemote(keepChildIds, keepEventIds)`: tombstone every remote row
+  outside the keep set — empty for a reset, the file's ids for an import — inside `withoutInboundApply`,
+  then drain. The import carries a confirmation that names the other phone.
+- **No activity cards while there is no child to log for.** The empty state shipped with six cards under it
+  whose buttons read `+ Log feed for ` (the name an empty string) and whose sheets were titled `for `.
+  Saving there was a silent no-op, so a parent could fill a form and be told nothing. The cards are skipped
+  entirely while there are no children, and the card's second line says the cards will appear.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `0.18.1`, 2026-10-28
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r` `0.18.1` (versionCode 24), launch, foreground before any input | `topResumedActivity=app.babylog/.MainActivity`; `versionName=0.18.1 versionCode=24` ✅ |
+| 2 | *Reset local data* on the **pre-fix** build, twice, with an event in the log | events deleted, outbox drained to 0, summary `This phone is empty. Every deletion reached the server.` — truthful — but `children 2` came back carrying the **server's** `updatedAt` (`2026-10-27 09:21:53`), and `No children yet` never appeared ❌ |
+| 3 | Same reset on the **fixed** build | db pulled with the WAL: `events 0, children 0, outbox 0` ✅ |
+| 4 | Activity screen after it | `No children yet` → `Add a child in Settings and the cards will appear.` → `Add a child`; child switcher absent, **no activity cards**, no dead buttons ✅ |
+| 5 | Add-a-child from that card | opens Settings; `Add child` creates `Test Child` (new id, birth date, 40 weeks, adjusted age), outbox drains to 0, back on Activity the switcher shows `T · Test Child` and the cards are labelled `+ Log feed for Test Child` ✅ |
+| 6 | A real write afterwards | a 120 ml bottle on the card, `events 1`, `outbox 0`, row `('BOTTLE', <child id>, 120, 0)` ✅ |
+| 7 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across installs, two resets, the empty state and the writes ✅ |
+
+Two things this pass had to learn the hard way, recorded so the next one does not: **pull the database with
+its `-wal` and `-shm`**, or a bare `babylog.db` reports the state before the last transaction (it showed
+`outbox 30` while the truth was 0); and a renamed child is saved on **every keystroke** in `ChildEditor`,
+so the `Add child` button under it is not its save button — tapping it creates a second child.
+
+Not performed: the import path on the phone (it needs a backup file and two accounts' worth of rows; it is
+covered by `SyncRepositoryTest`'s reconcile tests), and the second phone, which was not attached.
+
+### Tests
+
+- **549 → 554: five net new tests.** `0e0c744` wrote five — `a reset leaves no children at all` and `a
+  reset does not queue the same row twice` (`MaintenanceRepositoryTest`), `a reset keeps the first-run
+  children flag` (`SettingsRepositoryTest`), `one write that never answers does not block the ones behind
+  it` (`OutboxDrainerTest`) and `reconciling keeps exactly the ids it is given` (`SyncRepositoryTest`) —
+  and retired one, the seed-exemption test, so the net is +4 to 553. The device pass added the fifth, which
+  pins the seeds as tombstoned so the server cannot hand them back, and inverted the retired test rather
+  than deleting it, with the defect in its comment. The suite is 554 with 0 failures, 0 errors and 0
+  skipped, summed from 54 XML files under `app/build/test-results/testDebugUnitTest/`.
+
 ## [2026-10-27]
 
 **In short:**
