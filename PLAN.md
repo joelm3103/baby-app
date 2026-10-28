@@ -1815,6 +1815,24 @@ restore path, so the import is proven by the same code that would restore a back
 Not performed: the second phone was not attached, so the imported log was never observed there — only that
 the outbox drained to 0, which is what sends it.
 
+### Device pass, 2026-10-28 — the 2026-03-11 correction
+
+The table above records the import as it landed. This one covers the correction made the same day, on the
+same build, and exists to prove the drop was **field-scoped** rather than a deleted event.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r`, foreground before any input | `topResumedActivity=app.babylog/.MainActivity`, `0.18.1` / versionCode 24 ✅ |
+| 2 | Trends → Growth → **Length**, measurements list | 37.0 (31 Dec 25), 50.0 (27 Mar), 59.0 (29 Apr), 55.8 (6 May), 66.0 (10 Jul), 71.0 (30 Sep), 71.1 cm (9 Oct) — **no 11 March 2026 row** ✅ |
+| 3 | Trends → Growth → **Weight**, same child | `11 Mar 2026 · W 7.8 lb` still listed — the 3.53 kg that was kept, which is why the row was not deleted ✅ |
+| 4 | System back from Trends | returns to Activity with the child switcher and today's cards intact ✅ |
+| 5 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install and the Growth screens ✅ |
+
+A trap worth naming for the next pass: swiping through a long measurements list scrolls the
+**Weight / Length / Head** chip row off the top, so a tap at the chip's old coordinates lands on the list
+instead. Dump the coordinates again after scrolling, or scroll back to the top first — the same class of
+mistake as the stale `uiautomator` tree recorded under Phase 9.
+
 ### What the source data still gets wrong, and is not ours to fix
 
 - **The 2026-03-11 measurement was closed on 2026-10-28 by keeping only its weight.** As first imported the

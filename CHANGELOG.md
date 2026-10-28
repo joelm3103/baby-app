@@ -91,7 +91,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **The 2026-03-11 measurement is now only its weight.** That row also claimed a length growing 404 → 498 mm
   and a head 320 → 380 mm in 16 days, which no baby does; the weight stays at the 3.53 kg the owner ruled
   and the two impossible measurements are dropped rather than imported-and-wrong. `DROP_FIELDS` in the
-  converter holds the rule, and the Length chart no longer plots a point the source cannot support.
+  converter holds the rule, and the Length chart no longer plots a point the source cannot support. On
+  `<handset>`: Length lists 37.0 → 71.1 cm with **no 11 March row**, Weight still lists
+  `11 Mar 2026 · 7.8 lb` (3.53 kg) — so the drop is field-scoped rather than a deleted event — system back
+  returns to Activity, and `logcat -b crash` is 0.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `0.18.1`, 2026-10-28
 
