@@ -82,12 +82,16 @@ fun ActivityScreen(
 
         if (state.children.isEmpty()) {
             // Phase 15 fix: this used to read "Setting up…", a load placeholder that became permanent once
-            // a reset could leave the app with no children. It is now a real empty state, and the only
-            // place that can explain why every card below has nobody to log for.
+            // a reset could leave the app with no children. It is now a real empty state.
             item(key = "no-children") {
                 NoChildrenCard(onOpenSettings = onOpenSettings)
             }
         }
+
+        // No children means no cards. Rendering them anyway put six dead action buttons on the screen and
+        // spelled them "+ Log feed for " with the name missing — plus a sheet title reading "for " — which
+        // is the empty state promising work it cannot do. Found on <handset> during the 0.18.1 pass.
+        if (state.children.isEmpty()) return@LazyColumn
 
         items(state.cards, key = { it.type.name }) { card ->
             ActivityCard(
@@ -138,7 +142,7 @@ private fun NoChildrenCard(onOpenSettings: () -> Unit) {
             color = colors.textPrimary,
         )
         Text(
-            text = "Add a child in Settings and the cards below will start logging for them.",
+            text = "Add a child in Settings and the cards will appear.",
             style = MaterialTheme.typography.bodyMedium,
             color = colors.textSecondary,
             modifier = Modifier.padding(top = 6.dp),
