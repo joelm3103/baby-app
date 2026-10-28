@@ -49,7 +49,7 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, then `0.18.1` / versionCode 24 for the five defects its own passes found; **554 tests green**. **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 554 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
 | 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**; use it for a week before more code. Was 16 |
 
@@ -1748,6 +1748,16 @@ What the pass taught, recorded because both cost time:
 
 Not performed: the import path on the phone (it needs a backup file and rows from the other account; the
 reconcile sequence is covered by `SyncRepositoryTest`), and the second phone, which was not attached.
+
+**Second look, same day and same build** (`0.18.1` / versionCode 24, installed 12:27), after the changelog
+record was split by landing date — documentation only, no code change, so the APK on the phone is still the
+one built from the branch tip. Summary and Trends were driven with the single child the pass created:
+Summary showed `Test Child`, the `D · 1W · 2W` range chips, `120 ml` / `Sessions 1` / `Average bottle
+120 ml` and `Time between feeds —` (a gap named rather than a zero invented); Trends showed `1W · 2W · 1M`,
+one solid line, `8.6 ml/day`, `1 of 14 days logged` and `Days with no records count as zero.` System back
+from the Activity root left the app instead of landing somewhere unexplained, and `logcat -b crash -d` stayed
+at **0**. Nothing was written in this second look, and the reset itself was **not** re-run: it would have
+destroyed the child and the event the first half of the pass recorded in order to prove itself again.
 
 ## Phase 16 — Update delivery
 
