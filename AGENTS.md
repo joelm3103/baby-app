@@ -305,10 +305,14 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   deletes landed — 15 events back in an emptied database with an empty outbox, so the phone showed a log
   the server no longer had and would never send again. `attach()` drains before it observes, so a tombstone
   the wipe queued travels before any snapshot can be applied.
-- **A reset never queues a delete for the two children it re-creates.** `ChildRepository.seedIfEmpty`
-  re-creates `first-twin` / `second-twin` with the SAME ids, so `MaintenanceRepository.resetLocal`
-  subtracts `SEED_CHILD_IDS` from the tombstone pass and drops any surviving intent for them; a DELETE that
-  drained would erase them on the other phone while this one kept its own copy.
+- **A reset tombstones the two seeded children like any other row, and this is a reversal.** The first build
+  of the reset re-created `first-twin` / `second-twin` with the SAME ids, so `resetLocal` subtracted
+  `SEED_CHILD_IDS` from the tombstone pass and dropped any intent for them — a DELETE that drained would
+  have erased them on the other phone while this one kept a copy. Once the reset stopped re-creating them
+  (Phase 15, `0.18.1`) that exemption became the bug: the twins stayed on the server, `withoutInboundApply`
+  re-attached after the wipe, and the snapshot put both children back into an emptied phone, so the
+  `No children yet` state was unreachable on any signed-in phone. `SEED_CHILD_IDS` is now a list for tests
+  and reading, never a rule, and `settings.markChildSeedDone()` is what keeps `AppRoot` from seeding them.
 - **A reset is refused when the queue cannot travel, and "could not travel" includes being offline.**
   `SyncRepository.resetGate()` probes with a drain, but an EMPTY queue drains "successfully" without making a
   network call, so a connectivity check is what stops a reset on a plane from queuing deletions that never
@@ -316,7 +320,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-549 unit tests through Phase 15, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+554 unit tests through Phase 15, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
