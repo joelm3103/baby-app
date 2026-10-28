@@ -414,7 +414,7 @@ fun SettingsScreen(
                     ) { InputValue("Both phones") }
                 }
                 Text(
-                    text = "Both of these put First Twin and Second Twin back and clear your settings, " +
+                    text = "Both of these erase every event and every child, and clear your settings, " +
                         "presets and reminders. Neither deletes an exported backup.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
@@ -516,8 +516,8 @@ fun SettingsScreen(
                 Text(
                     when (request) {
                         ResetRequest.LOCAL ->
-                            "This erases every event and every child on this phone and puts First Twin and " +
-                                "Second Twin back. Your settings, presets and reminders go too. Both phones " +
+                            "This erases every event and every child on this phone, including First Twin " +
+                                "and Second Twin. Your settings, presets and reminders go too. Both phones " +
                                 "share one log, so this deletes it on the other phone as well. It cannot be " +
                                 "undone — export a backup first if you might want it back."
 

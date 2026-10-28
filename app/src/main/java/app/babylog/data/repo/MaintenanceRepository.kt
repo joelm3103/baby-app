@@ -115,18 +115,22 @@ class MaintenanceRepository(
     }
 
     /**
-     * Reset this phone to first-run state: the log and its children go, and the two seeded children come
-     * back in their place.
+     * Reset this phone to first-run state: every row goes and nothing is put back. The app is left with no
+     * children at all, which the Activity screen answers with its `No children yet` empty state.
      *
      * The ordering is the whole feature. A reset that deleted rows without telling the server would be
      * merged straight back in by the next snapshot, so every deletion travels as a tombstone queued in the
      * SAME transaction that removes the row — the same rule `deleteChildPermanently` follows, applied to
      * every row at once.
      *
-     * The two seeded children are the exception, and the trap. They are re-created with the SAME ids, so a
-     * DELETE for them would erase them on the server the moment it drained, leaving this phone with the
-     * twins and the other phone with nothing. Their intents are therefore dropped rather than queued, and
-     * `ChildRepository.seedIfEmpty` queues the UPSERTs that replace them.
+     * **No row is exempt, including the two seeded children** — and that is a reversal, deliberately. The
+     * first build of this reset re-created `first-twin` / `second-twin` with the same ids, so a DELETE for
+     * them would have emptied the other phone while this one kept its copy, and the ids were dropped from
+     * the tombstone pass to prevent it. Once the reset stopped re-creating them the exemption became the
+     * bug: the twins stayed on the server, the inbound listener re-attached after the wipe, and the
+     * snapshot put both children back into an emptied phone. Found on `<handset>` in `0.18.1`, because
+     * the empty state was never reachable. `settings.markChildSeedDone()` is what keeps `AppRoot` from
+     * seeding them again on the next launch.
      */
     suspend fun resetLocal(at: Long = clock.millis()) {
         val childIds = childDao.allIncludingDeleted().map { it.id }
@@ -134,13 +138,11 @@ class MaintenanceRepository(
         database.withTransaction {
             // Intents first, deletes second: the other direction leaves a window where the rows are gone
             // and nothing remembers them.
-            enqueueTombstones(childIds = childIds - SEED_CHILD_IDS, eventIds = eventIds, at = at)
+            enqueueTombstones(childIds = childIds, eventIds = eventIds, at = at)
             eventDao.deleteAll()
             childDao.deleteAll()
             // A queued UPSERT now points at a row that no longer exists; the DELETE just queued is the truth.
             outboxDao.deleteUpserts(entityIds = eventIds + childIds)
-            // No intent of ANY kind may survive for the children that are about to be re-created.
-            outboxDao.deleteByEntityIds(SEED_CHILD_IDS)
         }
         onQueued()
     }
@@ -170,9 +172,12 @@ class MaintenanceRepository(
 
     companion object {
         /**
-         * `ChildRepository.seedIfEmpty` re-creates these two ids, so they must never travel as deletions.
-         * Kept here rather than in the repository that seeds them because the *reset* is what has to know
-         * the difference between "a child the parent added" and "a child the app owns".
+         * The ids `ChildRepository.seedIfEmpty` creates on a first run.
+         *
+         * **Nothing treats them as special any more.** A reset tombstones them like any other row, because
+         * it no longer re-creates them; keeping them out of the tombstone pass is exactly what made both
+         * twins come back from the server into an emptied phone. The list survives for tests and for
+         * reading, not as a rule.
          */
         val SEED_CHILD_IDS = listOf("first-twin", "second-twin")
     }

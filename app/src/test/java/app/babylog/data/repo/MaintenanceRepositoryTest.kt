@@ -210,9 +210,22 @@ class MaintenanceRepositoryTest {
         // caller's business, and the caller no longer does it.
         assertEquals(0, db.childDao().allIncludingDeleted().size)
         assertEquals(0, db.eventDao().allIncludingDeleted().size)
-        // An added child is tombstoned on its way out; the seeded ids simply go.
+    }
+
+    @Test
+    fun `a reset tombstones the seeded twins too, or the server sends them back`() = runBlocking {
+        // 0.18.1 shipped this as a defect: the twins were exempt from the tombstone pass, so they stayed on
+        // the server, the inbound listener re-attached after the wipe, and its snapshot put both children
+        // back into an emptied phone. The `No children yet` empty state was therefore unreachable on a
+        // signed-in phone — which is every phone this app runs on. Found on <handset>.
+        repo.resetLocal()
+
         val childIntents = db.outboxDao().pending().filter { it.entityType == OutboxDrainer.ENTITY_CHILD }
-        assertTrue(childIntents.none { it.entityId in MaintenanceRepository.SEED_CHILD_IDS })
+        assertEquals(
+            MaintenanceRepository.SEED_CHILD_IDS.toSet(),
+            childIntents.map { it.entityId }.toSet(),
+        )
+        assertTrue(childIntents.all { it.op == "DELETE" })
     }
 
     @Test
@@ -227,7 +240,7 @@ class MaintenanceRepositoryTest {
     }
 
     @Test
-    fun `a reset tombstones a child the parent added, because that one does not come back`() = runBlocking {
+    fun `a reset tombstones a child the parent added`() = runBlocking {
         db.childDao().upsert(child("third-child", order = 2, deleted = false))
 
         repo.resetLocal()
