@@ -53,6 +53,11 @@ everything after it is additive.**
 | 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
 | 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**; use it for a week before more code. Was 16 |
 
+**Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
+because it shipped no application code and so carries no version rung — a phase number whose build does not
+exist would break the one thing this table is for. It is recorded in full under
+*Huckleberry import — data and tooling*.
+
 **Versions: one rung per delivered phase**, and the ladder is a fact of the history rather than a
 reservation for unstarted work — `versionCode`/`versionName` were rewritten so each phase's commits
 carry that phase's rung, set at the **first commit of the phase's work** so a build on a phone says which
@@ -1758,6 +1763,65 @@ one solid line, `8.6 ml/day`, `1 of 14 days logged` and `Days with no records co
 from the Activity root left the app instead of landing somewhere unexplained, and `logcat -b crash -d` stayed
 at **0**. Nothing was written in this second look, and the reset itself was **not** re-run: it would have
 destroyed the child and the event the first half of the pass recorded in order to prove itself again.
+
+## Huckleberry import — data and tooling, 2026-10-28 — DONE, device-verified
+
+**This is not a numbered phase and it moves no version rung, on purpose.** It shipped no application code:
+the only new file is `scripts/huckleberry-import.py`, so the APK on both phones is byte-identical to
+`0.18.1` / versionCode 24 and a new rung would describe a build that does not exist. Phase 16 and 17 keep
+their numbers and their order; nothing here competes with them.
+
+**Why it exists:** the family's real log had to come out of Huckleberry, the app this one replaces, and the
+app had no path for that beyond its own backup format. The converter turns a Huckleberry CSV export into a
+BabyLog backup (schema 1), which is applied through Settings → Data → **Import backup** — the app's own
+restore path, so the import is proven by the same code that would restore a backup.
+
+### As built
+
+- **Huckleberry reuses four columns across every activity type**, which is the whole difficulty: on a growth
+  row `Start Condition` is weight, `Start Location` is length and `End Condition` is head; on a nappy row
+  the same three are consistency, contents and — via `Duration` — stool colour. The mapping therefore lives
+  in the script with its reasoning beside each rule, and the script prints a report of what mapped, what was
+  skipped and what the schema cannot hold.
+- **Units are decided from the app's own wording, not guessed.** Huckleberry formats `18.44lbs.oz` and
+  `2.4ft.in`, and its display for one 21 Oct measurement reads *"12lbs 11.5oz, 2ft 2.8in, 16.5in head"* — so
+  the dot separates units. Trailing digits are read as: one digit = whole units, several digits with no
+  decimal point = tenths, an explicit decimal = as written. That is the only reading under which every
+  weight and length in both exports is monotone; the alternative makes one twin lose 224 g in a week.
+- **The owner's three rulings are recorded in the script as overrides, not lost in conversation:** the
+  2026-03-11 measurement's weight corrected from `3.78lbs.oz` to 3.53 kg; `Loose` consistency mapped to
+  `MUSHY`; a `Dry` nappy skipped because `DiaperKind.of()` has no "neither" state.
+- **What the schema cannot hold, named rather than dropped silently:** nappy volumes (`:small|medium|large`,
+  25 rows), `HATED` as a solids reaction (no enum member — carried in the note), sleep mood and location
+  (3 rows, into the note), meal slots (not in the export, left unset rather than inferred from the clock),
+  and a bottle logged with no volume (imported with none, so the card says *No amount recorded*).
+- **Imported rows carry `createdBy = "huckleberry"` and the import time as `updatedAt`**, so provenance is
+  visible and a corrected value always outranks the copy already on the server.
+
+### Device pass, 2026-10-28 — `<handset>`, `0.18.1`
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r`; foreground checked before any input | `topResumedActivity=app.babylog/.MainActivity`, `0.18.1` / versionCode 24 ✅ |
+| 2 | Import through Settings → Data → *Import backup* → `Replace`, twice | 151 events from the raw export, then 221 with the screenshots added ✅ |
+| 3 | Database after the second import | `events 221` (BOTTLE 104, DIAPER 80, GROWTH 19, SOLIDS 14, SLEEP 4), `children 2`, `foods 94` after the bundled catalogue re-seeded, `outbox 0` ✅ |
+| 4 | Activity screen | newest feed reads `9h 37m ago`, not `9d ago`; both children's 4:35 AM entries carry `K`/`L` badges ✅ |
+| 5 | Summary, 2-week window | `14 of 14 days logged` per child, against 4 from the raw export ✅ |
+| 6 | Totals recomputed by hand from the CSVs | 2066 ml / best 856 ml on 18 Oct, and 2560 ml / best 903 ml on 17 Oct — the app agreed to the millilitre ✅ |
+| 7 | Trends → Growth | 8 and 11 measurements plotted with adjusted ages; the screenshot-transcribed 21 Oct row shows as `12.7 lb · <1st percentile` ✅ |
+| 8 | Settings opens, system back returns to Activity with the log intact | ✅ |
+| 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two imports, four screens and the back press ✅ |
+
+Not performed: the second phone was not attached, so the imported log was never observed there — only that
+the outbox drained to 0, which is what sends it.
+
+### What the source data still gets wrong, and is not ours to fix
+
+- **The 2026-03-11 measurement has an impossible length and head** — 404 → 498 mm and 320 → 380 mm head
+  inside 16 days — alongside the weight that was corrected. The chart shows that jitter.
+- **The CSV export covers 9–18 Oct only**; 19–28 Oct were transcribed from four screenshots by hand, which
+  is why the converter accepts repeated `--kai` / `--levi` files in the same shape.
+- **A bottle with no volume** (second twin, 21 Oct 06:00) stays volumeless: the app must not invent one.
 
 ## Phase 16 — Update delivery
 

@@ -27,6 +27,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **With that reachable, the state itself was wrong:** six dead activity cards under it, their buttons
   reading `+ Log feed for ` with the name missing, their sheets titled `for `, and Save a silent no-op.
 - **A reset now really empties the log**, and the empty state is one card, one line and one button.
+- **The log was rebuilt from Huckleberry**, the app it replaces: a converter turns Huckleberry's per-child
+  CSV export into a BabyLog backup, and both children's history now runs from birth to today — 221 events,
+  grown from the 10-day window the raw export covered by transcribing four screenshots by hand.
 
 ### Versions
 
@@ -34,6 +37,39 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   rather than starting more, so the build on the phone still says `0.18.1` — a second number for one phase
   would make two builds from one phase look like two phases. The next version is still the first release,
   `1.0.0`, in Phase 16.
+- **The Huckleberry import below moved no rung either, and is not a phase.** It shipped no application code
+  — only a script under `scripts/` — so the APK on both phones is byte-identical to the one above, and a
+  new `versionCode` would have described a build that does not exist.
+
+### Added
+
+- **`scripts/huckleberry-import.py`** — converts a Huckleberry CSV export (and any hand-transcribed rows in
+  the same shape) into a BabyLog backup file, schema 1. Huckleberry reuses four columns across every
+  activity type — `Start Condition` / `Start Location` / `End Condition` / `Duration` mean weight, length,
+  head circumference on one row and stool colour, consistency, contents on the next — so the mapping lives
+  in the script with the reasoning beside each rule rather than in a table nobody can check later. It
+  writes the backup outside the repo and prints a report of what mapped, what was skipped and what the
+  schema cannot hold; the file is then applied through Settings → Data → Import backup, the app's own path.
+- **`.gitignore` entries for that converter's output** (`babylog-import*.json`, `babylog-import-report.md`).
+  Both files contain the family's real health log — names, weights, measurements — and a run started from
+  the repo root had already written one report into it, where `git add .` would have committed it.
+
+### Changed
+
+- **Every imported measurement is derived under one unit convention, decided from the app's own wording.**
+  Huckleberry writes `18.44lbs.oz` and `2.4ft.in`, and its display for the 21 Oct measurement reads
+  *"12lbs 11.5oz, 2ft 2.8in, 16.5in head"* — so the dot separates units and the trailing digits are a
+  fraction of the smaller one. A single digit is whole (`1.5lbs.oz` is 1 lb 5 oz, a birth weight), several
+  digits with no decimal point are tenths (`18.44` is 18 lb 4.4 oz, `1.77ft.in` is 1 ft 7.7 in), and an
+  explicit decimal is taken as written. That is the only reading under which every weight and length in
+  both exports rises monotonically; reading `4.13` as thirteen ounces makes one twin *lose* 224 g in a week.
+- **Imported rows carry the import time as `updatedAt`, not their own start.** Re-importing corrected
+  values under unchanged ids would otherwise tie with the copies already on the server, and
+  `SyncMerge`'s tie rule could keep the stale row — so the other phone would never see the fix.
+- **An import that would have been ~1% light on every weight is corrected.** The first conversion read
+  `18.44lbs.oz` as decimal pounds; under pounds.ounces the two series now read 1409 → 3530 → 3867 → 5151
+  → 5568 → 6878 → 8233 → 8289 g and 595 → 1851 → 1959 → 2373 → 2880 → 2951 → 3328 → 4090 → 5120 → 5310 →
+  5769 g, each strictly increasing, and the first twin's percentile moved 53rd → 50th.
 
 ### Fixed
 
@@ -73,12 +109,42 @@ so the `Add child` button under it is not its save button — tapping it creates
 Not performed: the import path on the phone (it needs a backup file and two accounts' worth of rows; it is
 covered by `SyncRepositoryTest`'s reconcile tests), and the second phone, which was not attached.
 
+### Verified on the phone — Huckleberry import, `<handset>`, 2026-10-28
+
+`0.18.1` / versionCode 24, unchanged build. The import runs through the app's own *Import backup*, so this
+pass is the proof that a converted file is a real restore and not a hopeful JSON document.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r`, foreground before any input | `topResumedActivity=app.babylog/.MainActivity`, `versionName=0.18.1 versionCode=24` ✅ |
+| 2 | *Import backup* → the file → `Replace` (twice: the raw export, then export + screenshots) | first pass wrote 151 events, second 221; both from 2 children and 11 custom foods ✅ |
+| 3 | Database after the second import | `events 221` (BOTTLE 104, DIAPER 80, GROWTH 19, SOLIDS 14, SLEEP 4), `children 2` (Kai, Levi), `foods 94` once the bundled catalogue re-seeded itself, `outbox 0` ✅ |
+| 4 | Activity screen | `9h 37m ago` on the feed card, not `9d ago` — the log reaches today; both children's 4:35 AM entries visible with `K`/`L` badges ✅ |
+| 5 | Summary, 2-week window | `14 of 14 days logged` for each child, where the raw export covered 4 ✅ |
+| 6 | Totals against the source, recomputed by hand from the CSVs | first twin 2066 ml / best day 856 ml on 18 Oct; second 2560 ml / best day 903 ml on 17 Oct — the app agreed exactly ✅ |
+| 7 | Trends → Growth | percentile chart plots 8 and 11 measurements with adjusted ages; the 21 Oct measurement transcribed from a screenshot appears as `12.7 lb · <1st percentile` ✅ |
+| 8 | Settings opens, system back returns to Activity with the log intact | ✅ |
+| 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two imports, four screens and the back press ✅ |
+
+What the pass taught, recorded so the next import does not repeat it: **pull `babylog.db` together with its
+`-wal` and `-shm`** or the pull reports the state before the last transaction — a bare copy showed
+`outbox 30` while the truth was 0, and later `outbox 74` while the truth was 15; and **a force-stop before
+pulling** checkpoints the WAL, which is the cheap way to get an unambiguous read.
+
+Not performed: the second phone was not attached, so its copy of the imported log was not observed — only
+that the outbox drained to 0, which is what sends it there.
+
 ### Tests
 
 - **553 → 554: one added.** `a reset tombstones the seeded twins too, or the server sends them back` — the
   regression for the defect the pass found, naming the phone evidence in its comment, and the seed-exemption
   test beside it lost its exemption assertion and gained the opposite one. The suite is 554 with 0 failures,
   0 errors and 0 skipped, summed from 54 XML files under `app/build/test-results/testDebugUnitTest/`.
+- **The Huckleberry import added no tests, because it added no application code.** The suite is unchanged at
+  554, 0 failures, 0 errors, 0 skipped across the same 54 XML files; `:app:testDebugUnitTest` reports itself
+  `UP-TO-DATE` on this branch, which is the artifact agreeing that nothing it covers has moved. The
+  converter's rules are exercised by its own report and by the phone pass above, not by the JVM suite — a
+  limitation worth knowing before trusting a future mapping change.
 
 ## [2026-10-27]
 

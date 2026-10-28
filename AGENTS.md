@@ -96,6 +96,10 @@ Rules learned the hard way:
   `content-desc`, not `text` — matching on text alone silently misses every icon.
 - **`adb` is a native binary: `/c/Users/...` fails with `failed to stat`.** Pass `C:/Users/...`.
 - `logcat -b crash -d` still holds a crash trace **after the app is uninstalled**.
+- **Pull the database with its `-wal` and `-shm`, or `am force-stop` first.** A bare `babylog.db` reports
+  the state before the last transaction: one pull read `outbox 30` while the truth was 0, a later one `74`
+  while the truth was 15 — twice enough to conclude something false. A force-stop checkpoints the WAL into
+  the main file, which is the cheap unambiguous read.
 - Screenshots are captured by `scripts/capture-timeline.ps1` into a folder beside the repo, not committed.
 
 ## Design contract — measured, not taste
