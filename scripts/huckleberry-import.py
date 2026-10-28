@@ -84,6 +84,15 @@ OVERRIDES = {
     ("kai", "2026-03-11", "weightGrams"): 3530,
 }
 
+# Fields to leave OUT of a row whose source value cannot be true. The 2026-03-11 measurement is the case:
+# its length and head describe a baby 6-8 weeks younger (404 -> 498 mm and 320 -> 380 mm head inside 16
+# days is not growth), so the row is either mis-dated or was mistyped. Its weight is kept — corrected to
+# 3.53 kg it sits smoothly between 1409 g at birth and 3867 g on 27 March — while the two impossible
+# measurements stay absent, which is what the app already means by "not recorded".
+DROP_FIELDS = {
+    ("kai", "2026-03-11"): ("lengthMm", "headMm"),
+}
+
 # The app has two reactions; Huckleberry's "HATED" has no home and is carried into the note instead.
 REACTION = {"loved": "LOVED_IT", "allergic": "ALLERGY_OR_SENSITIVITY"}
 
@@ -313,6 +322,9 @@ def events_from_csv(child_id: str, path: str) -> tuple[list[dict], Counter]:
                 if (fixed := OVERRIDES.get((child_id, day, field))) is not None:
                     base[field] = fixed
                     unmapped[f"growth:override-{field}"] += 1
+                if field in DROP_FIELDS.get((child_id, day), ()):
+                    base.pop(field, None)
+                    unmapped[f"growth:dropped-{field}"] += 1
             if "weightGrams" not in base and "lengthMm" not in base and "headMm" not in base:
                 note_problem(f"{child_id} {row['Start']}: measurement with nothing readable — skipped")
                 counts["GROWTH:skipped"] += 1

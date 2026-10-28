@@ -1817,11 +1817,22 @@ the outbox drained to 0, which is what sends it.
 
 ### What the source data still gets wrong, and is not ours to fix
 
-- **The 2026-03-11 measurement has an impossible length and head** — 404 → 498 mm and 320 → 380 mm head
-  inside 16 days — alongside the weight that was corrected. The chart shows that jitter.
+- **The 2026-03-11 measurement was closed on 2026-10-28 by keeping only its weight.** As first imported the
+  row carried `3.78lbs.oz`, `1.39ft.in` and `32cm`: a length that grows 404 → 498 mm and a head 320 → 380 mm
+  inside 16 days, which is not growth, so the row is either mis-dated or mistyped. The weight was corrected
+  to 3.53 kg by the owner and sits smoothly between 1409 g at birth and 3867 g on 27 March; the two
+  impossible measurements are now **absent**, which is what the app already means by "not recorded", rather
+  than present and wrong on a percentile chart. `DROP_FIELDS` in the converter carries the rule and the reason.
+- **Length readings still wobble in the source** — 59.0 → 55.8 cm across a week for one twin, 44.0 → 41.0 cm
+  and 56.0 → 54.0 cm for the other. Those are plausible measurement error between two people and one
+  wriggling baby, not impossible values, so they are imported as recorded: suppressing them would be editing
+  the log. They show as jitter on the Length chart and are worth re-measuring, not deleting.
 - **The CSV export covers 9–18 Oct only**; 19–28 Oct were transcribed from four screenshots by hand, which
   is why the converter accepts repeated `--kai` / `--levi` files in the same shape.
 - **A bottle with no volume** (second twin, 21 Oct 06:00) stays volumeless: the app must not invent one.
+- **The second phone has still never been attached**, so the imported log has only been *inferred* to be
+  there from an outbox that drained to 0. It is the one open item on this work; closing it needs that device
+  connected, not another code change.
 
 ## Phase 16 — Update delivery
 

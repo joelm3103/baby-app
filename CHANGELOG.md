@@ -88,6 +88,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   silent no-op — `HomeViewModel.save` returns when `childIds` is empty — so a parent could fill a form and be
   told nothing. `ActivityScreen` now skips the cards entirely while there are no children, and the card's
   second line says the cards will appear.
+- **The 2026-03-11 measurement is now only its weight.** That row also claimed a length growing 404 → 498 mm
+  and a head 320 → 380 mm in 16 days, which no baby does; the weight stays at the 3.53 kg the owner ruled
+  and the two impossible measurements are dropped rather than imported-and-wrong. `DROP_FIELDS` in the
+  converter holds the rule, and the Length chart no longer plots a point the source cannot support.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `0.18.1`, 2026-10-28
 
@@ -106,8 +110,9 @@ its `-wal` and `-shm`**, or a bare `babylog.db` reports the state before the las
 `outbox 30` while the truth was 0); and a renamed child is saved on **every keystroke** in `ChildEditor`,
 so the `Add child` button under it is not its save button — tapping it creates a second child.
 
-Not performed: the import path on the phone (it needs a backup file and two accounts' worth of rows; it is
-covered by `SyncRepositoryTest`'s reconcile tests), and the second phone, which was not attached.
+Not performed on the day: the import path on the phone (it needs a backup file and two accounts' worth of
+rows; it is covered by `SyncRepositoryTest`'s reconcile tests) — **that was driven later the same day**, see
+the Huckleberry pass below — and the second phone, which was never attached.
 
 ### Verified on the phone — Huckleberry import, `<handset>`, 2026-10-28
 
