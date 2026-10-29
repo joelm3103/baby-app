@@ -132,6 +132,9 @@ Rules learned the hard way:
 - **Delivery is a manual Firebase App Distribution upload** — no Gradle plugin, no service-account key, no
   `firebase-tools` (ADR-0001 in `docs/DECISIONS.md`). A build that was not uploaded through the console has
   not been delivered, whatever the build log says.
+- **The GitHub release for a tag carries the same signed APK as a copy, not as a second process.** It is there
+  for a channel that cannot serve — a replacement phone, a tester never invited — so the digest is checked
+  before installing from it, and "ship the next build" still starts in App Distribution.
 - **`versionCode` is a contract now**, because App Distribution compares it to decide what is newer: it only
   rises, and a landed rung is never renumbered.
 - **A tag is cut only on a delivered build**, after a phone reports the version, never when a phase ends.

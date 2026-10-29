@@ -85,7 +85,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   tag is cut on a delivered build.
 - **`docs/DECISIONS.md`, starting with ADR-0001** — release-key custody and the deliberately manual delivery
   channel: no Gradle plugin, no service-account key, no `firebase-tools`, and what that costs. The repo's first
-  genuinely hard-to-reverse decision, written down where a future reader will look for it.
+  genuinely hard-to-reverse decision, written down where a future reader will look for it. Amended after
+  publication: the GitHub release for `v1.0.0` also carries the APK (`baby-log-v1.0.0.apk`, 14 675 571 bytes,
+  `sha256:4dac7cfb…43bca`), as a copy for a channel that cannot serve rather than a second release process.
 
 ### Changed
 

@@ -43,8 +43,7 @@ also where the tester list and the upload history live.
 
 - **The keystore is irreplaceable.** Losing the `.jks` or its password ends over-the-air updates for the
   app already installed: every phone must uninstall first. Back it up outside the Syncthing folder; never
-  regenerate it, and `create-release-keystore.ps1` refuses to overwrite one that exists.
-- **The certificate never changes**, so its SHA-1 is registered once on the Firebase Android app entry and
+  regenerate it, and `create-release-keystore.ps1` refuses to overwrite one that exists.- **The certificate never changes**, so its SHA-1 is registered once on the Firebase Android app entry and
   every later release keeps Google Sign-In working. Changing the key also means re-registering, on top of
   the uninstall.
 - **`versionCode` becomes a contract**, because App Distribution decides "newer" from it. It only rises, and
@@ -54,3 +53,20 @@ also where the tester list and the upload history live.
   rather than failing the build.
 - **No CI can publish.** That is the point: nothing can deliver a build without the owner's machine and the
   owner's key.
+
+### Amendment, 2026-10-29 — the release page also carries the APK
+
+Recorded after the tag was published: **the GitHub release for `v1.0.0` holds the built APK as an asset**
+(`baby-log-v1.0.0.apk`, 14 675 571 bytes, `sha256:4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca`,
+which is the digest the installing phone reported back). This does not replace the decision above.
+
+- **App Distribution remains the delivery channel for a new build**, because that is where `versionCode` is
+  compared, the tester list lives and the phone is told something newer exists. The release asset is a copy of
+  an already-released build, not a release process: nothing about "ship 1.0.1" starts on GitHub.
+- **It exists for the case the channel cannot serve** — a replacement phone, a tester who was never invited, or
+  the console being unreachable — and for that it has to be the *same signed artifact* rather than a rebuild.
+  A rebuild would be signed by the same key but would not be byte-identical, so its digest is what must be
+  checked before installing: `gh release view v1.0.0 --json assets --jq '.assets[].digest'`.
+- **Two hosts, one artifact.** The cost is that the same APK now exists in two places and either could be
+  replaced by hand; the digest above is the thing that makes them comparable, so a future release should have
+  its own recorded beside it.

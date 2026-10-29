@@ -86,6 +86,25 @@ long-lived secret to guard.
 App Distribution is also what makes `versionCode` mean something beyond history: it compares the number to
 decide whether a build is newer, which is why it only ever rises.
 
+### The release page carries a copy, and it is not a second process
+
+The GitHub release for a tag holds the same signed APK — for `v1.0.0` that is `baby-log-v1.0.0.apk`,
+14 675 571 bytes, `sha256:4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca`. It exists for the
+case the console cannot serve — a replacement phone, a tester never invited — and **not** as the way to ship
+the next build: version comparison, the tester list and "something newer exists" all live in App Distribution.
+
+Because the same APK now sits in two places, the digest is what makes them comparable. Check it before
+installing from the release page:
+
+```bash
+gh release view v1.0.0 --json assets --jq '.assets[] | "\(.name) \(.size) \(.digest)"'
+# baby-log-v1.0.0.apk 14675571 sha256:4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca
+```
+
+A rebuild from the same source would be signed by the same key but would **not** be byte-identical, so a
+matching digest is the only proof that the file is the one that was released. Record each future release's
+digest beside its asset.
+
 **Moving a phone onto the release key**, which happens exactly once per phone: drain the queue (`Sync now`
 until 0), **Export** a backup off the device, let the old build be uninstalled (the signature changed, so
 the installer refuses to update it in place), install from App Distribution, sign in, and let the log
