@@ -68,9 +68,38 @@ class ReminderTextTest {
     }
 
     @Test
-    fun `an interval reminder with no anchor still says something useful`() {
+    fun `an interval reminder for an activity that has never been logged states the fact`() {
+        // Phase 14 deferred this wording as A3 and kept it, because the old line was honest about there being no
+        // interval. It was not honest about the word: `Time to log solid` / `Time to log diaper` came from
+        // `displayName()` lowercased rather than from `noun()`, so it also called a nappy a diaper.
         val text = ReminderText.text(afterLast, EventType.SOLIDS, anchorMs = null, now, zone, TimeFormat.TWELVE_HOUR)
-        assertEquals("Time to log solids", text)
+        assertEquals("No solids logged yet", text)
+    }
+
+    @Test
+    fun `the never-logged line uses the app's own word for each reminder activity`() {
+        // The four activities that can carry a reminder (`REMINDER_TYPES`), not all six: Growth and Sleep have
+        // no reminder, so their words cannot reach a notification.
+        val expected = mapOf(
+            EventType.BOTTLE to "No feed logged yet",
+            EventType.DIAPER to "No nappy logged yet",
+            EventType.SOLIDS to "No solids logged yet",
+            EventType.HEALTH to "No health entry logged yet",
+        )
+        expected.forEach { (type, line) ->
+            val text = ReminderText.text(afterLast, type, anchorMs = null, now, zone, TimeFormat.TWELVE_HOUR)
+            assertEquals(line, text)
+            assertTrue("$type must not claim an interval it cannot measure: $text", !text.contains("since"))
+            assertTrue("$type must not reuse the old instruction: $text", !text.startsWith("Time to log"))
+        }
+    }
+
+    @Test
+    fun `an anchor later than now claims no interval, because none has elapsed`() {
+        // Only reachable through a clock change, and saying "No nappy logged yet" there would be false.
+        val later = at("2026-10-24", "13:00")
+        val text = ReminderText.text(afterLast, EventType.DIAPER, later, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Logged for 1:00 PM", text)
     }
 
     @Test

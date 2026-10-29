@@ -33,6 +33,12 @@ object ReminderText {
      *
      * The elapsed time is measured from the anchor the rule actually used, so a reminder delayed by the night
      * window cannot be misread as a fresh one: at 06:00 it says seven hours, not "time to feed again".
+     *
+     * An interval with **no log to measure from** states that fact and nothing else: `No solids logged yet`.
+     * It used to read `Time to log solids` — and, through [EventType.displayName] lowercased, `Time to log
+     * diaper`, which is not a sentence and names the wrong word for what the rest of the app calls a nappy.
+     * A fact cannot be wrong about an interval that does not exist, which is why the line stops instructing
+     * (Phase 14 deferred this as A3; `PLAN.md` records the ruling).
      */
     fun text(
         config: ReminderConfig,
@@ -44,10 +50,13 @@ object ReminderText {
     ): String = when (config.mode) {
         ReminderMode.AFTER_LAST -> {
             val since = anchorMs?.let { now - it }?.takeIf { it > 0 }
-            if (since == null || anchorMs == null) {
-                "Time to log ${type.displayName().lowercase()}"
-            } else {
-                "${elapsedFor(since)} since the last ${noun(type)} \u00b7 ${clockTime(anchorMs, zone, format)}"
+            when {
+                anchorMs == null -> "No ${noun(type)} logged yet"
+                // An anchor LATER than now is only reachable through a clock change. Saying "no nappy logged
+                // yet" would then be false, so this states what the log holds instead of claiming an interval
+                // that has not elapsed.
+                since == null -> "Logged for ${clockTime(anchorMs, zone, format)}"
+                else -> "${elapsedFor(since)} since the last ${noun(type)} \u00b7 ${clockTime(anchorMs, zone, format)}"
             }
         }
         ReminderMode.FIXED_TIMES -> "Reminder for ${clockTime(now, zone, format)}"
