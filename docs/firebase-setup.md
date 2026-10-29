@@ -218,6 +218,42 @@ look for that line in `adb logcat | grep Firestore` before touching any code. Pu
 enough to prove the promise end to end: a copy of the bundled JSON with only `version` and `retrievedAt`
 bumped and the SHA-256 recomputed moves the identity line without changing a single percentile.
 
+## Withdrawing a dataset (0.19.0)
+
+A phone accepts a dataset only when it is **newer** than what it holds, so a bad publish could be superseded but
+never taken back — the only rescue was clearing the app's data. The manifest now carries one optional field that
+says so:
+
+```json
+{
+  "datasetVersion": "who-2006.2026.11",
+  "sha256": "2df3475…18cb5c",
+  "retrievedAt": "2026-11-01",
+  "withdrawn": true
+}
+```
+
+Set `withdrawn: true` on the document that names the version you want recalled, keeping `datasetVersion`,
+`sha256` and `retrievedAt` as they were. The field is optional and defaults to false, so every manifest
+published before 0.19.0 keeps parsing.
+
+What the phone does on its next check — the 90-day silent check on app start, or **Check for updates** in
+Growth / Settings:
+
+- deletes its cached copy of the dataset (`files/growth/updated.json`);
+- clears the two preferences that remember what it downloaded (`growth.dataset.version`, `growth.dataset.sha256`);
+- throws away the reference it was holding **in memory**, which is why the old hand rescue needed a force-stop;
+- reverts the identity line to the bundled one and reports *“Dataset withdrawn — back to the bundled reference”*.
+
+Three things worth knowing before you use it:
+
+- **It names exactly one version.** A retraction of a dataset this phone never accepted, or of an older one it
+  has since superseded, is a no-op — the app does not invent an instruction from it.
+- **A phone only learns of it when it checks.** Nothing can be pushed into a phone that never runs a check.
+- **To prove the path end to end**, publish a bumped copy of the bundled JSON first and let the phone accept it
+  (identity line moves), then set `withdrawn: true` on that same version and check again. That is the pass the
+  withdrawal was built against; set the flag back to `false` afterwards.
+
 ## What is still Phase 16
 
 The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above

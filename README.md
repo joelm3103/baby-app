@@ -18,7 +18,7 @@ job and both hostile to it. They change under you, gate the useful parts, and pu
 upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
 that will work the same in two years.
 
-**Status:** `0.17.0`, through Phase 13.5 (built and tested; device pass pending). Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+**Status:** `0.19.0`, through Phase 15 plus the 0.19.0 gap-close (built and tested; the 0.19.0 withdrawal is **not yet device-verified**). Toolchain, theme, domain, Room, repository/settings, the Activity screen,
 the logging sheets, Settings, Summary, Growth, Health, Trends and the sync layer are built and device-verified.
 Phase 14 fixed offline sync reporting and seed draining, and polished activity and metric glyphs, range chips
 and entry labels. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,

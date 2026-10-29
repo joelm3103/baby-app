@@ -209,6 +209,12 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **Adjusted age is a named function on purpose** (`ageDaysForCharts()`). The twins were born
   prematurely; using chronological age for a percentile chart yields a confident wrong
   answer with no error.
+- **A growth dataset can be withdrawn, and only on a check.** An optional `withdrawn: true` on
+  `reference/growth_manifest` makes the phone delete its cached copy, clear `growth.dataset.version` and
+  `growth.dataset.sha256`, reset the in-memory `cachedReference` (no force-stop needed) and report
+  `Dataset withdrawn — back to the bundled reference`. It names exactly ONE version: a retraction of a dataset
+  this phone never accepted is a no-op, never an instruction to revert something newer. Nothing can be pushed
+  to a phone that never checks, so the flag lands on the next silent or manual check.
 - **Screen off if intended: outbox stores intent, not payload** — a stored JSON copy drifts as soon as
   the row is edited again; the drain re-reads by id.
 - Soft-delete only (`deleted` tombstone); sync must propagate deletions.
@@ -248,6 +254,12 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   sheet that falls back to the first child is a reminder edited for the wrong twin. A rule with no logged anchor is
   anchored on when it was set (`anchorAt`), and an overdue interval rings a minute later — returning null in either
   case is a reminder that quietly stops reminding.
+- **A reminder for an activity that child has never logged states the fact** (`No nappy logged yet`), it does not
+  instruct. It used to read `Time to log ${displayName().lowercase()}`, which printed `Time to log diaper` —
+  `displayName` where `noun()` was the right word. It claims no interval, because there is no log to measure
+  from, and a future anchor (only reachable through a clock change) says `Logged for 1:00 PM` rather than
+  inventing one. **Known, unfixed:** such a rule re-arms a minute after every app start, because its `anchorAt`
+  never moves and `refresh()` reads it as overdue — recorded in `PLAN.md`, 2026-10-29.
 - **Anything that opens a reminder must carry the child it is about.** A chip and an Upcoming row both name a child;
   an action that carries only the activity falls back to the first child, which is a reminder edited for the wrong
   twin. Both had that bug before it was seen on the phone.
@@ -324,7 +336,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-554 unit tests through Phase 15, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+565 unit tests through Phase 15 and `0.19.0`, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -355,8 +367,15 @@ only, and `1.0.0` is the first release.
 | | | 14 Polish/Misc changes | `0.16.0` |
 | | | 13.5 dataset channel | `0.17.1` |
 | | | 15 reset to defaults | `0.18.0` |
+| | | 15's own pass (fixes) | `0.18.1` |
+| | | *not a phase:* three recorded gaps closed | `0.19.0` |
 | | | 16 update delivery (first release) | `1.0.0` |
 | | | 17 ship | uses delivered release |
+
+- **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
+  a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
+  never-logged reminder line, the flat-zero Trends axis). The Huckleberry import of 2026-10-28 moved no rung
+  because it shipped none — that is the distinction, not whether the work felt big.
 
 - **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.18.0` → 23); it never goes backwards,
   because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:

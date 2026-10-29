@@ -17,6 +17,113 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-29]
+
+**In short:**
+
+- **Three defects the plan had already written down are closed, and not one of them was found by a test.** A
+  growth dataset a phone had accepted could be superseded but never recalled; the never-logged reminder said
+  `Time to log diaper`; and a volume series with nothing recorded drew an axis reading `0.1 / 0 / 0`.
+- **A dataset can now be withdrawn.** An optional `withdrawn: true` on `reference/growth_manifest` makes the
+  phone drop its cached copy, clear the two preferences that remembered it, reset the in-memory reference and
+  report `Dataset withdrawn — back to the bundled reference` — where the only rescue used to be clearing the
+  app's data and signing in again.
+- **One rung, no phase number.** `0.19.0` / versionCode 25: the first build here that closes defects rather
+  than opening a phase, and it says so in `AGENTS.md`'s ladder.
+- **The device pass was partial, and says so**: the reminder wording and both check rows were seen on the
+  phone, the withdrawal was not, because it needs a manifest published from the Firestore console.
+
+### Versions
+
+- `0.19.0` / `versionCode 25`. A `0.MINOR` rung because withdrawal is a new capability in the update channel,
+  not a fix to an existing one — and because a build goes to the phone either way. No phase number: it closes
+  three recorded defects, and a phase number whose scope is "the things we already wrote down" would make the
+  Status table mean nothing. The next rung is still the first release, `1.0.0`, in Phase 16.
+
+### Added
+
+- **`withdrawn` on the growth manifest, and `GrowthDatasetUpdateResult.Withdrawn`.** `GrowthDatasetManifest`
+  gained `withdrawn: Boolean = false`, read with a default so every manifest published before today keeps
+  parsing. `checkForUpdates()` handles it **before** `isNewer()`: a retraction names the version the phone
+  already holds, which is the one case a version comparison refuses. `withdraw()` deletes the cache file,
+  removes `growth.dataset.version` and `growth.dataset.sha256`, resets the in-memory `cachedReference` and
+  re-emits `identityLine`; `markChecked()` runs either way so a retraction that does not apply cannot loop.
+  It recalls **only the version it names** — a notice for a dataset this phone never accepted is a no-op, never
+  an instruction to revert something newer.
+- **`GrowthDatasetUpdateResult.message()`, beside the sealed interface.** `GrowthViewModel` and
+  `SettingsViewModel` both ran their own `when` over the same four results; they now call one function, because
+  a duplicated result→sentence mapping is how two screens stop agreeing about the same event.
+- **`ticksWithDistinctLabels()` in the shared axis maths.** Gridlines whose formatted labels repeat are
+  dropped rather than relabelled. **Applied by Trends only** — Growth's percentile axis still draws `yTicks`
+  through `unit.format` with no such filter, which is recorded in `PLAN.md` as a gap rather than silently
+  left to look fixed.
+- **`docs/firebase-setup.md`: how to withdraw a dataset by hand** — the field, the three things worth knowing
+  (it names one version, it only lands on a check, and how to prove the path end to end), and the note that
+  the old two-step rescue is history.
+
+### Changed
+
+- **A volume series with nothing recorded draws one gridline at zero, not a fabricated scale.** `yRangeFor`
+  invented a 1.0 span for flat all-zero data, padded it to `0f..0.08f`, and `yTicks` then stepped by 0.02 —
+  three gridlines of which two rounded to the same number. It now returns a zero-span range when `floorAtZero`
+  is set and nothing was recorded, which `yTicks` collapses to a single line at zero.
+- **The `0.19.0` rung is recorded as a rung, not a phase** — in `AGENTS.md`'s ladder, in `PLAN.md`'s versions
+  paragraph, and under its own dated section in `PLAN.md`, because "work that ships application code takes a
+  number" is a rule that was only implied by the Huckleberry import moving none.
+
+### Fixed
+
+- **The reminder for an activity that child has never logged now states the fact: `No health entry logged
+  yet`.** It used to read `Time to log ${displayName().lowercase()}`, which printed `Time to log diaper` and
+  called a nappy a diaper; the app's own `noun()` already existed for that sentence. It claims no interval,
+  because there is no log to measure from. The case of an anchor later than now — reachable only through a
+  clock change — says `Logged for 1:00 PM` instead of asserting that nothing was ever logged.
+- **A comment that was wrong about its own fix.** The shared guard's KDoc claimed Growth's percentiles were
+  covered too; `PercentileChart.kt` draws `yTicks` through `unit.format` with no such filter. The comment was
+  corrected and the gap recorded instead of widening what the rung was approved to do — a comment that
+  overstates its reach is how the next reader concludes a defect is already handled.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `0.19.0`, 2026-10-29 (partial)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install -r`; foreground before any input | `topResumedActivity=app.babylog/.MainActivity`; `versionName=0.19.0 versionCode=25` ✅ |
+| 2 | A 30 m Health reminder for a child with **zero** health rows | `dumpsys alarm` → `RTC_WAKEUP origWhen=2026-10-29 00:02:34.690 window=0 exactAllowReason=policy_permission`; it rang at 12:02 AM ✅ |
+| 3 | The notification's words | **`Kai · Health` / `No health entry logged yet`**, colour `0xffff7bc0` (the Health accent), `channel=reminders`, `category=reminder` ✅ |
+| 4 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`; 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
+| 5 | The all-zero volume window | **Not reproducible on this log** — both children have a volume in every offered window, so the single-`0` axis rests on `TrendChartAxisTest` alone ⚠️ |
+| 6 | Both check rows after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`; the same from the Growth pane; identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026` ✅ |
+| 7 | The log after the pass | database pulled with its `-wal` and `-shm` following a force-stop: `events 221` (the import's counts by type), `children 2`, `outbox 0`, `user_version 3` ✅ |
+| 8 | The withdrawal on a phone | **Not performed** — it needs a manifest published from the Firestore console, and the four `GrowthDatasetRepositoryTest` cases are the only evidence ❌ |
+| 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, the reminder, the charts, both checks and the database pull ✅ |
+
+The reminder set for the pass was removed afterwards: its `⋮` offered only `Set reminder`, the Upcoming card
+was gone and `dumpsys alarm` held no babylog alarm. **Found on the phone and not fixed:** a never-logged
+`AFTER_LAST` rule re-arms a minute after every app start, because its `anchorAt` never moves and `refresh()`
+reads it as overdue — it rang at 00:02 with the app closed and again at 00:07, a minute after a relaunch.
+That is the nagging `AGENTS.md` rules out, and it is recorded for a decision rather than quietly patched.
+
+### Tests
+
+- **554 → 565: eleven net, and one test replaced rather than added.** Two in `GrowthDatasetManifestTest` (a
+  three-field document still parses with the flag absent, and an explicit `false` agrees with it; then a `true`
+  is read as a retraction carrying its version), five in `GrowthDatasetRepositoryTest` (the revert clears the
+  file and both keys from a **second** instance, the revert needs no restart, a withdrawal for a
+  never-accepted dataset is a no-op, a newer dataset is not recalled by an older notice, and all four
+  `message()` sentences), **two net** in `ReminderTextTest` (the fact form, the four activities by name, and
+  the future-anchor case — one test was replaced by three), and two in `TrendChartAxisTest` (one zero gridline
+  for an all-zero volume series; eight ranges whose kept labels are all distinct).
+- **Every fix was red first.** The withdrawal cases failed 3 of 11 against a disabled branch; the three
+  reminder cases failed against the old `ReminderText`; both axis cases failed with the two mechanisms disabled.
+  The suite is 565 with 0 failures, 0 errors and 0 skipped, summed from the 55 XML files under
+  `app/build/test-results/testDebugUnitTest/`, and the file count rose 54 → 55 for the one new class.
+- **One "red" was not one.** The first attempt at the withdrawal red failed to *compile* (a missing
+  `kotlinx.coroutines.flow.first` import), which proves nothing about behaviour either way; it was fixed and
+  the red re-taken, and only the second run is counted above. The fourth withdrawal case is a guard rather
+  than a detector — it passes against the disabled branch because its expected outcome coincides with it.
+- **The withdrawal's phone half has no test standing in for it.** Four cases prove the repository reverts; none
+  of them proves the server can actually issue the retraction, which is `Firestore`'s job and needs the console.
+
 ## [2026-10-28]
 
 **In short:**

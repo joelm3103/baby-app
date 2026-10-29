@@ -66,7 +66,10 @@ the first release. **Landed rungs are never renumbered**, even where a phase's n
 Phase 14 is `0.16.0` / versionCode 20, Phase 13.5 is `0.17.1` / versionCode 22 and Phase 15 is `0.18.0` /
 versionCode 23 with `0.18.1` / versionCode 24 as its two passes' fixes, so the ladder rises in **landing**
 order rather than in phase-number order — and a phase that is amended by its own device pass keeps the one
-rung, because a second build from one phase's work is not a second phase. The next rung
+rung, because a second build from one phase's work is not a second phase. **Work that ships application code
+takes a rung even when it is not a phase**: `0.19.0` / versionCode 25 (2026-10-29) closed three recorded
+defects and carries the next number, while the Huckleberry import moved none because it shipped no code. The
+remaining rung
 is the first release: Phase 16 delivers `1.0.0`. Landed rungs are listed in dated `CHANGELOG.md`
 sections under `### Versions`; the rule is in `AGENTS.md`.
 Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 16. The original scheme note
@@ -102,9 +105,13 @@ The owner asked for the phase numbers to run in the order the work actually happ
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.18.1, versionCode 24); `:app:testDebugUnitTest` is **554/554**
-with 0 failures, 0 errors and 0 skipped, summed from the 54 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-28 (549 at the Phase-15 close, +4 in `0e0c744` and
+Verified: `:app:assembleDebug` builds (0.19.0, versionCode 25); `:app:testDebugUnitTest` is **565/565**
+with 0 failures, 0 errors and 0 skipped, summed from the 55 XML files under
+`app/build/test-results/testDebugUnitTest/` on 2026-10-29 (554 at the Phase-15/Huckleberry close, +11 in
+`0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
+two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
+rose 54 → 55 for the one new class. **That rung's withdrawal is not device-verified**, see its own section);
+549 at the Phase-15 close, +4 in `0e0c744` and
 +1 in the pass that fixed what the pass found; 538 at the Phase-13.5 close, +11 in Phase 15:
 four `MaintenanceRepositoryTest`, two `SettingsRepositoryTest`, five `SyncRepositoryTest`). (537 at the
 Phase-13.5 code close, +1 for the
@@ -1537,6 +1544,16 @@ A `withdrawn` flag on the manifest, or treating a manifest equal to the bundled 
 would close this. **It is not built.** It belongs to whichever phase next touches the growth reference; nothing
 in Phases 15-17 depends on it, which is why it is recorded here rather than opened as a phase on its own.
 
+> **CLOSED 2026-10-29, in `0.19.0`** — the `withdrawn` flag was the route taken, not the equal-to-bundled
+> heuristic: a dataset that is neither bundled nor cached has no way to be recalled under a heuristic, and
+> "go back to bundled" would be inferred rather than stated. A withdrawn manifest now deletes the cache file,
+> clears both DataStore keys, resets the in-memory reference **and so needs no force-stop**, reverts the
+> identity line and reports *"Dataset withdrawn — back to the bundled reference"*. It names exactly one
+> version, so a retraction for a dataset this phone never accepted is a no-op. The two-step rescue described
+> above is history, not the procedure: see `docs/firebase-setup.md`.
+> **Not device-verified** — the phone half needs a manifest published from the Firestore console, which was not
+> done on the day; the behaviour is covered by four cases in `GrowthDatasetRepositoryTest`.
+
 ## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
 
 Eight findings the owner ruled on while closing Phase 13.4, given one phase and one branch because each is
@@ -1556,7 +1573,7 @@ recorded so a later pass does not re-open them:
 | 14.9 | Range chips: `D · 1W · 2W` and `1W · 2W · 1M` (C10, revised) | **relabelled** |
 | 14.10 | A bottle card with no amount read `Bottle` over `Bottle feed` (found on the phone, 2026-10-26) | **fixed** |
 | — | The chip clipping was fine (B7); `Reminders differ` stays gone (A4); the `8:55 PM` tombstone stays deleted (A2); phases land in the order they are done (C12) | **closed, no code** |
-| — | The "never logged this activity" notification wording (A3) | **deferred, unchanged** |
+| — | The "never logged this activity" notification wording (A3) | **deferred, unchanged** — *closed 2026-10-29 in `0.19.0`: now states the fact (`No nappy logged yet`) through `noun()` instead of printing `Time to log diaper`* |
 
 ### As built
 
@@ -1851,6 +1868,76 @@ mistake as the stale `uiautomator` tree recorded under Phase 9.
 - **The second phone has still never been attached**, so the imported log has only been *inferred* to be
   there from an outbox that drained to 0. It is the one open item on this work; closing it needs that device
   connected, not another code change.
+
+## Dataset withdrawal, reminder wording and the Trends axis — 2026-10-29 (`0.19.0`) — partial device pass
+
+**Not a phase, and it takes a rung anyway.** This closed three defects the plan had already written down — the
+known gap above, A3 in Phase 14's table, and the `0.1 / 0 / 0` axis recorded out of scope during Phase 12 — so
+it carries no phase number. It ships application code, so it takes `0.19.0` / versionCode 25; the Huckleberry
+import moved no rung because it shipped none. One branch, `feat/growth-withdrawal-and-copy`.
+
+| # | What | Ruling |
+|---|---|---|
+| 1 | A dataset a phone accepted cannot be withdrawn | **`withdrawn` flag on the manifest** — not the equal-to-bundled heuristic |
+| 2 | The never-logged reminder line (A3) | **states the fact** — `No solids logged yet`, not `Time to log solids` |
+| 3 | A volume series with nothing recorded | **one gridline at zero**, and no axis may repeat a label |
+
+### As built
+
+- **A withdrawal is a third outcome of the check, not a version comparison.** `GrowthDatasetUpdateResult`
+  gained `Withdrawn(version)`, handled before `isNewer()` because a retraction names the version the phone
+  already holds. `withdraw()` deletes the cache file, removes `growth.dataset.version` and
+  `growth.dataset.sha256`, resets the in-memory `cachedReference` and re-emits `identityLine`; `markChecked()`
+  runs either way, so a retraction that does not apply cannot make the next check re-fetch in a loop. Only the
+  version the manifest NAMES is recalled.
+- **The sentence lives in one function.** `GrowthDatasetUpdateResult.message()` sits beside the sealed interface
+  and both `GrowthViewModel` and `SettingsViewModel` call it; the two duplicated `when`s it replaced are gone.
+  The fourth branch went into both `when`s first, to keep the tree compiling, and the shared function removed
+  the duplication in the same work — so no state of this branch failed to type-check.
+- **The never-logged reminder names the fact.** `AFTER_LAST` with no anchor returns `No ${noun(type)} logged
+  yet`, and the separate case of an anchor LATER than now (reachable only through a clock change) says
+  `Logged for 1:00 PM` rather than claiming an interval that has not elapsed.
+- **The axis cannot fabricate a scale.** `yRangeFor` returns a zero-span range when every value is zero and
+  `floorAtZero` is set, which `yTicks` collapses to one line at zero; and a new shared
+  `ticksWithDistinctLabels` drops gridlines whose formatted labels repeat. **Applied by Trends only** — Growth's
+  percentiles draw `yTicks` through `unit.format` and still have no repeat filter: recorded here as a gap, not
+  fixed, because it is outside the work this rung was approved for.
+
+### Device pass, 2026-10-29, `<handset>` — partial
+
+`0.19.0` / versionCode 25 installed over `0.18.1`; `topResumedActivity=app.babylog/.MainActivity` before any
+input; tap coordinates from `uiautomator dump`; `adb` called with Windows-native paths.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Install and version | `versionName=0.19.0 versionCode=25` from the installed package ✅ |
+| 2 | The never-logged reminder fires, and says the fact | A 30 m Health reminder for Kai (Health has **zero** rows: `BOTTLE 104, DIAPER 80, GROWTH 19, SOLIDS 14, SLEEP 4`) armed as `RTC_WAKEUP origWhen=2026-10-29 00:02:34.690 window=0 exactAllowReason=policy_permission`, fired at 12:02 AM, and the notification read **`Kai · Health` / `No health entry logged yet`** — the A3 wording, from the real alarm path ✅ |
+| 3 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`, 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
+| 4 | The all-zero volume window | **Not reproducible on this log**: both children have a volume in every offered window (Kai's newest feed 19 h ago, Levi's 18 h 58 m). The single-`0` axis is covered by `TrendChartAxisTest` and by nothing on the phone ⚠️ |
+| 5 | Both check rows still report correctly after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`, and the same from the Growth pane; identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026` ✅ |
+| 6 | The log is intact | database pulled with its `-wal` and `-shm` after a force-stop: `events 221` (the import's own counts), `children 2`, `outbox 0`, `user_version 3` ✅ |
+| 7 | The withdrawal itself | **Not performed.** It needs a manifest published from the Firestore console, which was not done; four cases in `GrowthDatasetRepositoryTest` are the only evidence ❌ |
+| 8 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, the reminder, the charts, both checks and the database pull ✅ |
+
+The reminder set for the pass was removed afterwards: its `⋮` then offered only `Set reminder`, the
+`Upcoming reminders` card was gone and `dumpsys alarm` held no babylog alarm.
+
+### Found on the phone, not fixed here
+
+- **A never-logged reminder re-fires about a minute after every app start.** It rang at 00:02 with the app
+  closed, then again at 00:07 about a minute after a force-stop and relaunch. `Reminders.fire()` arms nothing
+  for `AFTER_LAST`, but `refresh()` recomputes `anchorAt + interval`, which is already in the past because the
+  set-time anchor never moves, so the overdue branch rings a minute later. That is the nagging `AGENTS.md`
+  rules out ("fires ONCE per anchor … re-arming would nag a parent who simply has not fed yet") and it needs a
+  decision, not a quiet fix: the honest options are to remember the last fire per key, or to stop treating an
+  anchor that is the set time as overdue.
+- **Growth's percentile axis can still draw two gridlines reading the same number** — see *As built* above.
+
+### Not performed, and why
+
+- The withdrawal on a real phone (the owner publishes the manifest; the console is not reachable from here).
+- The second phone, as in every pass since the import.
+- The all-zero volume window, for want of data.
 
 ## Phase 16 — Update delivery
 
