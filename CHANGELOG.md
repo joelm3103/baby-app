@@ -100,6 +100,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 | 10 | Both check rows after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`; the same from the Growth pane ✅ |
 | 11 | The log after the pass | database pulled with its `-wal` and `-shm` following a force-stop: `events 221`, `children 2`, `outbox 0`, `user_version 3` ✅ |
 | 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the installs, the reminder, the charts, the publish/withdraw pair, the relaunch and the database pull ✅ |
+| 13 | The cloud side restored to the bundled reference | *Check for updates* → `Already up to date`, identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026`, `files/growth/` still empty ✅ |
 
 The reminder set for the pass was removed afterwards: its `⋮` offered only `Set reminder`, the Upcoming card
 was gone and `dumpsys alarm` held no babylog alarm. **Found on the phone and not fixed:** a never-logged

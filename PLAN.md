@@ -1930,6 +1930,7 @@ Firestore console: `reference/growth_dataset` carrying `logs/bumped-2026.11.json
 | 9 | Both check rows still report correctly after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`, and the same from the Growth pane ✅ |
 | 10 | The log is intact | database pulled with its `-wal` and `-shm` after a force-stop: `events 221` (the import's own counts), `children 2`, `outbox 0`, `user_version 3` ✅ |
 | 11 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the installs, the reminder, the charts, the publish/withdraw pair, the relaunch and the database pull ✅ |
+| 12 | The cloud side put back | both documents restored to the bundled reference, then a check from Settings → `Already up to date`, identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026`, and `files/growth/` still empty — the refused manifest downloaded nothing ✅ |
 
 The reminder set for the pass was removed afterwards: its `⋮` then offered only `Set reminder`, the
 `Upcoming reminders` card was gone and `dumpsys alarm` held no babylog alarm.
@@ -1949,13 +1950,15 @@ The reminder set for the pass was removed afterwards: its `⋮` then offered onl
 
 - The second phone, as in every pass since the import.
 - The all-zero volume window, for want of data.
-- **The cloud side was left naming the withdrawn dataset.** `reference/growth_manifest` still says
-  `who-2006.2026.11` / `2026-11-01` / `7317…cbf9` with `withdrawn: true`. That is harmless while the flag is
-  there — the phone reads the bundled reference and a check is a no-op — but the server is then serving a
-  document that also declares itself retracted, and the values must not be flipped back to `withdrawn: false`
-  without restoring `datasetVersion` / `retrievedAt` / `sha256` to the bundled
-  `who-2006.2026.10` / `2026-10-15` / `2df347597249d27490e73ae7ca8cce956d5ee1141dfcf1a84fec7fa1f518cb5c`, or the
-  phone re-accepts the synthetic dataset.
+
+### Restored afterwards, 2026-10-29
+
+Both `reference` documents were put back to the bundled reference (`who-2006.2026.10` / `2026-10-15` /
+`2df3475…18cb5c`, and the asset's own bytes in `growth_dataset`), and a check reports `Already up to date` with
+nothing downloaded. The caution that outlives the test: **never flip `withdrawn` to `false` while
+`datasetVersion` still names a newer version** than the bundled one — the phone would re-accept the synthetic
+dataset, and because only a *newer* version is accepted, getting back to bundled would then need another
+withdrawal. Withdraw it, or restore the version with the flag.
 
 ## Phase 16 — Update delivery
 
