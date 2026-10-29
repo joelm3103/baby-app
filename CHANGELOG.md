@@ -30,8 +30,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   app's data and signing in again.
 - **One rung, no phase number.** `0.19.0` / versionCode 25: the first build here that closes defects rather
   than opening a phase, and it says so in `AGENTS.md`'s ladder.
-- **The device pass was partial, and says so**: the reminder wording and both check rows were seen on the
-  phone, the withdrawal was not, because it needs a manifest published from the Firestore console.
+- **The device pass ended fully verified**: the reminder wording on the phone, both check rows, and then the
+  withdrawal itself against the real server — the bumped copy accepted, the retraction taken, the cache file and
+  both preferences gone, and the dataset not re-adopted on relaunch.
 
 ### Versions
 
@@ -83,19 +84,22 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   corrected and the gap recorded instead of widening what the rung was approved to do — a comment that
   overstates its reach is how the next reader concludes a defect is already handled.
 
-### Verified on the phone — `<handset>` (SM-S918U1), `0.19.0`, 2026-10-29 (partial)
+### Verified on the phone — `<handset>` (SM-S918U1), `0.19.0`, 2026-10-29
 
 | # | Check | Result |
 |---|---|---|
 | 1 | `install -r`; foreground before any input | `topResumedActivity=app.babylog/.MainActivity`; `versionName=0.19.0 versionCode=25` ✅ |
 | 2 | A 30 m Health reminder for a child with **zero** health rows | `dumpsys alarm` → `RTC_WAKEUP origWhen=2026-10-29 00:02:34.690 window=0 exactAllowReason=policy_permission`; it rang at 12:02 AM ✅ |
 | 3 | The notification's words | **`Kai · Health` / `No health entry logged yet`**, colour `0xffff7bc0` (the Health accent), `channel=reminders`, `category=reminder` ✅ |
-| 4 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`; 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
-| 5 | The all-zero volume window | **Not reproducible on this log** — both children have a volume in every offered window, so the single-`0` axis rests on `TrendChartAxisTest` alone ⚠️ |
-| 6 | Both check rows after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`; the same from the Growth pane; identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026` ✅ |
-| 7 | The log after the pass | database pulled with its `-wal` and `-shm` following a force-stop: `events 221` (the import's counts by type), `children 2`, `outbox 0`, `user_version 3` ✅ |
-| 8 | The withdrawal on a phone | **Not performed** — it needs a manifest published from the Firestore console, and the four `GrowthDatasetRepositoryTest` cases are the only evidence ❌ |
-| 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, the reminder, the charts, both checks and the database pull ✅ |
+| 4 | The accept path, against the real server | A bumped manifest (`who-2006.2026.11`, `2026-11-01`, SHA-256 `7317…cbf9`) published from the console → row `Updated to who-2006.2026.11`, line `WHO 2006 · v2026.11 · updated 1 Nov 2026`, and `files/growth/updated.json` on disk hashed to the published `7317…cbf9` ✅ |
+| 5 | The withdrawal, same manifest plus `"withdrawn": true` | Row **`Dataset withdrawn — back to the bundled reference`**, line back to `WHO 2006 · v2026.10 · updated 15 Oct 2026`, **in the same process — no force-stop** ✅ |
+| 6 | The disk cleared, not just the screen | `files/growth/` empty; `settings.preferences_pb` holds neither `growth.dataset.version` nor `growth.dataset.sha256`, while `growth.dataset.lastChecked` is present ✅ |
+| 7 | A relaunch does not re-adopt the withdrawn copy | force-stop + relaunch → still `v2026.10` ✅ |
+| 8 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`; 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
+| 9 | The all-zero volume window | **Not reproducible on this log** — both children have a volume in every offered window, so the single-`0` axis rests on `TrendChartAxisTest` alone ⚠️ |
+| 10 | Both check rows after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`; the same from the Growth pane ✅ |
+| 11 | The log after the pass | database pulled with its `-wal` and `-shm` following a force-stop: `events 221`, `children 2`, `outbox 0`, `user_version 3` ✅ |
+| 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the installs, the reminder, the charts, the publish/withdraw pair, the relaunch and the database pull ✅ |
 
 The reminder set for the pass was removed afterwards: its `⋮` offered only `Set reminder`, the Upcoming card
 was gone and `dumpsys alarm` held no babylog alarm. **Found on the phone and not fixed:** a never-logged
@@ -121,8 +125,9 @@ That is the nagging `AGENTS.md` rules out, and it is recorded for a decision rat
   `kotlinx.coroutines.flow.first` import), which proves nothing about behaviour either way; it was fixed and
   the red re-taken, and only the second run is counted above. The fourth withdrawal case is a guard rather
   than a detector — it passes against the disabled branch because its expected outcome coincides with it.
-- **The withdrawal's phone half has no test standing in for it.** Four cases prove the repository reverts; none
-  of them proves the server can actually issue the retraction, which is `Firestore`'s job and needs the console.
+- **The withdrawal no longer needs a test standing in for it.** Four `GrowthDatasetRepositoryTest` cases prove
+  the repository reverts; the phone pass above proves the server can issue the retraction, that the cached
+  bytes matched the published ones, and that both the file and the preferences are gone afterwards.
 
 ## [2026-10-28]
 

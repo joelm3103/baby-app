@@ -110,7 +110,7 @@ with 0 failures, 0 errors and 0 skipped, summed from the 55 XML files under
 `app/build/test-results/testDebugUnitTest/` on 2026-10-29 (554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
-rose 54 → 55 for the one new class. **That rung's withdrawal is not device-verified**, see its own section);
+rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
 549 at the Phase-15 close, +4 in `0e0c744` and
 +1 in the pass that fixed what the pass found; 538 at the Phase-13.5 close, +11 in Phase 15:
 four `MaintenanceRepositoryTest`, two `SettingsRepositoryTest`, five `SyncRepositoryTest`). (537 at the
@@ -1551,8 +1551,12 @@ in Phases 15-17 depends on it, which is why it is recorded here rather than open
 > identity line and reports *"Dataset withdrawn — back to the bundled reference"*. It names exactly one
 > version, so a retraction for a dataset this phone never accepted is a no-op. The two-step rescue described
 > above is history, not the procedure: see `docs/firebase-setup.md`.
-> **Not device-verified** — the phone half needs a manifest published from the Firestore console, which was not
-> done on the day; the behaviour is covered by four cases in `GrowthDatasetRepositoryTest`.
+> **Device-verified 2026-10-29**, after this note was written: the bumped copy (`who-2006.2026.11`, `2026-11-01`,
+> SHA-256 `7317…cbf9`) was published from the Firestore console and accepted (`Updated to who-2006.2026.11`,
+> cached file byte-identical to the published bytes), then the same manifest with `"withdrawn": true` took it
+> back: `Dataset withdrawn — back to the bundled reference`, the identity line returned to `v2026.10`, the cache
+> file was deleted, both DataStore keys were gone, and a relaunch did not re-adopt it. **The force-stop this
+> note describes is no longer needed** — the in-memory reference is reset. See the section below the phase list.
 
 ## Phase 14 — Polish/Misc changes (`0.16.0`) — DONE, device-verified
 
@@ -1869,7 +1873,7 @@ mistake as the stale `uiautomator` tree recorded under Phase 9.
   there from an outbox that drained to 0. It is the one open item on this work; closing it needs that device
   connected, not another code change.
 
-## Dataset withdrawal, reminder wording and the Trends axis — 2026-10-29 (`0.19.0`) — partial device pass
+## Dataset withdrawal, reminder wording and the Trends axis — 2026-10-29 (`0.19.0`) — DONE, device-verified
 
 **Not a phase, and it takes a rung anyway.** This closed three defects the plan had already written down — the
 known gap above, A3 in Phase 14's table, and the `0.1 / 0 / 0` axis recorded out of scope during Phase 12 — so
@@ -1903,21 +1907,29 @@ import moved no rung because it shipped none. One branch, `feat/growth-withdrawa
   percentiles draw `yTicks` through `unit.format` and still have no repeat filter: recorded here as a gap, not
   fixed, because it is outside the work this rung was approved for.
 
-### Device pass, 2026-10-29, `<handset>` — partial
+### Device pass, 2026-10-29, `<handset>` — DONE, device-verified
 
 `0.19.0` / versionCode 25 installed over `0.18.1`; `topResumedActivity=app.babylog/.MainActivity` before any
 input; tap coordinates from `uiautomator dump`; `adb` called with Windows-native paths.
+
+The withdrawal was exercised **against the real server**, with the bumped copy published by hand from the
+Firestore console: `reference/growth_dataset` carrying `logs/bumped-2026.11.json` (488 449 bytes, `version`
+`who-2006.2026.11`, `retrievedAt` `2026-11-01`, SHA-256 `7317…cbf9`), then the same manifest with
+`"withdrawn": true` added.
 
 | # | Check | Result |
 |---|---|---|
 | 1 | Install and version | `versionName=0.19.0 versionCode=25` from the installed package ✅ |
 | 2 | The never-logged reminder fires, and says the fact | A 30 m Health reminder for Kai (Health has **zero** rows: `BOTTLE 104, DIAPER 80, GROWTH 19, SOLIDS 14, SLEEP 4`) armed as `RTC_WAKEUP origWhen=2026-10-29 00:02:34.690 window=0 exactAllowReason=policy_permission`, fired at 12:02 AM, and the notification read **`Kai · Health` / `No health entry logged yet`** — the A3 wording, from the real alarm path ✅ |
-| 3 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`, 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
-| 4 | The all-zero volume window | **Not reproducible on this log**: both children have a volume in every offered window (Kai's newest feed 19 h ago, Levi's 18 h 58 m). The single-`0` axis is covered by `TrendChartAxisTest` and by nothing on the phone ⚠️ |
-| 5 | Both check rows still report correctly after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`, and the same from the Growth pane; identity line `WHO 2006 · v2026.10 · updated 15 Oct 2026` ✅ |
-| 6 | The log is intact | database pulled with its `-wal` and `-shm` after a force-stop: `events 221` (the import's own counts), `children 2`, `outbox 0`, `user_version 3` ✅ |
-| 7 | The withdrawal itself | **Not performed.** It needs a manifest published from the Firestore console, which was not done; four cases in `GrowthDatasetRepositoryTest` are the only evidence ❌ |
-| 8 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, the reminder, the charts, both checks and the database pull ✅ |
+| 3 | **The accept path** — the bumped manifest, no `withdrawn` field | Row `Updated to who-2006.2026.11`; identity line `WHO 2006 · v2026.11 · updated 1 Nov 2026`; `files/growth/updated.json` on disk at 488 449 bytes whose SHA-256 is `7317…cbf9`, **byte-identical to what was published** ✅ |
+| 4 | **The withdrawal** — `"withdrawn": true` added to that same manifest | Row **`Dataset withdrawn — back to the bundled reference`**; identity line back to **`WHO 2006 · v2026.10 · updated 15 Oct 2026`**; and it did so **in the same process** — the force-stop the 2026-10-26 note required is gone ✅ |
+| 5 | The disk really cleared, not just the screen | `files/growth/` left empty (`updated.json` deleted), and `settings.preferences_pb` no longer holds `growth.dataset.version` or `growth.dataset.sha256` — while `growth.dataset.lastChecked` **is** present, i.e. the check was marked and only the cache forgotten ✅ |
+| 6 | A relaunch does not re-adopt it | force-stop + relaunch → identity line still `v2026.10`, no message ✅ |
+| 7 | The Trends axis on real data | Bottle feed 2W `30 / 20 / 10 / 0`, 1W `25 / 20 / 15 / 10 / 5 / 0` — no two gridlines read the same number ✅ |
+| 8 | The all-zero volume window | **Not reproducible on this log**: both children have a volume in every offered window (Kai's newest feed 19 h ago, Levi's 18 h 58 m). The single-`0` axis is covered by `TrendChartAxisTest` and by nothing on the phone ⚠️ |
+| 9 | Both check rows still report correctly after the refactor | Settings → Growth reference → *Check for updates* → `Already up to date`, and the same from the Growth pane ✅ |
+| 10 | The log is intact | database pulled with its `-wal` and `-shm` after a force-stop: `events 221` (the import's own counts), `children 2`, `outbox 0`, `user_version 3` ✅ |
+| 11 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the installs, the reminder, the charts, the publish/withdraw pair, the relaunch and the database pull ✅ |
 
 The reminder set for the pass was removed afterwards: its `⋮` then offered only `Set reminder`, the
 `Upcoming reminders` card was gone and `dumpsys alarm` held no babylog alarm.
@@ -1935,9 +1947,15 @@ The reminder set for the pass was removed afterwards: its `⋮` then offered onl
 
 ### Not performed, and why
 
-- The withdrawal on a real phone (the owner publishes the manifest; the console is not reachable from here).
 - The second phone, as in every pass since the import.
 - The all-zero volume window, for want of data.
+- **The cloud side was left naming the withdrawn dataset.** `reference/growth_manifest` still says
+  `who-2006.2026.11` / `2026-11-01` / `7317…cbf9` with `withdrawn: true`. That is harmless while the flag is
+  there — the phone reads the bundled reference and a check is a no-op — but the server is then serving a
+  document that also declares itself retracted, and the values must not be flipped back to `withdrawn: false`
+  without restoring `datasetVersion` / `retrievedAt` / `sha256` to the bundled
+  `who-2006.2026.10` / `2026-10-15` / `2df347597249d27490e73ae7ca8cce956d5ee1141dfcf1a84fec7fa1f518cb5c`, or the
+  phone re-accepts the synthetic dataset.
 
 ## Phase 16 — Update delivery
 
