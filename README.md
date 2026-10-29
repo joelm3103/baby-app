@@ -18,7 +18,8 @@ job and both hostile to it. They change under you, gate the useful parts, and pu
 upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
 that will work the same in two years.
 
-**Status:** `1.0.0`, through Phase 16 — the first release rung. Everything below is built, tested and
+**Status:** `1.1.0`, through Phase 17 — five small capabilities on top of the release: a child selector and
+`1Y`/`All` ranges on Trends, an About card, per-activity hiding, and haptics. Everything below is built, tested and
 device-verified, and the app now has a delivery channel that does not need a cable: the release build is
 signed by a key the family owns and goes out as a manual Firebase App Distribution upload, with the
 certificate's SHA-1 registered on the Firebase Android app so Google Sign-In works on a release build.

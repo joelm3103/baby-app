@@ -117,11 +117,12 @@ capabilities rather than one new subsystem.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleRelease` builds and signs (`1.0.0`, versionCode 26, `CN=BabyLog`, SHA-1
-`07:66:EE:…:4F`, on the phone as `versionCode=26`); `:app:testDebugUnitTest` is **565/565**
-with 0 failures, 0 errors and 0 skipped, re-run for Phase 16 over the 55 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-29 — the same 565 the `0.19.0` close recorded, because
-Phase 16 ships no Kotlin. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+Verified: `:app:assembleRelease` builds and signs (`1.1.0`, versionCode 27, `CN=BabyLog`, SHA-1
+`07:66:EE:…:4F`); `:app:testDebugUnitTest` is **579/579**
+with 0 failures, 0 errors and 0 skipped, summed over the 55 XML files under
+`app/build/test-results/testDebugUnitTest/` on 2026-10-29 — 565 plus Phase 17's fourteen. The line before it
+was `1.0.0` / versionCode 26 at 565/565: Phase 16 shipped no Kotlin, so the release rung did not move the
+count. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
