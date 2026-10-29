@@ -44,6 +44,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   not a fix to an existing one — and because a build goes to the phone either way. No phase number: it closes
   three recorded defects, and a phase number whose scope is "the things we already wrote down" would make the
   Status table mean nothing. The next rung is still the first release, `1.0.0`, in Phase 16.
+- `1.1.0` / `versionCode 27` — **Phase 17, five `todo.txt` items**: a child selector and `1Y`/`All` ranges
+  on Trends, an About card, per-activity hiding, and haptics. A `MINOR` rung because it adds capability, and
+  the first rung ABOVE the release: after `1.0.0` the ladder cannot go back to a `0.x` name, which is why
+  this is not the `0.20.0` it was first written as.
 - `1.0.0` / `versionCode 26` — **Phase 16, update delivery, and the first release.** A `MINOR` rung by the
   letter of the rule (`1.0.0` is where the ladder was headed) and the end of the ladder as planned: the
   release build is signed by a key the family owns, delivered by hand through Firebase App Distribution, and
@@ -89,8 +93,39 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   publication: the GitHub release for `v1.0.0` also carries the APK (`baby-log-v1.0.0.apk`, 14 675 571 bytes,
   `sha256:4dac7cfb…43bca`), as a copy for a channel that cannot serve rather than a second release process.
 
+- **`1Y` and `All` on Trends, as buckets rather than a denser line.** `TrendRange` gained a `bucket`
+  (`DAY`/`WEEK`/`MONTH`); `1Y` draws the last 52 weekly buckets ending with this week's Monday, and `All`
+  draws one bucket per calendar month **starting at the first event** — `EventDao.earliestStartedAt` answers
+  when the log begins, because a window from epoch would draw months of zeros before either twin was born and
+  average them into every headline number. `trendHeadlineUnit` names the bucket (`per week`), and the axis
+  thins out past a month instead of drawing ten labels into 294dp.
+- **The child switcher on Trends**, the only tab that had none. The selection was already global and
+  `TrendsViewModel` already resolved it, so this is the shared `ScreenHeader` plus its callback — no new
+  stored state — and picking a child on Trends changes the same selection Activity and Summary read.
+- **`domain/About.kt` and an About card in Settings** — `aboutVersionLine(name, code, debug)` reads
+  `BuildConfig`, so the row a parent would quote in a bug report cannot disagree with the installed APK;
+  `ABOUT_CREDITS` names the two children the app is for; the repository opens with an `ACTION_VIEW` intent
+  (guarded, because a credit must never be able to take Settings down); the WHO 2006 attribution travels with
+  it, and one line says there are no analytics and no trackers.
+- **Per-activity hiding on the Activity tab** — `activities.hidden` in DataStore (a sorted, comma-separated
+  set; an unknown name written by a newer build is dropped rather than thrown on), six toggles in Settings →
+  Activities, `HomeUiState.shownCards` for the filtered list, and an all-hidden empty state that names the way
+  back. A reset clears the set, because first run shows everything.
+- **`ui/common/Haptics.kt`** — one helper owning the whole vocabulary instead of a `HapticFeedbackType` chosen
+  per call site: `tap` for something that acts, `toggle` for a yes/no, `confirm` for a save, `longPress` for
+  the press that starts a delete. Wired at `ChoiceChip`, `PillButton`, `SwitchRow`, `EntryRow`, `SwitcherPill`
+  and the sheet's Save, which covers every chip row, card button, quick pill, toggle and long-press in the app.
+  No preference: `View.performHapticFeedback` already honours the device's touch-feedback setting.
+
 ### Changed
 
+- **A device pass now installs a RELEASE-signed APK.** `1.0.0` was the first release-signed build, so a debug
+  APK has a different certificate and cannot install over it — `adb install -r` answers
+  `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. A pass builds `:app:assembleRelease` (its `versionCode` is above what
+  is installed) and installs that; uninstalling to make a debug build fit would discard the log.
+- **Every caption on a Trends chart now names the bucket it counts.** "7 of 30 days logged", "Days with no
+  records count as zero" and "Best day" became bucket-derived, because a year of weeks that counted days would
+  be describing a different chart from the one drawn.
 - **A new build now reaches the phone as a tap, not as `adb install -r`.** The release APK is uploaded by hand
   to Firebase App Distribution and installed from the notification; the phone's own installer records it
   (`installerPackageName=com.google.android.packageinstaller`).
@@ -202,6 +237,14 @@ phone has never seen — and are recorded so a later pass does not read them as 
 - **The withdrawal no longer needs a test standing in for it.** Four `GrowthDatasetRepositoryTest` cases prove
   the repository reverts; the phone pass above proves the server can issue the retraction, that the cached
   bytes matched the published ones, and that both the file and the preferences are gone afterwards.
+- **565 → 579 in Phase 17: fourteen, and each one is about a new rule rather than a new screen.** Five in
+  `TrendsTest` (52 week buckets ending on this week's Monday; a week's bottles summed into one bucket with an
+  empty week still drawn; `All` starting at the first event's month; an empty log drawing one month rather
+  than a window from 1970; the all-time window's bounds). One in `RangeLabelTest` (each range names the bucket
+  it draws). Three in `AboutTest` (the version line comes from its arguments — version, code and flavour — and
+  the credits and URL are what they claim). Five in `SettingsRepositoryTest` (nothing hidden by default, a
+  round trip as a set, hiding twice is not a duplicate, an unknown activity name is dropped instead of thrown
+  on, and a reset shows everything again).
 - **565 → 565 in Phase 16: no test was added, because the phase shipped no Kotlin.** The re-run for `1.0.0`
   produced the same 565/565 — 0 failures, 0 errors, 0 skipped over the same 55 XML files. What this phase
   needed proved was not a unit test: it was that the artifact is signed by a key the store agrees with, that a
