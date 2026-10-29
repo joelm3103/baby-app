@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.growth.GrowthDatasetRepository
-import app.babylog.data.growth.GrowthDatasetUpdateResult
+import app.babylog.data.growth.message
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
@@ -84,11 +84,7 @@ class SettingsViewModel(
         val repo = growthDataset ?: return
         viewModelScope.launch {
             _growthUpdateMessage.value = "Checking\u2026"
-            _growthUpdateMessage.value = when (val result = repo.checkForUpdates(true)) {
-                is GrowthDatasetUpdateResult.Updated -> "Updated to ${result.version}"
-                GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
-                GrowthDatasetUpdateResult.Failed -> "Could not check"
-            }
+            _growthUpdateMessage.value = repo.checkForUpdates(true).message()
             // The identity line needs no refresh here: `GrowthDatasetRepository.identityLine` is a
             // StateFlow that the update publishes to, so the row above this message moves with it.
         }

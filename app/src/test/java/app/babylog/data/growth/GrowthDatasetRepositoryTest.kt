@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -129,6 +130,99 @@ class GrowthDatasetRepositoryTest {
         assertEquals("WHO 2006 · v2026.12 · updated 1 Dec 2026", repo.identityLine.value)
     }
 
+    // ---- withdrawal ----------------------------------------------------------------------------
+    // `PLAN.md` recorded this gap on 2026-10-26: `isNewer()` refuses anything that is not newer, so a
+    // reference a phone had accepted could be superseded but never recalled, and the only rescue was
+    // clearing the app's data. These four cases pin the behaviour, including the one the note names as
+    // needing a force-stop — the parsed reference held in memory.
+
+    @Test
+    fun `a withdrawn dataset reverts to the bundled one and clears what was downloaded`() = runBlocking {
+        val gateway = FakeGrowthDatasetGateway()
+        val downloaded = minimalDataset("who-2006.2026.12", "2026-12-01")
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(downloaded), "2026-12-01")
+        gateway.dataset = downloaded
+        val repo = GrowthDatasetRepository(context, store, gateway, bundled)
+        assertTrue(repo.checkForUpdates(true) is GrowthDatasetUpdateResult.Updated)
+        assertEquals("who-2006.2026.12", repo.current().version)
+        assertTrue("the accepted dataset is cached on disk", cacheFile().exists())
+        assertEquals("who-2006.2026.12", cachedVersion())
+
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(downloaded), "2026-12-01", withdrawn = true)
+
+        // A SECOND instance, so this proves the disk side: a fresh process reads the cache file, not memory.
+        val fresh = GrowthDatasetRepository(context, store, gateway, bundled)
+        val result = fresh.checkForUpdates(true)
+        assertEquals(GrowthDatasetUpdateResult.Withdrawn("who-2006.2026.12"), result)
+        assertEquals("who-2006.2026.10", fresh.current().version)
+        assertEquals("WHO 2006 · v2026.10 · updated 15 Oct 2026", fresh.identityLine.value)
+        assertTrue("the cache file must be deleted", !cacheFile().exists())
+        assertNull("both bookkeeping keys must be cleared", cachedVersion())
+    }
+
+    @Test
+    fun `a withdrawal reverts the reference this process is already holding`() = runBlocking {
+        // The trap the 2026-10-26 note documents: restoring the shipped reference by hand needed a
+        // force-stop, because `cachedReference` lives for the life of the process. A withdrawal must not.
+        val gateway = FakeGrowthDatasetGateway()
+        val downloaded = minimalDataset("who-2006.2026.12", "2026-12-01")
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(downloaded), "2026-12-01")
+        gateway.dataset = downloaded
+        val repo = GrowthDatasetRepository(context, store, gateway, bundled)
+        assertTrue(repo.checkForUpdates(true) is GrowthDatasetUpdateResult.Updated)
+
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(downloaded), "2026-12-01", withdrawn = true)
+        assertTrue(repo.checkForUpdates(true) is GrowthDatasetUpdateResult.Withdrawn)
+
+        assertEquals("no restart required", "who-2006.2026.10", repo.current().version)
+        assertEquals("WHO 2006 · v2026.10 · updated 15 Oct 2026", repo.identityLine.value)
+    }
+
+    @Test
+    fun `a withdrawal for a dataset this phone never accepted changes nothing`() = runBlocking {
+        val gateway = FakeGrowthDatasetGateway(
+            manifest = GrowthDatasetManifest("who-2006.2026.12", "0".repeat(64), "2026-12-01", withdrawn = true),
+        )
+        val repo = GrowthDatasetRepository(context, store, gateway, bundled)
+
+        assertEquals(GrowthDatasetUpdateResult.NoUpdate, repo.checkForUpdates(true))
+        assertEquals("who-2006.2026.10", repo.current().version)
+        assertEquals("WHO 2006 · v2026.10 · updated 15 Oct 2026", repo.identityLine.value)
+    }
+
+    @Test
+    fun `a withdrawal recalls only the version it names, not a newer one this phone holds`() = runBlocking {
+        val gateway = FakeGrowthDatasetGateway()
+        val downloaded = minimalDataset("who-2006.2026.12", "2026-12-01")
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.12", sha256(downloaded), "2026-12-01")
+        gateway.dataset = downloaded
+        val repo = GrowthDatasetRepository(context, store, gateway, bundled)
+        assertTrue(repo.checkForUpdates(true) is GrowthDatasetUpdateResult.Updated)
+
+        // The server retracts the November dataset; this phone moved past it to December.
+        gateway.manifest = GrowthDatasetManifest("who-2006.2026.11", "0".repeat(64), "2026-11-01", withdrawn = true)
+
+        assertEquals(GrowthDatasetUpdateResult.NoUpdate, repo.checkForUpdates(true))
+        assertEquals("who-2006.2026.12", repo.current().version)
+        assertEquals("who-2006.2026.12", cachedVersion())
+    }
+
+    @Test
+    fun `every result has one sentence, and the withdrawal names the revert`() {
+        assertEquals("Updated to who-2006.2026.12", GrowthDatasetUpdateResult.Updated("who-2006.2026.12").message())
+        assertEquals(
+            "Dataset withdrawn — back to the bundled reference",
+            GrowthDatasetUpdateResult.Withdrawn("who-2006.2026.12").message(),
+        )
+        assertEquals("Already up to date", GrowthDatasetUpdateResult.NoUpdate.message())
+        assertEquals("Could not check", GrowthDatasetUpdateResult.Failed.message())
+    }
+
+    private fun cacheFile(): File = File(context.filesDir, "growth/updated.json")
+
+    private suspend fun cachedVersion(): String? =
+        store.data.first()[androidx.datastore.preferences.core.stringPreferencesKey("growth.dataset.version")]
+
     private fun minimalDataset(version: String, retrievedAt: String): String {
         val row = "[0.0,0.3487,3.3464,0.14602]"
         val measure = """{"1":[$row],"2":[$row]}"""
@@ -146,8 +240,9 @@ class GrowthDatasetRepositoryTest {
 }
 
 class FakeGrowthDatasetGateway(
-    private val manifest: GrowthDatasetManifest? = null,
-    private val dataset: String? = null,
+    // `var`: a withdrawal test has to change what the server says between two checks on one repository.
+    var manifest: GrowthDatasetManifest? = null,
+    var dataset: String? = null,
     private val fail: Boolean = false,
 ) : GrowthDatasetGateway {
     override suspend fun fetchManifest(): GrowthDatasetManifest {

@@ -55,8 +55,13 @@ android {
         // 0.18.1 fixes the three defects Phase 15 shipped with — a drain that stopped at the first slow
         // write, a reset that re-seeded the twins, and an import that merged instead of replacing. The
         // reset now leaves NO children, so it also ships the empty state that state needs. versionCode 24.
-        versionCode = 24
-        versionName = "0.18.1"
+        // 0.19.0 closes three gaps that were already recorded rather than opened: a growth dataset a phone
+        // has accepted can now be WITHDRAWN (a `withdrawn` flag on the manifest clears the cached copy), the
+        // never-logged reminder names the fact instead of saying `Time to log diaper`, and an all-zero volume
+        // series draws one gridline rather than a fabricated 0.02-step scale. The withdrawal is a new
+        // capability in the update channel, so a MINOR rung: versionCode 25.
+        versionCode = 25
+        versionName = "0.19.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

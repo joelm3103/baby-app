@@ -2,9 +2,9 @@ package app.babylog.ui.growth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.babylog.data.growth.GrowthDatasetUpdateResult
 import app.babylog.data.growth.GrowthDatasetRepository
 import app.babylog.data.growth.GrowthReference
+import app.babylog.data.growth.message
 import app.babylog.data.repo.ChildRepository
 import app.babylog.data.repo.EventRepository
 import app.babylog.data.repo.SettingsRepository
@@ -59,11 +59,7 @@ class GrowthViewModel(
         val repo = datasetRepository ?: return
         viewModelScope.launch {
             _updateMessage.value = "Checking\u2026"
-            _updateMessage.value = when (val result = repo.checkForUpdates(true)) {
-                is GrowthDatasetUpdateResult.Updated -> "Updated to ${result.version}"
-                GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
-                GrowthDatasetUpdateResult.Failed -> "Could not check"
-            }
+            _updateMessage.value = repo.checkForUpdates(true).message()
         }
     }
 

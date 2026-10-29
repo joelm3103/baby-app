@@ -20,7 +20,29 @@ import kotlinx.coroutines.withContext
 sealed interface GrowthDatasetUpdateResult {
     data object NoUpdate : GrowthDatasetUpdateResult
     data class Updated(val version: String) : GrowthDatasetUpdateResult
+
+    /**
+     * The server retracted [version], which this phone was reading, so it is back on the bundled reference.
+     *
+     * A distinct result rather than [NoUpdate], because something did change and the screen has to say so: a
+     * percentile that moves after a silent reference change is the surprise this closes.
+     */
+    data class Withdrawn(val version: String) : GrowthDatasetUpdateResult
     data object Failed : GrowthDatasetUpdateResult
+}
+
+/**
+ * What the check row says for [this] result.
+ *
+ * One function rather than a `when` per screen. Growth and Settings both run this check, and a second copy is
+ * how the two rows start disagreeing about the same result — the same reasoning that keeps the next reminder
+ * in one place. The identity line beside the row is not repeated here: it already names the version.
+ */
+fun GrowthDatasetUpdateResult.message(): String = when (this) {
+    is GrowthDatasetUpdateResult.Updated -> "Updated to $version"
+    is GrowthDatasetUpdateResult.Withdrawn -> "Dataset withdrawn — back to the bundled reference"
+    GrowthDatasetUpdateResult.NoUpdate -> "Already up to date"
+    GrowthDatasetUpdateResult.Failed -> "Could not check"
 }
 
 /**
@@ -76,26 +98,67 @@ class GrowthDatasetRepository(
 
         return try {
             val manifest = gateway.fetchManifest()
-            val current = current()
-            if (!isNewer(manifest, current)) {
-                markChecked()
-                GrowthDatasetUpdateResult.NoUpdate
+            if (manifest.withdrawn) {
+                // A retraction is not a version comparison: `isNewer` would refuse it for naming the same
+                // version this phone already holds, which is precisely the case it exists for.
+                withdraw(manifest)
             } else {
-                val json = gateway.fetchDataset()
-                if (sha256(json) != manifest.sha256) {
-                    GrowthDatasetUpdateResult.Failed
-                } else {
-                    val parsed = GrowthReferenceParser.parse(json)
-                    writeCache(json, manifest)
-                    cachedReference = parsed
-                    _identityLine.value = parsed.identityLine
+                val current = current()
+                if (!isNewer(manifest, current)) {
                     markChecked()
-                    GrowthDatasetUpdateResult.Updated(parsed.version)
+                    GrowthDatasetUpdateResult.NoUpdate
+                } else {
+                    val json = gateway.fetchDataset()
+                    if (sha256(json) != manifest.sha256) {
+                        GrowthDatasetUpdateResult.Failed
+                    } else {
+                        val parsed = GrowthReferenceParser.parse(json)
+                        writeCache(json, manifest)
+                        cachedReference = parsed
+                        _identityLine.value = parsed.identityLine
+                        markChecked()
+                        GrowthDatasetUpdateResult.Updated(parsed.version)
+                    }
                 }
             }
         } catch (t: Throwable) {
             GrowthDatasetUpdateResult.Failed
         }
+    }
+
+    /**
+     * The server has retracted [manifest]'s dataset. Drop the cached copy and go back to the bundled one.
+     *
+     * Three things have to go, not one: the cache file, the two DataStore keys that remember what was
+     * downloaded, and [cachedReference] — the parsed reference is held in memory for the life of the process,
+     * which is why restoring the shipped reference by hand used to need a force-stop (`PLAN.md`, 2026-10-26).
+     *
+     * Only the version the manifest NAMES is recalled. A notice for a dataset this phone never accepted, or
+     * for an older one it has since superseded, is a no-op: there is nothing here to take back, and reverting a
+     * newer reference because an older one was retracted would be the app inventing an instruction.
+     *
+     * `markChecked()` runs either way, so a retraction that does not apply cannot make the next manual check
+     * re-fetch the manifest in a loop.
+     */
+    private suspend fun withdraw(manifest: GrowthDatasetManifest): GrowthDatasetUpdateResult {
+        val cleared = withContext(Dispatchers.IO) {
+            val prefs = runCatching { dataStore.data.first() }.getOrNull()
+            if (prefs?.get(KEY_VERSION) != manifest.datasetVersion) return@withContext false
+            deleteCache()
+            runCatching {
+                dataStore.edit {
+                    it.remove(KEY_VERSION)
+                    it.remove(KEY_SHA)
+                }
+            }
+            true
+        }
+        markChecked()
+        if (!cleared) return GrowthDatasetUpdateResult.NoUpdate
+        val bundled = GrowthReferenceParser.parse(bundledJson)
+        cachedReference = bundled
+        _identityLine.value = bundled.identityLine
+        return GrowthDatasetUpdateResult.Withdrawn(manifest.datasetVersion)
     }
 
     /** Convenience for the 90-day silent check on app start. Never throws. */
