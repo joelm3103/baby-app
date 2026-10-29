@@ -18,7 +18,13 @@ job and both hostile to it. They change under you, gate the useful parts, and pu
 upsells where the three actions we actually perform should be. Babylog is the part we use, owned by us,
 that will work the same in two years.
 
-**Status:** `0.19.0`, through Phase 15 plus the 0.19.0 gap-close (built, tested, and device-verified including the withdrawal). Toolchain, theme, domain, Room, repository/settings, the Activity screen,
+**Status:** `1.0.0`, through Phase 16 — the first release rung. Everything below is built, tested and
+device-verified, and the app now has a delivery channel that does not need a cable: the release build is
+signed by a key the family owns and goes out as a manual Firebase App Distribution upload, with the
+certificate's SHA-1 registered on the Firebase Android app so Google Sign-In works on a release build.
+`docs/release-signing.md` is that runbook and `docs/DECISIONS.md` records why the key is kept where it is;
+`PLAN.md` carries what the device pass actually confirmed. Toolchain, theme, domain, Room,
+repository/settings, the Activity screen,
 the logging sheets, Settings, Summary, Growth, Health, Trends and the sync layer are built and device-verified.
 Phase 14 fixed offline sync reporting and seed draining, and polished activity and metric glyphs, range chips
 and entry labels. All six activities log real data: Growth ships WHO's LMS reference for percentile charts,
@@ -37,8 +43,9 @@ single-phone logger, as Settings → Sync reports. `docs/firebase-setup.md` is t
 `PLAN.md` records the device evidence and the unfinished phases.
 
 **Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
-new capability, `0.PATCH` for fixes and polish, and `1.0.0` at the first release. Every dated
-`CHANGELOG.md` section lists the versions that landed that day; nothing is tagged until that release.
+new capability, `0.PATCH` for fixes and polish, and `1.0.0` for the first release, which is where the ladder
+now stands. Every dated `CHANGELOG.md` section lists the versions that landed that day; the only tag is
+`v1.0.0`, cut on the build that shipped.
 
 ---
 
@@ -109,7 +116,7 @@ The owner reported these unprompted, so they are requirements, not polish:
 | Room as the source of truth | Must work in a car park, a clinic waiting room, a corridor. Local-first is not optional |
 | Firestore for sync, offline persistence **off** in favour of the Room-backed outbox | Deletes a whole class of sync bugs; the app's queue is the only queue, so an offline write cannot look acknowledged. Free tier covers two users by three orders of magnitude |
 | Email + password first, Google sign-in second | Email/password works with any signing key; Google is a tap when the certificate is registered in the console |
-| Sideload the release APK | Free. A Play listing costs $25 and adds review latency for zero benefit |
+| Sideload the release APK over Firebase App Distribution | Free. A Play listing costs $25 and adds review latency for zero benefit, and App Distribution puts a signed build on both phones as a tap instead of a cable. Deliberately a manual upload — see ADR-0001 |
 | No server to run | An app the second parent depends on should not page anyone because a container is down |
 
 **Rejected:** self-hosting on the work server (company machine, the family's health log, and the second parent's
@@ -132,9 +139,9 @@ baby-app/
 ├── PLAN.md                    # implementation plan, phased, and the log of bugs found on-device
 ├── CHANGELOG.md               # dated record of every day of work, with the version ladder
 ├── app/                       # the single Android module (source, tests, schemas, assets)
-├── docs/                      # firebase-setup.md — the Phase 13 console runbook
+├── docs/                      # firebase-setup.md (Phase 13 console), release-signing.md, DECISIONS.md
 ├── firebase/                  # firestore.rules, pasted into the console by hand
-└── scripts/                   # android-env.ps1, sdkmanager.ps1, growth assets, timeline capture
+└── scripts/                   # android-env.ps1, sdkmanager.ps1, growth assets, timeline capture, keystore
 ```
 
 **Note on which evidence wins:** the marketing frames produced two outright errors (light surfaces,

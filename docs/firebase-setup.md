@@ -29,7 +29,9 @@ The debug keystore on this machine has SHA-1:
 
 `~/.android/debug.keystore` is **per machine**. A debug APK built on a different computer has a different
 SHA-1 and Google Sign-In will refuse it until that certificate is registered too. Email/password does not
-care, which is why it is the primary route. The release certificate does not exist until Phase 16.
+care, which is why it is the primary route. The release certificate did not exist until Phase 16; it was
+created on 2026-10-29, and `docs/release-signing.md` says where it lives, what its fingerprints are, and why
+it must never be regenerated.
 
 **A different debug key also means a different app signature, and that blocks the install, not just
 Google.** `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` when the existing copy was built
@@ -254,7 +256,22 @@ Three things worth knowing before you use it:
   (identity line moves), then set `withdrawn: true` on that same version and check again. That is the pass the
   withdrawal was built against; set the flag back to `false` afterwards.
 
-## What is still Phase 16
+## Phase 16 — the release certificate and delivery (2026-10-29)
 
-The release keystore, its SHA-1 on the Google OAuth client, and over-the-air delivery. Nothing above
-depends on them: email/password works on any signing key, which is exactly why it is the primary route.
+The three things this runbook used to leave to Phase 16 now exist:
+
+- **The release keystore.** Created 2026-10-29 in `C:\Users\<you>\keystores\`, outside the repo and
+  outside the Syncthing share. `docs/release-signing.md` is its runbook: what it is for, where it lives, the
+  certificate's SHA-1 and SHA-256, and how to build, verify and deliver.
+- **Its SHA-1 on the Google OAuth client.** Registered on the `app.babylog` Android app entry, next to the
+  debug SHA-1, which stays because development still runs on debug builds. Without it Google Sign-In
+  refuses every release build and email/password still works — the same asymmetry as above.
+- **Over-the-air delivery.** A manual Firebase App Distribution upload of
+  `app/build/outputs/apk/release/app-release.apk`, with both tester accounts invited once. Delivery is
+  deliberately manual: ADR-0001 in `docs/DECISIONS.md` records why no plugin, service account or CLI was
+  added, and what that costs.
+
+Moving a phone onto the release key happens once per phone, because the signature changed: drain the queue,
+Export a backup off the device, uninstall, install from App Distribution, sign in and let the log re-pull.
+The import is the fallback, not the plan — the log returns from the server on sign-in, as the
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` note above already says.

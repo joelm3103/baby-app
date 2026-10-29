@@ -102,6 +102,34 @@ Rules learned the hard way:
   the main file, which is the cheap unambiguous read.
 - Screenshots are captured by `scripts/capture-timeline.ps1` into a folder beside the repo, not committed.
 
+## Release signing and delivery (Phase 16)
+
+- **The release certificate IS the app's identity.** Android installs a build as an update only when the
+  signing certificate matches the one on the device, so the key — not the package name or the version — is
+  what a phone recognises. Sign with a different key and the install fails
+  `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, which means uninstall, which means the local database goes.
+- **The keystore is never in the repo, is never regenerated, and lives outside the Syncthing folder:**
+  `C:\Users\<you>\keystores\babylog-release.jks` (alias `babylog`, `CN=BabyLog`, RSA 4096, valid to
+  2054) with `keystore.properties` beside it and the password in the owner's password manager. `*.jks` and
+  `keystore.properties` are both gitignored. `docs/release-signing.md` is the runbook and carries the
+  certificate's SHA-1 and SHA-256.
+- **`scripts/create-release-keystore.ps1` refuses to overwrite an existing key**, because a second key is a
+  second app identity and would orphan both phones. The owner types the password at its prompt; the script
+  passes it to `keytool` through `-storepass:env`, so it never enters argv or a log.
+- **A clone without the key must still build.** `app/build.gradle.kts` creates the `release` signing config
+  only when `keystore.properties` exists (repo root, then `%USERPROFILE%\keystores`). Without it,
+  `:app:testDebugUnitTest` and `:app:assembleDebug` are unaffected and `:app:assembleRelease` emits an
+  **unsigned** APK that fails `apksigner verify` — a loud outcome, never a silent wrong signature.
+- **The certificate's SHA-1 must be registered on the Firebase Android app entry**, or Google Sign-In
+  refuses every release build. Email/password is unaffected, which is why it stays the primary route. The
+  debug SHA-1 stays registered too.
+- **Delivery is a manual Firebase App Distribution upload** — no Gradle plugin, no service-account key, no
+  `firebase-tools` (ADR-0001 in `docs/DECISIONS.md`). A build that was not uploaded through the console has
+  not been delivered, whatever the build log says.
+- **`versionCode` is a contract now**, because App Distribution compares it to decide what is newer: it only
+  rises, and a landed rung is never renumbered.
+- **A tag is cut only on a delivered build**, after a phone reports the version, never when a phase ends.
+
 ## Design contract — measured, not taste
 
 `app/src/main/java/app/babylog/ui/theme/Tokens.kt` is the source of truth, and the measured derivations
@@ -336,7 +364,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-565 unit tests through Phase 15 and `0.19.0`, all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+565 unit tests through Phase 16 (`1.0.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -377,10 +405,11 @@ only, and `1.0.0` is the first release.
   never-logged reminder line, the flat-zero Trends axis). The Huckleberry import of 2026-10-28 moved no rung
   because it shipped none — that is the distinction, not whether the work felt big.
 
-- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.18.0` → 23); it never goes backwards,
-  because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not reserved**:
-  unfinished phases get versions and codes above the latest delivered build when they land, in landing order.
-  If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release number.
+- **`versionCode` rises for every new version** (`0.1.0` → `1` … `0.19.0` → 25, `1.0.0` → 26); it never goes
+  backwards, because App Distribution decides "newer" from it. The unused `0.14.0` and `0.15.0` are **not
+  reserved**: unfinished phases get versions and codes above the latest delivered build when they land, in
+  landing order. If they land after `1.0.0`, use a version newer than `1.0.0` rather than a pre-release
+  number.
 - **Phases are numbered in the order they land (re-ruled 2026-10-26).** A phase's number is fixed when its
   first commit lands: work that has not started takes the next free integer above the last landed phase, and
   may be renumbered freely while it still has no commits. **Decimal sub-phases are retired** — `9.1`, `9.2`,
@@ -393,8 +422,9 @@ only, and `1.0.0` is the first release.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
   that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
   in the README.
-- **Nothing is tagged until a release.** Tags are for released builds, so the first tag is `v1.0.0` when
-  the release APK is delivered in Phase 16. A phase ending is not a release.
+- **Nothing is tagged until a release.** Tags are for released builds, so `v1.0.0` is cut on the release
+  APK delivered in Phase 16 — after a phone reports `versionCode 26`, never when a phase ends. Every rung
+  from `0.1.0` to `0.19.0` stays untagged for that reason.
 
 ## Where things are
 
@@ -402,9 +432,11 @@ only, and `1.0.0` is the first release.
 |---|---|
 | `PLAN.md` | Phase plan, scope decisions, and the log of bugs found on-device |
 | `CHANGELOG.md` | Dated record of every day of work — a phase's entries go under the day it landed, written in the same pass as the phase commit |
-| `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py` |
+| `scripts/` | `android-env.ps1`, `sdkmanager.ps1`, `capture-timeline.ps1`, `build-growth-assets.py`, `create-release-keystore.ps1` |
 | `firebase/firestore.rules` | Phase 13 security rules — pasted into the console by hand, **not** deployed by a tool |
 | `docs/firebase-setup.md` | Phase 13's console runbook: the project, the two accounts, the four `firebase.properties` values, and what each misconfiguration looks like on screen |
+| `docs/release-signing.md` | Phase 16's runbook: where the key lives, the certificate's fingerprints, how to build and verify, upload to App Distribution, and cut a tag |
+| `docs/DECISIONS.md` | ADRs — why a choice was made, one record per hard-to-reverse decision, starting with release-key custody and the manual delivery channel |
 
 ## Time and temperature preferences (owner override, 2026-10-23)
 
