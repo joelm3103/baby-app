@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,8 +81,8 @@ fun TrendPane(
         if (!series.hasData) {
             item {
                 Text(
-                    text = "No ${series.type.displayName().lowercase()} logged in the last " +
-                        "${series.range.days} days. The chart fills in as the log does.",
+                    text = "No ${series.type.displayName().lowercase()} logged ${series.range.windowText}. " +
+                        "The chart fills in as the log does.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 12.dp),
@@ -118,7 +119,7 @@ fun TrendPane(
                     }
                 }
                 Text(
-                    text = "${series.type.displayName()} \u00b7 ${series.range.days} days \u00b7 " +
+                    text = "${series.type.displayName()} · ${series.range.windowText} · " +
                         trendAxisUnit(series.metric, units) +
                         if (childLabel.isNotEmpty()) " \u00b7 $childLabel" else "",
                     style = MaterialTheme.typography.bodySmall,
@@ -126,9 +127,9 @@ fun TrendPane(
                     modifier = Modifier.padding(top = if (series.multipleChildren) 8.dp else 2.dp),
                 )
                 Text(
-                    // Said plainly, because a day nobody logged is drawn as a zero and the chart cannot
-                    // tell that apart from a day with genuinely nothing.
-                    text = "Days with no records count as zero.",
+                    // Said plainly, because a bucket nobody logged is drawn as a zero and the chart
+                    // cannot tell that apart from a bucket with genuinely nothing.
+                    text = "${series.range.bucket.pluralCapitalised} with no records count as zero.",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 2.dp),
@@ -147,9 +148,12 @@ fun TrendPane(
 @Composable
 fun RangeChips(range: TrendRange, onSelectRange: (TrendRange) -> Unit) {
     val colors = BabyLogTheme.colors
-    Row(
+    // FlowRow, not Row: five chips (`1W · 2W · 1M · 1Y · All`) are a shape that fits a 411dp phone and
+    // not a 360dp one, and a range row that silently cuts `All` off is a control the parent cannot reach.
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TrendRange.entries.forEach { option ->
             ChoiceChip(
@@ -250,30 +254,30 @@ private fun ChildSummary(
         )
         Box(modifier = Modifier.weight(1f))
         Text(
-            text = "${line.daysRecorded} of ${series.range.days} days logged",
+            text = "${line.bucketsRecorded} of ${series.bucketCount} ${series.range.bucket.plural} logged",
             style = MaterialTheme.typography.bodySmall,
             color = colors.textOnCard,
         )
     }
     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
         Text(
-            text = trendHeadline(series.metric, line.averagePerDay, units),
+            text = trendHeadline(series.metric, line.averagePerBucket, units),
             style = MaterialTheme.typography.headlineMedium,
             color = colors.labelFor(accent),
         )
         Text(
-            text = "   ${trendHeadlineUnit(series.metric, units)}",
+            text = "   ${trendHeadlineUnit(series.metric, units, series.range.bucket)}",
             style = MaterialTheme.typography.bodyMedium,
             color = colors.textOnCard,
             modifier = Modifier.padding(bottom = 4.dp),
         )
     }
     SummaryRow("Total", formatTrendTotal(series.metric, line.total, units))
-    line.bestDay?.let { best ->
+    line.bestBucket?.let { best ->
         SummaryRow(
-            "Best day",
+            "Best ${series.range.bucket.noun}",
             "${formatTrendTotal(series.metric, best.value, units)} \u00b7 " +
-                dayLabel(best.dayStart, zone),
+                bucketLabel(best.bucketStart, series.range.bucket, zone),
         )
     }
 }

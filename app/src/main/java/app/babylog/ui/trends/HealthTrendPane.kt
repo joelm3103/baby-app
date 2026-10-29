@@ -99,7 +99,7 @@ fun HealthTrendPane(
                         color = colors.labelFor(accent),
                     )
                     Text(
-                        text = "   in the last ${range.days} days",
+                        text = "   ${range.windowText}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textOnCard,
                         modifier = Modifier.padding(bottom = 4.dp),
@@ -114,7 +114,7 @@ fun HealthTrendPane(
         if (health.readings == 0) {
             item {
                 Text(
-                    text = "No temperatures logged in the last ${range.days} days. " +
+                    text = "No temperatures logged ${range.windowText}. " +
                         "Use + Add health record on the Health card.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
@@ -127,7 +127,7 @@ fun HealthTrendPane(
                     // A count with no fever is a good answer, and it says exactly what it means rather
                     // than showing an empty list that reads like a failure.
                     text = "${health.readings} temperature" + (if (health.readings == 1) "" else "s") +
-                        " logged in the last ${range.days} days, all below ${formatThreshold()}.",
+                        " logged ${range.windowText}, all below ${formatThreshold()}.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = 4.dp),

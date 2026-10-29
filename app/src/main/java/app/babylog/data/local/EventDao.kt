@@ -37,6 +37,15 @@ interface EventDao {
     )
     fun observeBetween(childIds: List<String>, fromMs: Long, toMs: Long): Flow<List<EventEntity>>
 
+    /**
+     * When the log begins for these children, or null when nothing has ever been logged.
+     *
+     * `All` on Trends buckets by month from the first entry: starting at epoch instead would draw months
+     * of zeros before either twin was born and then average them into every headline number.
+     */
+    @Query("SELECT MIN(startedAt) FROM events WHERE deleted = 0 AND childId IN (:childIds)")
+    suspend fun earliestStartedAt(childIds: List<String>): Long?
+
     @Query(
         "SELECT * FROM events WHERE deleted = 0 AND type = :type AND childId IN (:childIds) " +
             "ORDER BY startedAt DESC LIMIT 1",

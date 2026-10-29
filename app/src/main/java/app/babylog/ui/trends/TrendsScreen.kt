@@ -19,14 +19,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
+import java.time.ZoneId
 import app.babylog.domain.displayName
 import app.babylog.domain.EVENT_DISPLAY_ORDER
+import app.babylog.domain.Child
+import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
 import app.babylog.domain.TrendRange
 import app.babylog.ui.growth.GrowthChartPane
 import app.babylog.ui.growth.GrowthMetric
 import app.babylog.ui.growth.GrowthUiState
 import app.babylog.ui.home.ChoiceChip
+import app.babylog.ui.home.ScreenHeader
 import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
@@ -55,8 +60,14 @@ fun TrendsScreen(
     trends: TrendsUiState,
     onSelectRange: (TrendRange) -> Unit,
     onSelectType: (EventType) -> Unit,
+    /** The same stored child selection Activity and Summary use: "who am I looking at" is one answer. */
+    children: List<Child>,
+    selection: ChildSelection,
+    onSelectChild: (ChildSelection) -> Unit,
+    onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
     listState: LazyListState,
+    today: LocalDate = LocalDate.now(ZoneId.systemDefault()),
 ) {
     val colors = BabyLogTheme.colors
     val type = trends.type
@@ -65,10 +76,11 @@ fun TrendsScreen(
     // chips were drawn from y=0 — under the 94px status bar, which made the top of every chip untappable.
     // Found on the S23: tapping a chip's centre did nothing, and only the strip below the status bar worked.
     val layoutDirection = LocalLayoutDirection.current
+    // The header now carries the status-bar inset, so the tab row starts below it with a fixed gap.
     val rowPadding = PaddingValues(
         start = contentPadding.calculateStartPadding(layoutDirection),
         end = contentPadding.calculateEndPadding(layoutDirection),
-        top = contentPadding.calculateTopPadding(),
+        top = 0.dp,
         // The pane's first item is the range chips, and the pane drops its own top padding because the tab
         // row has already consumed it — so without this bottom inset the two chip rows touch. Found on the
         // S23 looking at the screen, not in any test: a `Column` above a `LazyColumn` has no gap of its own.
@@ -92,6 +104,24 @@ fun TrendsScreen(
     LaunchedEffect(type) { listState.scrollToItem(0) }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // The switcher belongs here for the same reason it is on Activity and Summary: every tab answers
+        // "who am I looking at" from one stored selection, and a Trends screen without the control that
+        // changes it made the selection look fixed from this tab.
+        ScreenHeader(
+            title = "Trends",
+            children = children,
+            selection = selection,
+            onSelectChild = onSelectChild,
+            onOpenSettings = onOpenSettings,
+            today = today,
+            modifier = Modifier.padding(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+                top = contentPadding.calculateTopPadding(),
+                bottom = 8.dp,
+            ),
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.babylog.domain.TrendBucket
 import app.babylog.domain.TrendMetric
 import app.babylog.domain.TrendSeries
 import app.babylog.domain.UnitPreferences
@@ -112,13 +113,13 @@ private fun DrawScope.drawTrends(
     val top = 0f
     val plotWidth = (right - left).coerceAtLeast(1f)
     val plotHeight = (bottom - top).coerceAtLeast(1f)
-    val dayCount = series.days.size
+    val bucketCount = series.buckets.size
 
     // A single day has no span to interpolate across, so its one point is centred rather than mapped to
     // NaN. Seven is the smallest range the UI offers, but the maths must not depend on that.
     fun x(index: Int): Float =
-        if (dayCount <= 1) left + plotWidth / 2f
-        else left + index.toFloat() / (dayCount - 1) * plotWidth
+        if (bucketCount <= 1) left + plotWidth / 2f
+        else left + index.toFloat() / (bucketCount - 1) * plotWidth
 
     fun y(displayValue: Double): Float {
         val span = (yRange.endInclusive - yRange.start).takeIf { it > 0f } ?: 1f
@@ -178,8 +179,11 @@ private fun DrawScope.drawTrends(
     // Anchored to the newest day, so "today" is always named and the gaps between labels are uniform.
     // Appending the last day to a step of 2 put two labels one day apart — 21dp apart on a phone, for a
     // label that measures ~33dp — and they overlapped. The unit test caught it, not the phone.
-    for (index in labelIndices(dayCount)) {
-        val label = textMeasurer.measure(dayLabel(series.days[index], zone), tickStyle)
+    for (index in labelIndices(bucketCount)) {
+        val label = textMeasurer.measure(
+            bucketLabel(series.buckets[index], series.range.bucket, zone),
+            tickStyle,
+        )
         drawText(
             textLayoutResult = label,
             topLeft = Offset(
@@ -210,10 +214,13 @@ internal fun labelIndices(dayCount: Int): List<Int> {
     return out.reversed()
 }
 
-internal fun labelStep(dayCount: Int): Int = when {
-    dayCount <= 7 -> 1
-    dayCount <= 14 -> 2
-    else -> 5
+internal fun labelStep(bucketCount: Int): Int = when {
+    bucketCount <= 7 -> 1
+    bucketCount <= 14 -> 2
+    bucketCount <= 31 -> 5
+    // A year of weeks or all time in months cannot use a fixed step: five would draw 10+ labels into
+    // ~294dp. Past a month the step grows with the count, keeping at most six labels on the axis.
+    else -> kotlin.math.ceil(bucketCount / 6.0).toInt()
 }
 
 /** Solid for the first child, dashed for the second. Shared with the legend so the two cannot disagree. */
@@ -238,6 +245,21 @@ internal fun integerTicks(range: ClosedFloatingPointRange<Float>): List<Double> 
 }
 
 private val dayFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
+private val monthFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM", Locale.ENGLISH)
 
 internal fun dayLabel(dayStart: Long, zone: ZoneId): String =
     Instant.ofEpochMilli(dayStart).atZone(zone).toLocalDate().format(dayFormat)
+
+/**
+ * The x label for one bucket.
+ *
+ * A day and a week name a date (`12 Oct`), because where a week starts is what the point means. A month
+ * names only the month: `1 Oct` under a monthly bucket would read as a single day's total.
+ */
+internal fun bucketLabel(bucketStart: Long, bucket: TrendBucket, zone: ZoneId): String {
+    val date = Instant.ofEpochMilli(bucketStart).atZone(zone).toLocalDate()
+    return when (bucket) {
+        TrendBucket.DAY, TrendBucket.WEEK -> date.format(dayFormat)
+        TrendBucket.MONTH -> date.format(monthFormat)
+    }
+}

@@ -1,7 +1,10 @@
 package app.babylog.domain
 
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.YearMonth
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -23,16 +26,46 @@ import kotlin.math.roundToInt
  */
 
 /**
- * The window a chart covers. Three chips, because a fourth would need a scroll and none of the three is a guess.
+ * The window a chart covers.
+ *
+ * Five chips now, because the log is old enough to ask a year-long question: `1W`, `2W` and `1M` still
+ * draw one point per local day, `1Y` draws 52 weekly buckets and `All` draws one bucket per calendar month
+ * starting at the **first event** — not at epoch, which would invent months of zeros before birth and then
+ * average them into every headline number.
  *
  * Different windows from [app.babylog.domain.HistoryRange] on purpose — a chart of today is one point — so the
- * labels differ too: `1W · 2W · 1M` here against `D · 1W · 2W` on Summary. `1M` is the 30-day window this
- * chip actually draws; it is not a calendar month, and the label must not claim one.
+ * labels differ too: `1W · 2W · 1M · 1Y · All` here against `D · 1W · 2W` on Summary. `1M` is the 30-day
+ * window this chip actually draws; it is not a calendar month, and the label must not claim one.
+ *
+ * Because a bucket is no longer always a day, every caption that counts them is derived from [bucket]
+ * rather than written as "days": a chart of 52 weeks that says "7 of 30 days logged" is a lie about its
+ * own axis.
  */
-enum class TrendRange(val days: Int, val label: String, val spoken: String) {
-    WEEK(7, "1W", "1 week"),
-    FORTNIGHT(14, "2W", "2 weeks"),
-    MONTH(30, "1M", "1 month"),
+enum class TrendRange(
+    val bucket: TrendBucket,
+    /** Days covered, or null for [ALL], whose width is however old the log is. */
+    val days: Int?,
+    val label: String,
+    val spoken: String,
+    /** The window in words, for captions: `the last 7 days`, `all time`. */
+    val windowText: String,
+) {
+    WEEK(TrendBucket.DAY, 7, "1W", "1 week", "the last 7 days"),
+    FORTNIGHT(TrendBucket.DAY, 14, "2W", "2 weeks", "the last 14 days"),
+    MONTH(TrendBucket.DAY, 30, "1M", "1 month", "the last 30 days"),
+    YEAR(TrendBucket.WEEK, 364, "1Y", "1 year", "the last 52 weeks"),
+    ALL(TrendBucket.MONTH, null, "All", "all time", "all time"),
+}
+
+/** How wide one point on a chart is. The noun is used verbatim in captions, so it has to be right. */
+enum class TrendBucket(val noun: String, val plural: String) {
+    DAY("day", "days"),
+    WEEK("week", "weeks"),
+    MONTH("month", "months"),
+    ;
+
+    /** `Days`, for a caption that begins with the noun. */
+    val pluralCapitalised: String get() = plural.replaceFirstChar { it.uppercase() }
 }
 
 /** What a day's number measures. The unit comes from the user's preferences at the display edge. */
@@ -43,14 +76,17 @@ enum class TrendMetric {
 }
 
 /**
- * One day of one child's series.
+ * One bucket of one child's series.
  *
  * [recorded] is separate from [value] on purpose: a logged bottle with no amount is a record worth
- * counting and a volume of zero, and collapsing the two would report a day as untouched when the parent
+ * counting and a volume of zero, and collapsing the two would report a bucket as untouched when the parent
  * had in fact logged something.
+ *
+ * [bucketStart] is the local midnight of the day, the Monday of the week, or the first of the month, depending
+ * on [TrendSeries.range].
  */
 data class TrendPoint(
-    val dayStart: Long,
+    val bucketStart: Long,
     val value: Double,
     val recorded: Boolean,
 )
@@ -63,14 +99,14 @@ data class TrendLine(
 ) {
     val total: Double get() = points.sumOf { it.value }
 
-    /** Days with at least one record, which is what "was anything logged" means. */
-    val daysRecorded: Int get() = points.count { it.recorded }
+    /** Buckets with at least one record, which is what "was anything logged" means. */
+    val bucketsRecorded: Int get() = points.count { it.recorded }
 
-    /** Averaged over EVERY day in the window, so a day off the log pulls the average down honestly. */
-    val averagePerDay: Double get() = if (points.isEmpty()) 0.0 else total / points.size
+    /** Averaged over EVERY bucket in the window, so an empty one pulls the average down honestly. */
+    val averagePerBucket: Double get() = if (points.isEmpty()) 0.0 else total / points.size
 
-    /** The biggest recorded day, or null when nothing was logged. */
-    val bestDay: TrendPoint? get() = points.filter { it.recorded }.maxByOrNull { it.value }
+    /** The biggest recorded bucket, or null when nothing was logged. */
+    val bestBucket: TrendPoint? get() = points.filter { it.recorded }.maxByOrNull { it.value }
 }
 
 /** A whole pane's worth of series: both children when Both is selected, one otherwise. */
@@ -80,10 +116,13 @@ data class TrendSeries(
     val metric: TrendMetric,
     val lines: List<TrendLine>,
 ) {
-    val hasData: Boolean get() = lines.any { it.daysRecorded > 0 }
+    val hasData: Boolean get() = lines.any { it.bucketsRecorded > 0 }
 
-    /** The day starts, oldest first. Empty only when there are no children in scope. */
-    val days: List<Long> get() = lines.firstOrNull()?.points?.map { it.dayStart } ?: emptyList()
+    /** The bucket starts, oldest first. Empty only when there are no children in scope. */
+    val buckets: List<Long> get() = lines.firstOrNull()?.points?.map { it.bucketStart } ?: emptyList()
+
+    /** How many points the chart draws, which is what the captions count. */
+    val bucketCount: Int get() = buckets.size
 
     /** True when more than one child is charted, which is when the legend has to name them. */
     val multipleChildren: Boolean get() = lines.size > 1
@@ -107,30 +146,31 @@ fun trendSeries(
     now: Long,
     zone: ZoneId,
     units: UnitPreferences,
+    firstEventAt: Long? = null,
 ): TrendSeries {
     val metric = metricFor(type)
-    val dayStarts = dayStarts(now, zone, range.days)
-    val indexOfDay = dayStarts.withIndex().associate { (index, start) -> start to index }
+    val bucketStarts = bucketStarts(range, now, zone, firstEventAt)
+    val indexOfBucket = bucketStarts.withIndex().associate { (index, start) -> start to index }
 
     val lines = children.map { child ->
-        val buckets = DoubleArray(dayStarts.size)
-        val recorded = BooleanArray(dayStarts.size)
+        val buckets = DoubleArray(bucketStarts.size)
+        val recorded = BooleanArray(bucketStarts.size)
         events.asSequence()
             // Tombstones are the DAO's job, but dropping them here too is cheap insurance: a deleted
-            // event reaching a chart would show a day the parent had already corrected.
+            // event reaching a chart would show a bucket the parent had already corrected.
             .filterNot { it.deleted }
             .filter { it.childId == child.id && it.type == type }
             .forEach { event ->
-                val dayStart = startOfDay(event.startedAt, zone)
-                val index = indexOfDay[dayStart] ?: return@forEach
+                val bucketStart = bucketStartOf(event.startedAt, range.bucket, zone)
+                val index = indexOfBucket[bucketStart] ?: return@forEach
                 buckets[index] += valueOf(event, metric)
                 recorded[index] = true
             }
         TrendLine(
             childId = child.id,
             childName = child.name,
-            points = dayStarts.mapIndexed { index, start ->
-                TrendPoint(dayStart = start, value = buckets[index], recorded = recorded[index])
+            points = bucketStarts.mapIndexed { index, start ->
+                TrendPoint(bucketStart = start, value = buckets[index], recorded = recorded[index])
             },
         )
     }
@@ -175,8 +215,76 @@ internal fun dayStarts(now: Long, zone: ZoneId, days: Int): List<Long> {
     }
 }
 
-private fun startOfDay(at: Long, zone: ZoneId): Long =
-    Instant.ofEpochMilli(at).atZone(zone).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
+/**
+ * The bucket starts a range draws, oldest first.
+ *
+ * - per-day ranges: the last N local midnights, ending today;
+ * - [TrendRange.YEAR]: the last 52 Mondays, ending with the current week's Monday, because a week is a
+ *   calendar week here and Monday is what the log's own `dayOfWeek` arithmetic already uses;
+ * - [TrendRange.ALL]: every month from the month of the FIRST EVENT to the current month. Falling back to
+ *   today's month when the log is empty is deliberate: a window from 1970 would draw decades of zeros.
+ */
+internal fun bucketStarts(
+    range: TrendRange,
+    now: Long,
+    zone: ZoneId,
+    firstEventAt: Long? = null,
+): List<Long> {
+    val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    return when (range.bucket) {
+        TrendBucket.DAY -> dayStarts(now, zone, range.days ?: 1)
+        TrendBucket.WEEK -> {
+            val thisWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            (WEEKS_IN_YEAR - 1 downTo 0).map { back ->
+                thisWeek.minusWeeks(back.toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+            }
+        }
+        TrendBucket.MONTH -> {
+            val firstDate = firstEventAt
+                ?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+                ?: today
+            val last = YearMonth.from(today)
+            var month = YearMonth.from(firstDate)
+            buildList {
+                while (!month.isAfter(last)) {
+                    add(month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli())
+                    month = month.plusMonths(1)
+                }
+            }
+        }
+    }
+}
+
+/** The local start of the bucket [at] falls in: midnight, that week's Monday, or the first of the month. */
+internal fun bucketStartOf(at: Long, bucket: TrendBucket, zone: ZoneId): Long {
+    val date = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
+    return when (bucket) {
+        TrendBucket.DAY -> date.atStartOfDay(zone).toInstant().toEpochMilli()
+        TrendBucket.WEEK -> date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        TrendBucket.MONTH -> date.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+}
+
+/**
+ * The absolute window a range asks for, as `[from, to)`.
+ *
+ * [TrendRange.ALL] takes its start from the first bucket rather than from `days`, so asking for "all time"
+ * over a log that begins in December cannot include the eleven months of nothing before it.
+ */
+fun trendWindow(range: TrendRange, now: Long, zone: ZoneId, firstEventAt: Long? = null): TimeRange {
+    val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val to = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+    val days = range.days
+    val from = if (days != null) {
+        today.minusDays((days - 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+    } else {
+        bucketStarts(range, now, zone, firstEventAt).first()
+    }
+    return TimeRange(from = from, to = to)
+}
+
+private const val WEEKS_IN_YEAR = 52
 
 // ---- Health: a table, not a chart -------------------------------------------------------------
 
@@ -228,7 +336,7 @@ fun healthTrend(children: List<Child>, events: List<BabyEvent>, zone: ZoneId): H
         readings = measured.size,
         feverReadings = fever,
         // Distinct local days, so three readings in one evening are one day of fever rather than three.
-        feverDays = fever.map { startOfDay(it.at, zone) }.distinct().size,
+        feverDays = fever.map { bucketStartOf(it.at, TrendBucket.DAY, zone) }.distinct().size,
     )
 }
 
@@ -274,19 +382,30 @@ fun formatTrendNumber(value: Double): String = when {
  */
 
 /** The big number in a summary card: the average day, in display units. */
-fun trendHeadline(metric: TrendMetric, averagePerDay: Double, units: UnitPreferences): String {
-    val display = trendDisplayValue(metric, averagePerDay, units)
+fun trendHeadline(metric: TrendMetric, average: Double, units: UnitPreferences): String {
+    val display = trendDisplayValue(metric, average, units)
     val text = formatTrendNumber(display)
     // Found on the phone: 13 nappies across 30 days read as "0 per day" while the total read 13. A
     // non-zero average that rounds away says so instead of claiming nothing happened.
     return if (text == "0" && display > 0.0) "< 0.1" else text
 }
 
-/** The unit that sits small beside [trendHeadline]. */
-fun trendHeadlineUnit(metric: TrendMetric, units: UnitPreferences): String = when (metric) {
-    TrendMetric.VOLUME -> if (units.volume == VolumeUnit.MILLILITRES) "ml / day" else "oz / day"
-    TrendMetric.DURATION -> "hours / day"
-    TrendMetric.COUNT -> "per day"
+/**
+ * The unit that sits small beside [trendHeadline].
+ *
+ * It names the BUCKET, not the day: the average over 52 weekly buckets is per week, and a caption that
+ * said "per day" above it would be describing a different chart. Defaults to a day, which is what every
+ * per-day range draws.
+ */
+fun trendHeadlineUnit(
+    metric: TrendMetric,
+    units: UnitPreferences,
+    bucket: TrendBucket = TrendBucket.DAY,
+): String = when (metric) {
+    TrendMetric.VOLUME ->
+        if (units.volume == VolumeUnit.MILLILITRES) "ml / ${bucket.noun}" else "oz / ${bucket.noun}"
+    TrendMetric.DURATION -> "hours / ${bucket.noun}"
+    TrendMetric.COUNT -> "per ${bucket.noun}"
 }
 
 /** A total over the window, in display units and with its unit: "1,240 ml", "16h 20m", "115". */

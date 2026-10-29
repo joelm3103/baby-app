@@ -25,10 +25,27 @@ class RangeLabelTest {
 
     @Test
     fun trendsLabelsMatchTheirWindows() {
-        // A month here is the 30-day window this chip draws, not a calendar month.
+        // A month here is the 30-day window this chip draws, not a calendar month; `1Y` is 52 whole weeks
+        // and `All` has no fixed width at all, which is why its `days` is null rather than a guess.
         assertEquals(
-            listOf("1W" to 7, "2W" to 14, "1M" to 30),
+            listOf("1W" to 7, "2W" to 14, "1M" to 30, "1Y" to 364, "All" to null),
             TrendRange.entries.map { it.label to it.days },
+        )
+    }
+
+    @Test
+    fun eachRangeNamesTheBucketItDraws() {
+        // The caption under a chart counts buckets. If the label and the bucket disagreed, the screen would
+        // describe a different chart from the one it drew -- "52 weeks" over day buckets, say.
+        assertEquals(
+            listOf(
+                "1W" to TrendBucket.DAY,
+                "2W" to TrendBucket.DAY,
+                "1M" to TrendBucket.DAY,
+                "1Y" to TrendBucket.WEEK,
+                "All" to TrendBucket.MONTH,
+            ),
+            TrendRange.entries.map { it.label to it.bucket },
         )
     }
 
@@ -39,7 +56,7 @@ class RangeLabelTest {
             setOf(1, 7, 14),
             HistoryRange.entries.map { it.days }.toSet(),
         )
-        assertEquals(setOf(7, 14, 30), TrendRange.entries.map { it.days }.toSet())
+        assertEquals(setOf(7, 14, 30, 364, null), TrendRange.entries.map { it.days }.toSet())
     }
 
     @Test
@@ -54,7 +71,7 @@ class RangeLabelTest {
 
     @Test
     fun labelsAreShortEnoughForOneRow() {
-        // Three chips on a 411dp phone: five characters each is the budget that fits without a scroll.
+        // Five chips on a 411dp phone: three characters each is the budget that wraps to one row.
         val labels = HistoryRange.entries.map { it.label } + TrendRange.entries.map { it.label }
         labels.forEach {
             assertTrue("`$it` is too long for a range chip", it.length <= 3)

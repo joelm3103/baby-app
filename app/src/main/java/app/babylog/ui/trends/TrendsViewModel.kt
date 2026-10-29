@@ -13,9 +13,9 @@ import app.babylog.domain.HealthTrend
 import app.babylog.domain.TrendRange
 import app.babylog.domain.TrendSeries
 import app.babylog.domain.UnitPreferences
-import app.babylog.domain.dayRange
 import app.babylog.domain.healthTrend
 import app.babylog.domain.trendSeries
+import app.babylog.domain.trendWindow
 import java.time.Clock
 import java.time.ZoneId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -91,7 +91,10 @@ class TrendsViewModel(
             val inScope = inputs.kids.filter { it.id in ids }
             // One `now` for the window, the buckets and the labels.
             val now = clock.millis()
-            val window = dayRange(now, zone, inputs.range.days)
+            // `All` buckets by month from the first entry, so the window needs to know when the log begins.
+            // Read here rather than in the screen: the window and the buckets must come from one answer.
+            val firstEventAt = events.earliest(ids)
+            val window = trendWindow(inputs.range, now, zone, firstEventAt)
             events.observeBetween(ids, window.from, window.to).map { rows ->
                 TrendsUiState(
                     type = inputs.type,
@@ -106,6 +109,7 @@ class TrendsViewModel(
                             now = now,
                             zone = zone,
                             units = inputs.units,
+                            firstEventAt = firstEventAt,
                         )
                     } else {
                         null

@@ -65,6 +65,15 @@ class EventRepository(
             eventDao.observeBetween(childIds, fromMs, toMs).map { it.toDomain() }
         }
 
+    /**
+     * When the log begins for these children, or null when nothing has ever been logged.
+     *
+     * `All` on Trends starts its window here rather than at epoch: a range from 1970 would draw decades of
+     * zero buckets before either twin existed, and average them into every headline number on the card.
+     */
+    suspend fun earliest(childIds: List<String>): Long? =
+        if (childIds.isEmpty()) null else eventDao.earliestStartedAt(childIds)
+
     fun observeRecentByType(
         type: EventType,
         childIds: List<String>,

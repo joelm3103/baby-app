@@ -504,6 +504,10 @@ fun AppScaffold(container: AppContainer) {
                     trends = trendsState,
                     onSelectRange = trendsVm::selectRange,
                     onSelectType = trendsVm::selectType,
+                    children = state.children,
+                    selection = state.selection,
+                    onSelectChild = home::select,
+                    onOpenSettings = { destination = Destination.SETTINGS },
                     contentPadding = padding,
                     listState = trendsListState,
                 )

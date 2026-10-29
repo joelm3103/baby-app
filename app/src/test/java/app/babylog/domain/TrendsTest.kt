@@ -1,5 +1,6 @@
 package app.babylog.domain
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -25,6 +26,96 @@ class TrendsTest {
 
     private val firstTwin = Child(id = "first-twin", name = "First Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 0)
     private val secondTwin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
+
+
+    // ---- buckets: a year of weeks, all time in months -----------------------
+
+    @Test
+    fun `a year draws 52 week buckets and the newest one is this week's Monday`() {
+        val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList(), range = TrendRange.YEAR)
+
+        assertEquals(52, series.buckets.size)
+        // `today` is Sunday 18 Oct 2026, so the current week began on Monday the 12th.
+        assertEquals(
+            LocalDate.of(2026, 10, 12),
+            Instant.ofEpochMilli(series.buckets.last()).atZone(zone).toLocalDate(),
+        )
+        assertEquals(
+            7L,
+            java.time.temporal.ChronoUnit.DAYS.between(
+                Instant.ofEpochMilli(series.buckets.first()).atZone(zone).toLocalDate(),
+                Instant.ofEpochMilli(series.buckets.last()).atZone(zone).toLocalDate(),
+            ) / 51,
+        )
+    }
+
+    @Test
+    fun `a week's bottles are summed into one bucket and an empty week is still a zero`() {
+        val events = listOf(
+            bottle(at(8, dayOffset = 0), 60),
+            bottle(at(9, dayOffset = -1), 90),
+            bottle(at(10, dayOffset = -8), 30),
+        )
+        val line = seriesOf(EventType.BOTTLE, listOf(firstTwin), events, range = TrendRange.YEAR).lines.single()
+
+        assertEquals("today and yesterday share a Monday bucket", 150.0, line.points.last().value, 1e-9)
+        assertEquals("last week keeps its own", 30.0, line.points[line.points.size - 2].value, 1e-9)
+        assertEquals(2, line.bucketsRecorded)
+        assertEquals("an empty week is drawn, not skipped", 52, line.points.size)
+    }
+
+    @Test
+    fun `all time starts at the month of the first event, never at epoch`() {
+        val first = at(8, dayOffset = -120)
+        val events = listOf(bottle(first, 60), bottle(at(9), 90))
+
+        val series = seriesOf(
+            EventType.BOTTLE,
+            listOf(firstTwin),
+            events,
+            range = TrendRange.ALL,
+            firstEventAt = first,
+        )
+
+        assertEquals(
+            LocalDate.of(2026, 6, 1),
+            Instant.ofEpochMilli(series.buckets.first()).atZone(zone).toLocalDate(),
+        )
+        assertEquals(
+            LocalDate.of(2026, 10, 1),
+            Instant.ofEpochMilli(series.buckets.last()).atZone(zone).toLocalDate(),
+        )
+        assertEquals("June to October inclusive", 5, series.buckets.size)
+        assertEquals(60.0, series.lines.single().points.first().value, 1e-9)
+    }
+
+    @Test
+    fun `an empty log draws one month bucket rather than a window from 1970`() {
+        val series = seriesOf(
+            EventType.BOTTLE,
+            listOf(firstTwin),
+            emptyList(),
+            range = TrendRange.ALL,
+            firstEventAt = null,
+        )
+
+        assertEquals(1, series.buckets.size)
+        assertFalse(series.hasData)
+    }
+
+    @Test
+    fun `the all-time window opens on the first bucket and closes tomorrow`() {
+        val window = trendWindow(TrendRange.ALL, now, zone, firstEventAt = at(12, dayOffset = -120))
+
+        assertEquals(
+            LocalDate.of(2026, 6, 1).atStartOfDay(zone).toInstant().toEpochMilli(),
+            window.from,
+        )
+        assertEquals(
+            LocalDate.of(2026, 10, 19).atStartOfDay(zone).toInstant().toEpochMilli(),
+            window.to,
+        )
+    }
 
     // ---- the window ---------------------------------------------------------
 
@@ -82,11 +173,11 @@ class TrendsTest {
         val line = series.lines.single()
         assertEquals(270.0, line.total, 1e-9)
         assertEquals(90.0 + 120.0, line.points.last().value, 1e-9)
-        assertEquals(60.0, line.points[series.range.days - 3].value, 1e-9)
+        assertEquals(60.0, line.points[series.buckets.size - 3].value, 1e-9)
         // Five untouched days are zero AND unrecorded — the chart draws a floor, not a gap, and the
         // summary can still say how many days were actually logged.
-        assertEquals(2, line.daysRecorded)
-        assertEquals(270.0 / 7, line.averagePerDay, 1e-9)
+        assertEquals(2, line.bucketsRecorded)
+        assertEquals(270.0 / 7, line.averagePerBucket, 1e-9)
     }
 
     @Test
@@ -94,7 +185,7 @@ class TrendsTest {
         val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), listOf(bottle(at(9, 0), null)))
 
         val line = series.lines.single()
-        assertEquals(1, line.daysRecorded)
+        assertEquals(1, line.bucketsRecorded)
         assertEquals(0.0, line.total, 1e-9)
         assertTrue(series.hasData)
     }
@@ -121,7 +212,7 @@ class TrendsTest {
         // Two and a half hours from the finished session; guessing "until now" for the other one would
         // make this total grow while nobody is looking.
         assertEquals(150.0, line.total, 1e-9)
-        assertEquals(2, line.daysRecorded)
+        assertEquals(2, line.bucketsRecorded)
         assertEquals(0.0, line.points.last().value, 1e-9)
         assertTrue("the running session is still a day recorded", line.points.last().recorded)
         assertEquals("2h 30m 0s", formatTrendTotal(TrendMetric.DURATION, line.total, UnitPreferences.Metric))
@@ -187,8 +278,8 @@ class TrendsTest {
         )
         val line = seriesOf(EventType.BOTTLE, listOf(firstTwin), events).lines.single()
 
-        assertEquals(180.0, line.bestDay?.value ?: 0.0, 1e-9)
-        assertNull(seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList()).lines.single().bestDay)
+        assertEquals(180.0, line.bestBucket?.value ?: 0.0, 1e-9)
+        assertNull(seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList()).lines.single().bestBucket)
         assertFalse(seriesOf(EventType.BOTTLE, listOf(firstTwin), emptyList()).hasData)
     }
 
@@ -198,7 +289,7 @@ class TrendsTest {
         val events = listOf(bottle(at(9, 0), 90).copy(deleted = true))
 
         val series = seriesOf(EventType.BOTTLE, listOf(firstTwin), events)
-        assertEquals(0, series.lines.single().daysRecorded)
+        assertEquals(0, series.lines.single().bucketsRecorded)
         assertFalse(series.hasData)
     }
 
@@ -211,8 +302,8 @@ class TrendsTest {
 
         assertEquals(100.0, week.lines.single().total, 1e-9)
         assertEquals(300.0, month.lines.single().total, 1e-9)
-        assertEquals(7, week.days.size)
-        assertEquals(30, month.days.size)
+        assertEquals(7, week.buckets.size)
+        assertEquals(30, month.buckets.size)
     }
 
     // ---- health: a table, and the fever boundary ----------------------------
@@ -385,12 +476,14 @@ class TrendsTest {
         children: List<Child>,
         events: List<BabyEvent>,
         range: TrendRange = TrendRange.WEEK,
+        firstEventAt: Long? = null,
     ) = trendSeries(
         type = type,
         children = children,
         events = events,
         range = range,
         now = now,
+        firstEventAt = firstEventAt,
         zone = zone,
         units = UnitPreferences.Metric,
     )
