@@ -82,7 +82,7 @@ The emulator was deliberately skipped. A real phone is the feedback loop (~2 min
 
 ```bash
 ADB="C:/Users/<you>/AppData/Local/Android/Sdk/platform-tools/adb.exe"   # NATIVE path
-"$ADB" install -r app/build/outputs/apk/debug/app-debug.apk
+"$ADB" install -r app/build/outputs/apk/release/app-release.apk   # release-signed: a debug APK will NOT install over 1.0.0
 "$ADB" shell am start -n app.babylog/.MainActivity
 "$ADB" logcat -d | grep -a -A30 "FATAL EXCEPTION"
 "$ADB" exec-out screencap -p > shot.png
@@ -106,7 +106,11 @@ Rules learned the hard way:
   offers today's date and will happily overwrite the backup a previous pass made.
 - **`adb shell` mangles `/sdcard/...` into a Windows path under Git Bash.** Prefix the command with
   `MSYS_NO_PATHCONV=1`, or the dump lands in `C:/Program Files/Git/sdcard/` and reads back 68 bytes.
-- Screenshots are captured by `scripts/capture-timeline.ps1` into a folder beside the repo, not committed.
+- **Screenshots are captured by `scripts/capture-timeline.ps1`** into a folder beside the repo, not committed.
+- **A pass now installs a RELEASE-signed build.** `1.0.0` was the first release-signed APK, so `app-debug.apk`
+  has a different certificate and `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Build
+  `:app:assembleRelease` (its `versionCode` is above what is installed) and `adb install -r` that; never
+  uninstall to make a debug build fit, because that discards the log and the outbox.
 
 ## Release signing and delivery (Phase 16)
 
@@ -407,7 +411,8 @@ only, and `1.0.0` is the first release.
 | | | 15's own pass (fixes) | `0.18.1` |
 | | | *not a phase:* three recorded gaps closed | `0.19.0` |
 | | | 16 update delivery (first release) | `1.0.0` |
-| | | 17 ship | uses delivered release |
+| | | 17 five todo items | `1.1.0` |
+| | | 18 ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -424,10 +429,13 @@ only, and `1.0.0` is the first release.
   may be renumbered freely while it still has no commits. **Decimal sub-phases are retired** — `9.1`, `9.2`,
   `13.1`, `13.1.1` and `13.2`–`13.5` stay as history and nothing new is numbered `13.7`. Phase 13.5 keeps its
   number because three commits on `main` already say `phase13.5`, and its rung is `0.17.1` after its own device
-  pass; a landed rung is never renumbered to match a tidier label. Only Phase 16 and 17 remain, and they are
-  ordered by dependency: Phase 16 creates and backs up the release keystore outside the repo, then registers
-  its SHA-1 with the Google Sign-In OAuth client **before delivery**. Phase 17 requires a build delivered
-  over the air from Phase 16.
+  pass; a landed rung is never renumbered to match a tidier label. Phase 16 delivered `1.0.0`; **Phase 17 is
+a batch of five `todo.txt` items on `1.1.0`**, and **Phase 18 is Ship**, which was 17 until 2026-10-29 because
+  Ship has no commits and the owner chose to land features first — see `PLAN.md` *Renumbering, 2026-10-29*.
+  Ship still requires a build delivered over the air, which `1.0.0` already is.
+- **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
+  2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
+  would install fine by `versionCode` and still read as going backwards on the phone.
 - **Each dated `CHANGELOG.md` section carries a `### Versions` list** naming the versions that landed
   that day, directly after `**In short:**`. That file is the ladder's record — do not put a second copy
   in the README.

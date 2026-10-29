@@ -51,7 +51,8 @@ everything after it is additive.**
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 554 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
-| 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**, which now exists (`1.0.0` on `<handset>`); use it for a week before more code |
+| 17 — Five todo items | in progress — a child selector and `1Y`/`All` ranges on Trends, an About card, per-activity hiding on the Activity tab (hiding cancels a reminder behind a prompt), and haptics; `1.1.0` / versionCode 27. **Was Phase 18 in the planning of it** — see *Renumbering, 2026-10-29* |
+| 18 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**, which now exists (`1.0.0` on `<handset>`); use it for a week before more code. Was 17 |
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
 because it shipped no application code and so carries no version rung — a phase number whose build does not
@@ -101,6 +102,17 @@ The owner asked for the phase numbers to run in the order the work actually happ
   `docs/firebase-setup.md` and the 2026-10-26 `CHANGELOG.md` section use the new numbers. Older
   `CHANGELOG.md` sections, the `docs/timeline` screenshot directories and the git commit messages keep the
   numbers they were written with — they record what happened, which is not the same job as the plan.
+
+### Renumbering, 2026-10-29 — a feature phase lands before Ship
+
+Phase 17 was "Ship — use the delivered release for a week". The owner asked for the remaining `todo.txt`
+items instead, on the day `1.0.0` was delivered, which waives that week for this purpose. Ship has **no
+commits**, so it moves for free under the rule above: this work takes **17** and Ship becomes **18**. Nothing
+that landed was renumbered, and `v1.0.0` is untouched.
+
+The rung is `1.1.0` / versionCode 27, not a `0.20.0`: the ladder reached its release, so the next name must be
+newer than the release already on the phone (`AGENTS.md` rule), even though this work is a batch of small
+capabilities rather than one new subsystem.
 
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.

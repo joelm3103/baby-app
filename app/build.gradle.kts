@@ -82,8 +82,13 @@ android {
         // with the release certificate's SHA-1 registered on the Google OAuth client. The first release rung,
         // so versionCode 26 — and the first build whose versionCode decides anything other than history,
         // because App Distribution compares it to decide whether a build is newer.
-        versionCode = 26
-        versionName = "1.0.0"
+        // 1.1.0 is Phase 17, five `todo.txt` items: a child selector on Trends, `1Y` (weekly buckets) and
+        // `All` (monthly, from the first event) ranges, an About card, per-activity hiding, and haptics. A
+        // MINOR rung because it adds capabilities, and a version ABOVE the release rather than a 0.x one:
+        // the ladder reached 1.0.0, so the next name has to be newer than the release on the phone.
+        // versionCode 27.
+        versionCode = 27
+        versionName = "1.1.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".
