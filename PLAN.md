@@ -50,8 +50,8 @@ everything after it is additive.**
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 554 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
-| 16 — Update delivery | not started — create/back up the release keystore outside the repo and register its SHA-1 before delivery; first release is `1.0.0`. Was 15 |
-| 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**; use it for a week before more code. Was 16 |
+| 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** The pass's open item is Google Sign-In on a release build, which needs a sign-out to test |
+| 17 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**, which now exists (`1.0.0` on `<handset>`); use it for a week before more code |
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
 because it shipped no application code and so carries no version rung — a phase number whose build does not
@@ -68,11 +68,11 @@ versionCode 23 with `0.18.1` / versionCode 24 as its two passes' fixes, so the l
 order rather than in phase-number order — and a phase that is amended by its own device pass keeps the one
 rung, because a second build from one phase's work is not a second phase. **Work that ships application code
 takes a rung even when it is not a phase**: `0.19.0` / versionCode 25 (2026-10-29) closed three recorded
-defects and carries the next number, while the Huckleberry import moved none because it shipped no code. The
-remaining rung
-is the first release: Phase 16 delivers `1.0.0`. Landed rungs are listed in dated `CHANGELOG.md`
-sections under `### Versions`; the rule is in `AGENTS.md`.
-Nothing is tagged: tags are for releases, so the first is `v1.0.0` at Phase 16. The original scheme note
+defects and carries the next number, while the Huckleberry import moved none because it shipped no code. **The
+ladder now stands at the first release**: Phase 16 delivered `1.0.0` / versionCode 26 on 2026-10-29, and it is
+the first and only tagged build — `v1.0.0`, cut on the APK that reached the phone. Landed rungs are listed in
+dated `CHANGELOG.md` sections under `### Versions`; the rule is in `AGENTS.md`. Nothing before it is tagged,
+because a phase ending is not a release. The original scheme note
 that assumed this work happened per-release ("versionName is 0.1.1 today") was corrected here.
 
 ### Renumbering, 2026-10-26 — the ladder reads in landing order
@@ -105,9 +105,11 @@ The owner asked for the phase numbers to run in the order the work actually happ
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleDebug` builds (0.19.0, versionCode 25); `:app:testDebugUnitTest` is **565/565**
-with 0 failures, 0 errors and 0 skipped, summed from the 55 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-29 (554 at the Phase-15/Huckleberry close, +11 in
+Verified: `:app:assembleRelease` builds and signs (`1.0.0`, versionCode 26, `CN=BabyLog`, SHA-1
+`07:66:EE:…:4F`, on the phone as `versionCode=26`); `:app:testDebugUnitTest` is **565/565**
+with 0 failures, 0 errors and 0 skipped, re-run for Phase 16 over the 55 XML files under
+`app/build/test-results/testDebugUnitTest/` on 2026-10-29 — the same 565 the `0.19.0` close recorded, because
+Phase 16 ships no Kotlin. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -1960,26 +1962,78 @@ nothing downloaded. The caution that outlives the test: **never flip `withdrawn`
 dataset, and because only a *newer* version is accepted, getting back to bundled would then need another
 withdrawal. Withdraw it, or restore the version with the flag.
 
-## Phase 16 — Update delivery
+## Phase 16 — Update delivery — DONE, device-verified (`1.0.0`, first release)
 
-Getting a new build onto both phones without a cable. This has to precede the ship step, because a
-release-signed APK is the thing being delivered.
+Getting a new build onto the phones without a cable. Done in one branch, `chore/phase16-release-signing`.
 
-- **Release signing**: generate the keystore, wire `signingConfigs`, and back the keystore up **outside
-  the repo**. It never enters git.
-- **Delivery**: Firebase App Distribution (free, no Play Store) on the Firebase project from Phase 13,
-  or a hosted APK link. Installing a new build becomes a tap on both phones instead of running
-  `adb install -r` twice.
-- **Register the release certificate's SHA-1 with the Google Sign-In OAuth client.** Phase 13 added Google
-  Sign-In, and it only accepts a build whose signing certificate the console knows. Email/password keeps
-  working either way, which is why it is the primary route.
-- **The first tag lands here.** All phase rungs stay untagged on purpose — tags are for released builds,
-  and a phase ending is not a release. `v1.0.0` is cut when the signed build is delivered, which is also
-the point at which `versionCode` starts mattering to something other than a human: App Distribution
-compares it to decide whether a build is newer, which is why it has been a rising counter all along.
+### As built
 
-**Verify:** a build reaches both phones over the air, without a cable.
-**Commit:** `chore(release): signed builds and over-the-air delivery`
+- **The signing config is conditional, and that is the whole design.** `app/build.gradle.kts` reads
+  `keystore.properties` from the repo root, else from `%USERPROFILE%\keystores`, and creates the `release`
+  signing config **only when one is found**. Without it the release build type has no `signingConfig`, so
+  `:app:testDebugUnitTest` and `:app:assembleDebug` are untouched and `:app:assembleRelease` emits
+  `app-release-unsigned.apk`. Measured, not assumed: with the file moved aside, `apksigner verify` answers
+  **`DOES NOT VERIFY`**. A clone without the family's key can build and test; it cannot sign, and it says so.
+- **The key is created by the owner, not by an agent.** `scripts/create-release-keystore.ps1` prompts for the
+  password twice with `Read-Host -AsSecureString`, hands it to `keytool` through `-storepass:env` so it never
+  enters argv, a shell history or a transcript, writes `keystore.properties` beside the `.jks`, and refuses to
+  overwrite an existing key. It also writes the fingerprints to `babylog-release.fingerprints.txt`, which is
+  how the SHA-1 below reached the console without the password ever being repeated.
+- **Everything lives outside the repository and outside `Documents\Syncthing`:**
+  `C:\Users\<you>\keystores\babylog-release.jks`, alias `babylog`, `CN=BabyLog, OU=Family, O=BabyLog,
+  C=TT`, RSA 4096, PKCS12, valid to 2054-03-16; SHA-1 `07:66:EE:2F:85:C2:ED:2C:8E:2F:C5:B6:B0:5B:90:8D:D4:54:5F:4F`,
+  SHA-256 `50:D9:C8:…:9C:04`.
+- **Delivery is a manual App Distribution upload** — no `com.google.firebase.appdistribution` plugin, no
+  service-account JSON, no `firebase-tools`, which is one fewer long-lived secret for a release that happens
+  every few weeks. `docs/DECISIONS.md` ADR-0001 records the choice and its cost.
+- **The rung is `1.0.0` / versionCode 26**, which is also the first build whose `versionCode` decides anything
+  outside a human's head: App Distribution compares it to decide what is newer.
+- **Records:** `docs/release-signing.md` (the runbook: what the key is for, where it lives, the fingerprints,
+  build/verify commands, the one-time phone move, the upload steps, the tag rule); `docs/DECISIONS.md`
+  ADR-0001 (key custody and the manual channel); `docs/firebase-setup.md`'s "What is still Phase 16" closed
+  out; `README.md`; `AGENTS.md`'s release rules, ladder and counts.
+
+### Device pass, 2026-10-29, `<handset>` (SM-S918U1) — DONE, device-verified
+
+`1.0.0` / versionCode 26 installed over the air, not by cable: `installerPackageName=com.google.android.packageinstaller`,
+`firstInstallTime = lastUpdateTime = 13:16:03`, i.e. a fresh install rather than an update — which is what a
+signature change from the debug key forces.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | The phone runs the release | `dumpsys package app.babylog` → `versionCode=26`, `versionName=1.0.0`, `minSdk=26`, `targetSdk=36` ✅ |
+| 2 | It is signed by the release key | the installed `base.apk` pulled back and read with `apksigner`: `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f` — the keystore's own, not the debug `24:E3:…` ✅ |
+| 3 | What was delivered is what was built | SHA-256 of the built `app-release.apk` and of the installed APK are both `4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca`, 14 675 571 bytes ✅ |
+| 4 | It launches | `topResumedActivity=app.babylog/.MainActivity` after `am start` ✅ |
+| 5 | Sync came back after the wipe | Settings → Sync reads `Signed in as joelm3103@gmail.com`, `Everything here is on the server.`, `Up to date.` ✅ |
+| 6 | The log is intact, counted from the app's own export | exported at 13:34 through Settings → Data → Export: **219 live events** — BOTTLE 104, DIAPER 80, GROWTH 19, SLEEP 2, SOLIDS 14 — and 2 children (`kai`, `levi`). The export made before the uninstall at 13:12 held the same 219 live rows (221 including 2 tombstones) ✅ |
+| 7 | The app shows the restored history | Activity screen for Kai: Bottle `1d ago` 6 oz, Diaper `1d ago` Wet, Solids `10d ago` Carrot, Pumpkin, Chicken, Broccoli ✅ |
+| 8 | No crash | `logcat -b crash -d` → **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
+| 9 | Google Sign-In on a release build | **Not verified** ⚠️ — the phone was already signed in with email/password, and the Google button only appears after a sign-out. The fingerprint is registered; the tap is not proven |
+| 10 | The second phone | Not attached, as in every pass since the import ⚠️ |
+| 11 | What the pass could not measure | `run-as app.babylog` answers **`package not debuggable`**: a release build has no debuggable data directory, so the database cannot be pulled the way every earlier pass pulled it. The counts above come from the app's own Export instead |
+
+### Found on the phone, not fixed here
+
+- **A custom food is local-only, and a reinstall loses it.** `FoodRepository.addCustom` writes the row and
+  queues nothing — the outbox is fed by `EventRepository`, `ChildRepository` and `MaintenanceRepository`
+  only — so after the reinstall the three genuinely custom foods (`Callaloo`, `Greek Yogurt`, `Pancake`)
+  were gone, while the eight that came back are names the bundled asset also carries. Worse in principle
+  than in this pass: a synced event references a custom food **by id**, so the other phone holds the
+  reference and never the name. Pre-existing, not introduced by this phase, and it needs a decision rather
+  than a quiet fix — either foods join the outbox, or an event stores the names it displayed.
+- **Two `SLEEP` tombstones did not come back, and that is by design.** `applyEvent` ignores a tombstone for
+  an id this phone has never seen, because there is nothing to delete. Recorded so the next pass does not
+  read it as data loss: 219 live rows went out and 219 came back.
+- **A release build cannot be read over `adb`,** which is the one place the "pull the database with its
+  `-wal` and `-shm`" rule in `AGENTS.md` stops working. Export is the substitute, and it is in `AGENTS.md`
+  now.
+
+**Not performed, and why:** the second phone (not attached); Google Sign-In on the release build (needs a
+sign-out, which is the owner's to do).
+
+**Tag:** `v1.0.0`, annotated, cut on the delivered build — the first tag in the repository, and the only one:
+`0.1.0` … `0.19.0` stay untagged because a phase ending is not a release.
 
 ## Phase 17 — Ship
 Use the release APK already delivered over the air to both phones in Phase 16 for **a week before

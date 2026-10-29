@@ -100,6 +100,12 @@ Rules learned the hard way:
   the state before the last transaction: one pull read `outbox 30` while the truth was 0, a later one `74`
   while the truth was 15 — twice enough to conclude something false. A force-stop checkpoints the WAL into
   the main file, which is the cheap unambiguous read.
+- **A release build cannot be read that way at all.** `run-as app.babylog` answers
+  `package not debuggable`, so from `1.0.0` onward a pass that needs counts asks the app for its own
+  **Settings → Data → Export** JSON and counts there — save it under a new name, because the file picker
+  offers today's date and will happily overwrite the backup a previous pass made.
+- **`adb shell` mangles `/sdcard/...` into a Windows path under Git Bash.** Prefix the command with
+  `MSYS_NO_PATHCONV=1`, or the dump lands in `C:/Program Files/Git/sdcard/` and reads back 68 bytes.
 - Screenshots are captured by `scripts/capture-timeline.ps1` into a folder beside the repo, not committed.
 
 ## Release signing and delivery (Phase 16)
