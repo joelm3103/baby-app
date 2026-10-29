@@ -43,6 +43,11 @@ app/build/
 *.keystore
 *.jks
 
+# Release signing metadata (Phase 16): holds the keystore password, so it is local-only in exactly the
+# same way firebase.properties is. The script that creates the key writes this file OUTSIDE the repo;
+# this line covers the repo-root variant that app/build.gradle.kts also reads.
+keystore.properties
+
 # Firebase configuration: carries the project's keys, so it is local-only like the keystore.
 # Phase 13 reads it through Gradle into BuildConfig; see the note in app/build.gradle.kts.
 firebase.properties

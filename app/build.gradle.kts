@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -22,6 +23,23 @@ val firebaseProperties = Properties().apply {
 }
 
 fun firebaseValue(key: String): String = firebaseProperties.getProperty(key, "").trim()
+
+/**
+ * Local-only release signing (Phase 16). Read from `keystore.properties` at the repo root, or from
+ * `%USERPROFILE%\keystores\keystore.properties` — the script that creates the keystore writes the
+ * second one, so the key and its metadata stay outside the repo and outside the synced folder.
+ *
+ * Absent on a fresh clone, deliberately: the release signing config is then not created at all and
+ * `:app:assembleRelease` produces an unsigned APK, while `:app:testDebugUnitTest` and
+ * `:app:assembleDebug` are untouched. A clone without the key can still build and test.
+ */
+val keystoreProperties = Properties().apply {
+    val candidates = listOf(
+        rootProject.file("keystore.properties"),
+        File(System.getProperty("user.home"), "keystores/keystore.properties"),
+    )
+    candidates.firstOrNull { it.exists() }?.inputStream()?.use { load(it) }
+}
 
 android {
     namespace = "app.babylog"
@@ -60,8 +78,12 @@ android {
         // never-logged reminder names the fact instead of saying `Time to log diaper`, and an all-zero volume
         // series draws one gridline rather than a fabricated 0.02-step scale. The withdrawal is a new
         // capability in the update channel, so a MINOR rung: versionCode 25.
-        versionCode = 25
-        versionName = "0.19.0"
+        // 1.0.0 is Phase 16, update delivery: a release-signed APK that reaches both phones over the air,
+        // with the release certificate's SHA-1 registered on the Google OAuth client. The first release rung,
+        // so versionCode 26 — and the first build whose versionCode decides anything other than history,
+        // because App Distribution compares it to decide whether a build is newer.
+        versionCode = 26
+        versionName = "1.0.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".
@@ -74,8 +96,23 @@ android {
         buildConfigField("String", "FIREBASE_ALLOWED_UIDS", "\"${firebaseValue("firebase.allowedUids")}\"")
     }
 
+    signingConfigs {
+        // Created only when a key is present, so a clone without one never fails to configure.
+        if (keystoreProperties.isNotEmpty()) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Null when no keystore is present: the APK is unsigned, which is the honest thing for a
+            // machine that does not hold the family's key. See docs/release-signing.md.
+            signingConfig = signingConfigs.findByName("release")
             // Left off until Phase 9 so a crash in the log is readable while building.
             isMinifyEnabled = false
             proguardFiles(
