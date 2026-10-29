@@ -194,6 +194,25 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setTheme(mode: ThemeMode) = dataStore.edit { it[KEY_THEME] = mode.name }
 
     /**
+     * The activity cards the Activity tab is told to leave out. Empty means every activity shows.
+     *
+     * A DISPLAY choice only: it hides a card, and nothing else about that activity changes. Because a
+     * reminder is set from its card, hiding one that has a rule would strand the rule, so the caller
+     * cancels the rules first (see `SettingsViewModel.setActivityHidden`) and the screen asks before it
+     * does. A name this build does not know is dropped rather than throwing, so a preference written by a
+     * newer build cannot break an older one.
+     */
+    val hiddenActivities: Flow<Set<EventType>> = dataStore.data.map {
+        decodeHiddenActivities(it[KEY_HIDDEN_ACTIVITIES])
+    }
+
+    suspend fun setActivityHidden(type: EventType, hidden: Boolean) = dataStore.edit { prefs ->
+        val current = decodeHiddenActivities(prefs[KEY_HIDDEN_ACTIVITIES]).toMutableSet()
+        if (hidden) current.add(type) else current.remove(type)
+        prefs[KEY_HIDDEN_ACTIVITIES] = encodeHiddenActivities(current)
+    }
+
+    /**
      * Every reminder rule on this phone, keyed by (activity, child).
      *
      * Read by scanning the preference map rather than by a fixed list of keys, because the keys are dynamic:
@@ -235,6 +254,9 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             KEY_LENGTH, KEY_WEIGHT, KEY_VOLUME, KEY_TEMPERATURE, KEY_TIME_FORMAT,
             KEY_SELECTED_CHILD, KEY_THEME,
             KEY_NIGHT_START, KEY_NIGHT_END, KEY_BOTTLE_PRESETS, KEY_MEDICATION_PRESETS,
+            // A reset returns the app to first-run state, and first run shows every activity. Without this
+            // a reset would leave a parent with a permanently half-empty Activity tab and no error to see.
+            KEY_HIDDEN_ACTIVITIES,
         ).forEach { prefs.remove(it) }
         // Reminder keys are dynamic (one per activity and child), so they are found by shape: the same
         // scan `reminders` uses to read them.
@@ -257,6 +279,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
         val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
         val KEY_MEDICATION_PRESETS = stringPreferencesKey("health.medicationPresets")
+        val KEY_HIDDEN_ACTIVITIES = stringPreferencesKey("activities.hidden")
 
         const val DEFAULT_NIGHT_START_HOUR = 18
         const val DEFAULT_NIGHT_END_HOUR = 6
@@ -279,6 +302,22 @@ private fun decodePresets(raw: String?): List<Int> =
         ?: DEFAULT_BOTTLE_PRESETS
 
 private fun encodePresets(values: List<Int>): String = values.joinToString(",")
+
+/**
+ * Hidden activities are a small set of names, stored sorted so the bytes are stable and a diff of two
+ * preference files is readable. An absent key is the empty set, which is the app's default: every card
+ * shows until a parent says otherwise. An unknown name is dropped, so a preference written by a newer
+ * build that knows a seventh activity cannot make this one throw on launch.
+ */
+private fun decodeHiddenActivities(raw: String?): Set<EventType> = raw
+    ?.split(',')
+    ?.map { it.trim() }
+    ?.mapNotNull { name -> EventType.entries.firstOrNull { it.name == name } }
+    ?.toSet()
+    ?: emptySet()
+
+private fun encodeHiddenActivities(values: Set<EventType>): String =
+    values.map { it.name }.sorted().joinToString(",")
 
 /**
  * Medication presets are free text, so they are separated by a NEWLINE rather than the comma the bottle

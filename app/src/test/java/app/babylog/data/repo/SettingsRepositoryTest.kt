@@ -11,6 +11,7 @@ import app.babylog.domain.ReminderConfig
 import app.babylog.domain.ReminderKey
 import app.babylog.domain.ThemeMode
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.NightWindow
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -69,6 +70,47 @@ class SettingsRepositoryTest {
         settings.setUnitSystem(app.babylog.domain.UnitSystem.IMPERIAL)
         assertEquals(app.babylog.domain.TimeFormat.TWELVE_HOUR, settings.timeFormat.first())
         assertEquals(app.babylog.domain.TemperatureUnit.FAHRENHEIT, settings.units.first().temperature)
+    }
+
+    // ---- hidden activities -------------------------------------------------
+
+    @Test
+    fun `every activity shows until one is hidden`() = runBlocking {
+        assertEquals(emptySet<EventType>(), settings.hiddenActivities.first())
+    }
+
+    @Test
+    fun `hiding and showing round-trip as a set, not a list of toggles`() = runBlocking {
+        settings.setActivityHidden(EventType.SOLIDS, hidden = true)
+        settings.setActivityHidden(EventType.GROWTH, hidden = true)
+        assertEquals(setOf(EventType.SOLIDS, EventType.GROWTH), settings.hiddenActivities.first())
+
+        settings.setActivityHidden(EventType.SOLIDS, hidden = false)
+        assertEquals(setOf(EventType.GROWTH), settings.hiddenActivities.first())
+    }
+
+    @Test
+    fun `hiding the same activity twice is not a duplicate`() = runBlocking {
+        settings.setActivityHidden(EventType.DIAPER, hidden = true)
+        settings.setActivityHidden(EventType.DIAPER, hidden = true)
+        assertEquals(setOf(EventType.DIAPER), settings.hiddenActivities.first())
+    }
+
+    @Test
+    fun `an unknown activity name is dropped rather than thrown on`() = runBlocking {
+        // A preference written by a newer build that knows a seventh activity must not break this one.
+        store.edit { it[stringPreferencesKey("activities.hidden")] = "BOTTLE,NASAL_ASPIRATE" }
+        assertEquals(setOf(EventType.BOTTLE), settings.hiddenActivities.first())
+    }
+
+    @Test
+    fun `a reset shows every activity again`() = runBlocking {
+        settings.setActivityHidden(EventType.SLEEP, hidden = true)
+        assertEquals(setOf(EventType.SLEEP), settings.hiddenActivities.first())
+
+        settings.clearForReset()
+
+        assertEquals(emptySet<EventType>(), settings.hiddenActivities.first())
     }
 
     // ---- night window ------------------------------------------------------

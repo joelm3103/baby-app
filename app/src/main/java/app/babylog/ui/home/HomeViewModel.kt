@@ -60,7 +60,17 @@ data class HomeUiState(
      * disagree about what a meal was called.
      */
     val foodNames: Map<String, String> = emptyMap(),
+    /**
+     * Activity cards this parent has hidden in Settings. Empty is the default: nothing is hidden.
+     *
+     * Kept beside [cards] rather than applied to it so the screen can say WHY it is empty — all hidden,
+     * or no children yet — and so nothing else reading `cards` inherits a display choice.
+     */
+    val hidden: Set<EventType> = emptySet(),
 ) {
+    /** The cards the Activity tab actually draws. */
+    val shownCards: List<CardUi> get() = cards.filterNot { it.type in hidden }
+
     val anyRunning: Boolean get() = cards.any { it.running != null }
 
     /** Every entry of one activity in scope, newest first — what the "See all" list draws. */
@@ -147,10 +157,15 @@ class HomeViewModel(
         settings.units,
         // The solids catalogue: `id -> name`, for every surface that shows a meal.
         foodList,
-    ) { kids, selection, units, foods -> Quad(kids, selection, units, foods) }
+        // Which cards a parent has hidden. Carried in the state rather than filtered here, because the
+        // screen has to tell "nothing to show because everything is hidden" apart from "no children yet",
+        // and a pre-filtered list cannot answer that question.
+        settings.hiddenActivities,
+    ) { kids, selection, units, foods, hidden -> Quad(kids, selection, units, foods, hidden) }
         .flatMapLatest { combined ->
             val kids = combined.kids
             val units = combined.units
+            val hidden = combined.hidden
             // Defense in depth, and not paranoia: a null here takes the entire app down on launch,
             // and it already happened once (see ChildSelection.default - Android stored null). Note
             // the nullable local: writing `combined.selection ?: X` instead is constant-folded away
@@ -160,7 +175,7 @@ class HomeViewModel(
             val selection: ChildSelection = nullableSelection ?: ChildSelection.Both
             val ids = selection.resolve(kids.map { it.id })
             val names = combined.foods.associate { it.id to it.name }
-            events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units, names) }
+            events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units, names, hidden) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
@@ -299,6 +314,7 @@ class HomeViewModel(
         all: List<BabyEvent>,
         units: app.babylog.domain.UnitPreferences,
         foodNames: Map<String, String>,
+        hidden: Set<EventType>,
     ) = HomeUiState(
         children = kids,
         selection = selection,
@@ -306,6 +322,7 @@ class HomeViewModel(
         units = units,
         cards = buildCards(all, kids.map { it.id }),
         foodNames = foodNames,
+        hidden = hidden,
     )
 
     fun select(selection: ChildSelection) = viewModelScope.launch { settings.setSelectedChild(selection) }
@@ -442,4 +459,5 @@ private data class Quad(
     val selection: ChildSelection,
     val units: app.babylog.domain.UnitPreferences,
     val foods: List<app.babylog.data.local.FoodEntity>,
+    val hidden: Set<EventType>,
 )

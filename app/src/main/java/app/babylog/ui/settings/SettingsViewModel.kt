@@ -7,6 +7,7 @@ import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.growth.GrowthDatasetRepository
 import app.babylog.data.growth.message
 import app.babylog.data.repo.SettingsRepository
+import kotlinx.coroutines.flow.map
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
 import app.babylog.domain.REMINDER_TYPES
@@ -72,6 +73,22 @@ class SettingsViewModel(
     /** The medications worth one tap in the health sheet, in the order they were added. */
     val medicationPresets: StateFlow<List<String>> = settings.medicationPresets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * The activity cards the Activity tab hides. Default empty: every activity shows until a parent hides one.
+     */
+    val hiddenActivities: StateFlow<Set<EventType>> = settings.hiddenActivities
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /**
+     * Which activities currently have at least one ENABLED reminder rule.
+     *
+     * The Activities card asks this before it hides anything: a rule is set from its card, so hiding the card
+     * without cancelling the rule leaves an alarm ringing for a surface that no longer exists.
+     */
+    val activitiesWithReminders: StateFlow<Set<EventType>> = settings.reminders
+        .map { rules -> rules.filterValues { it.enabled }.keys.map { it.type }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     /** One line of feedback for the Data section: an export written, or why an import was refused. */
     private val _message = MutableStateFlow<String?>(null)
@@ -226,6 +243,25 @@ class SettingsViewModel(
 
     fun removeMedicationPreset(name: String) =
         viewModelScope.launch { settings.removeMedicationPreset(name) }
+
+    /**
+     * Hide or show one activity on the Activity tab.
+     *
+     * Hiding CANCELS that activity's reminders first. The rule is set from the card, so a hidden card would
+     * leave an alarm with no surface to change it — and a notification the parent cannot find is worse than
+     * no notification. The screen asks before calling this when a rule exists, which is why the cancellation
+     * lives here rather than behind a second confirm.
+     */
+    fun setActivityHidden(type: EventType, hidden: Boolean) = viewModelScope.launch {
+        if (hidden) {
+            val rules = settings.reminders.first()
+            rules.keys
+                .filter { it.type == type }
+                .forEach { settings.setReminder(it, ReminderConfig()) }
+            refreshReminders()
+        }
+        settings.setActivityHidden(type, hidden)
+    }
 
     fun updateChild(child: Child) = viewModelScope.launch { children.upsert(child) }
 

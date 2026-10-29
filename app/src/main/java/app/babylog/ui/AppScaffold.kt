@@ -238,6 +238,8 @@ fun AppScaffold(container: AppContainer) {
     val settingsNight by settingsVm.nightWindow.collectAsState()
     val settingsPresets by settingsVm.bottlePresets.collectAsState()
     val medicationPresets by settingsVm.medicationPresets.collectAsState()
+    val hiddenActivities by settingsVm.hiddenActivities.collectAsState()
+    val activitiesWithReminders by settingsVm.activitiesWithReminders.collectAsState()
     val syncState by settingsVm.syncState.collectAsState()
     val syncMessage by settingsVm.syncMessage.collectAsState()
     val pendingWrites by settingsVm.pendingWrites.collectAsState()
@@ -518,6 +520,9 @@ fun AppScaffold(container: AppContainer) {
                     theme = settingsTheme,
                     presets = settingsPresets,
                     medicationPresets = medicationPresets,
+                    hiddenActivities = hiddenActivities,
+                    activitiesWithReminders = activitiesWithReminders,
+                    onSetActivityHidden = settingsVm::setActivityHidden,
                     growthReference = growthIdentity,
                     growthUpdateMessage = growthUpdateMessage,
                     onCheckGrowthUpdates = settingsVm::checkGrowthUpdates,

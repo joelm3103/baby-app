@@ -93,7 +93,16 @@ fun ActivityScreen(
         // is the empty state promising work it cannot do. Found on <handset> during the 0.18.1 pass.
         if (state.children.isEmpty()) return@LazyColumn
 
-        items(state.cards, key = { it.type.name }) { card ->
+        // Everything hidden is a state the parent chose and can undo, so it says how rather than leaving a
+        // blank screen under the header that reads like a failed load.
+        if (state.shownCards.isEmpty()) {
+            item(key = "all-hidden") {
+                AllActivitiesHiddenCard(onOpenSettings = onOpenSettings)
+            }
+            return@LazyColumn
+        }
+
+        items(state.shownCards, key = { it.type.name }) { card ->
             ActivityCard(
                 card = card,
                 units = state.units,
@@ -132,6 +141,35 @@ fun ActivityScreen(
  * Reachable only after a reset: a fresh install still seeds the two twins, so this is not a first-run
  * screen — it is what a parent sees when they asked for everything to be erased.
  */
+/**
+ * The empty state for an Activity tab whose every card has been hidden.
+ *
+ * It names the way back, because the choice was deliberate and reversible: a screen that just said nothing
+ * was hidden would read as the app losing the log.
+ */
+@Composable
+private fun AllActivitiesHiddenCard(onOpenSettings: () -> Unit) {
+    val colors = BabyLogTheme.colors
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(
+            text = "Every activity is hidden",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+        )
+        Text(
+            text = "Turn any of them back on in Settings → Activities, and its card returns with the log intact.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        SecondaryButton(
+            label = "Choose activities",
+            onClick = onOpenSettings,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
+    }
+}
+
 @Composable
 private fun NoChildrenCard(onOpenSettings: () -> Unit) {
     val colors = BabyLogTheme.colors

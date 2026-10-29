@@ -4,6 +4,8 @@ import app.babylog.domain.TimeFormat
 import app.babylog.domain.TemperatureUnit
 import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -28,10 +30,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.babylog.data.sync.SyncState
+import app.babylog.BuildConfig
+import app.babylog.domain.ABOUT_CREDITS
 import app.babylog.domain.Child
+import app.babylog.domain.SOURCE_REPOSITORY_URL
+import app.babylog.domain.aboutVersionLine
 import app.babylog.domain.LengthUnit
+import app.babylog.domain.EVENT_DISPLAY_ORDER
 import app.babylog.domain.EventType
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.displayName
@@ -52,11 +60,13 @@ import app.babylog.ui.home.InputRow
 import app.babylog.ui.home.InputValue
 import app.babylog.ui.home.SecondaryButton
 import app.babylog.ui.home.StepperRow
+import app.babylog.data.reminders.ReminderText
 import app.babylog.ui.home.SwitchRow
 import app.babylog.ui.home.TextFieldRow
 import app.babylog.ui.home.volumeUnitLabel
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
+import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.Spacing
 import java.time.LocalDate
 import java.util.Locale
@@ -105,6 +115,11 @@ fun SettingsScreen(
      * `SettingsRepository.medicationPresets`.
      */
     medicationPresets: List<String> = emptyList(),
+    /** The activity cards the Activity tab leaves out. Empty means every activity shows. */
+    hiddenActivities: Set<EventType> = emptySet(),
+    /** Activities with at least one enabled reminder, so hiding one can warn before it cancels. */
+    activitiesWithReminders: Set<EventType> = emptySet(),
+    onSetActivityHidden: (EventType, Boolean) -> Unit = { _, _ -> },
     onTheme: (ThemeMode) -> Unit,
     onUnitSystem: (UnitSystem) -> Unit,
     onLengthUnit: (LengthUnit) -> Unit,
@@ -172,6 +187,8 @@ fun SettingsScreen(
     var confirmImport by remember { mutableStateOf(false) }
     var presetInput by remember { mutableStateOf("") }
     var medicationInput by remember { mutableStateOf("") }
+    // Which activity a hide is waiting on, because hiding one that still has a reminder must warn first.
+    var pendingHide by remember { mutableStateOf<EventType?>(null) }
 
     LazyColumn(
         state = listState,
@@ -391,6 +408,33 @@ fun SettingsScreen(
         }
 
         item {
+            SectionCard("Activities", alternate = true) {
+                Text(
+                    text = "Which cards the Activity tab shows. Hiding one keeps every record it holds — " +
+                        "this is a display choice, not a delete. A hidden activity is out of the way, not gone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                )
+                EVENT_DISPLAY_ORDER.forEach { type ->
+                    SwitchRow(
+                        label = type.displayName(),
+                        checked = type !in hiddenActivities,
+                        accent = colors.accentFor(type),
+                        onCheckedChange = { shown ->
+                            when {
+                                shown -> onSetActivityHidden(type, false)
+                                // A reminder is set from its card, so hiding the card would leave the rule
+                                // with no surface. Ask, then cancel it with the hide.
+                                type in activitiesWithReminders -> pendingHide = type
+                                else -> onSetActivityHidden(type, true)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+
+        item {
             SectionCard("Data", alternate = true) {
                 InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
                 InputRow(label = "Import backup", onClick = { confirmImport = true }) { InputValue("Replaces everything") }
@@ -477,6 +521,33 @@ fun SettingsScreen(
                 }
             }
         }
+
+        item {
+            AboutCard()
+        }
+    }
+
+    pendingHide?.let { type ->
+        AlertDialog(
+            onDismissRequest = { pendingHide = null },
+            title = { Text("Hide ${type.displayName()}?") },
+            text = {
+                Text(
+                    "${type.displayName()} has a reminder set. A reminder is set from its card, so hiding " +
+                        "the card would leave it ringing with nothing to change it — hiding it cancels " +
+                        "that reminder first. Every ${ReminderText.noun(type)} record stays in the log.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingHide = null
+                    onSetActivityHidden(type, true)
+                }) { Text("Hide and cancel the reminder", color = colors.danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingHide = null }) { Text("Keep it visible") }
+            },
+        )
     }
 
     if (confirmImport) {
@@ -782,5 +853,56 @@ private fun ChildEditor(
             SecondaryButton(label = "Archive", onClick = onArchive, modifier = Modifier.weight(1f))
             DangerButton(label = "Delete permanently", onClick = onDelete, modifier = Modifier.weight(1f))
         }
+    }
+}
+
+/**
+ * What this build is, and where it came from.
+ *
+ * The version comes from [BuildConfig], not from a typed string: this is the row a parent would quote in
+ * a bug report, and a Settings screen that disagreed with the installed APK is worse than one that says
+ * nothing. The repository is opened with an `ACTION_VIEW` intent rather than being printed as text, which
+ * is the difference between a credit and a treasure hunt.
+ */
+@Composable
+private fun AboutCard() {
+    val colors = BabyLogTheme.colors
+    val context = LocalContext.current
+    SectionCard("About") {
+        Text(
+            text = aboutVersionLine(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.DEBUG),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.textPrimary,
+        )
+        Text(
+            text = ABOUT_CREDITS,
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        SecondaryButton(
+            label = "Open the repository",
+            onClick = {
+                // A phone with no browser gets nothing rather than a crash: an optional credit must not be
+                // able to take the Settings screen down.
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_REPOSITORY_URL)))
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
+        Text(
+            text = "Growth percentiles: WHO Child Growth Standards 2006 (igrowup).",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            text = "No analytics, no trackers, no ads. The log lives on this phone, and with sync on it " +
+                "also lives in your own Firebase project.",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
