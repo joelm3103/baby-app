@@ -37,6 +37,7 @@ import app.babylog.domain.clockTime
 import app.babylog.domain.elapsed
 import app.babylog.ui.common.RelativeTimeText
 import app.babylog.ui.common.activityPattern
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
@@ -586,6 +587,9 @@ private fun PillButton(
     fullWidth: Boolean = false,
     enabled: Boolean = true,
 ) {
+    // The card's action buttons and its quick pills are all this composable, so one line makes the whole
+    // card feel like a control.
+    val haptics = rememberHaptics()
     Text(
         text = label,
         style = MaterialTheme.typography.bodyMedium,
@@ -595,7 +599,16 @@ private fun PillButton(
             .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
             .clip(RoundedCornerShape(Radius.pill))
             .background(fill)
-            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (enabled) {
+                    Modifier.clickable {
+                        haptics.tap()
+                        onClick()
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
     )
 }

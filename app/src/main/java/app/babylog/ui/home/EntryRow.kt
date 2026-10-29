@@ -21,6 +21,7 @@ import app.babylog.domain.TemperatureBand
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.clockTime
 import app.babylog.ui.common.glyphPainter
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.Spacing
@@ -66,10 +67,21 @@ internal fun EntryRow(
     // headline above it - which is the only way a row and its card ever drift apart.
     val dotColors = diaperColors(event)
     val colors = BabyLogTheme.colors
+    val haptics = rememberHaptics()
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onTap, onLongClick = onLongPress)
+            .combinedClickable(
+                onClick = {
+                    haptics.tap()
+                    onTap()
+                },
+                onLongClick = {
+                    // A long press starts a delete, so it gets the sustained buzz that says so.
+                    haptics.longPress()
+                    onLongPress()
+                },
+            )
             .padding(vertical = Spacing.rowVertical),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

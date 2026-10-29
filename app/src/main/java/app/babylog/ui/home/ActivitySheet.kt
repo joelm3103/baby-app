@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.EventType
 import app.babylog.ui.common.glyphPainter
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
@@ -124,7 +125,16 @@ fun ActivitySheet(
                         )
                         Spacer(Modifier.width(22.dp))
                     }
-                    TextButton(onClick = onSave, enabled = saveEnabled) {
+                    // Save commits a record, so it gets the confirm buzz rather than the ordinary tap: the
+                    // one press in a sheet whose consequence is written down.
+                    val haptics = rememberHaptics()
+                    TextButton(
+                        onClick = {
+                            haptics.confirm()
+                            onSave()
+                        },
+                        enabled = saveEnabled,
+                    ) {
                         Text(
                             text = saveLabel,
                             style = MaterialTheme.typography.titleMedium,

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.clockTime
 import app.babylog.domain.timeOfDayOn
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import java.time.Instant
@@ -245,10 +246,22 @@ fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val colors = BabyLogTheme.colors
-    InputRow(label = label, onClick = { onCheckedChange(!checked) }, chevron = false) {
+    // A switch answers a yes/no, so it gets the toggle buzz rather than the ordinary tap.
+    val haptics = rememberHaptics()
+    InputRow(
+        label = label,
+        onClick = {
+            haptics.toggle()
+            onCheckedChange(!checked)
+        },
+        chevron = false,
+    ) {
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = {
+                haptics.toggle()
+                onCheckedChange(it)
+            },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = colors.onAccent,
                 checkedTrackColor = accent,
@@ -276,11 +289,17 @@ fun ChoiceChip(
     icon: Painter? = null,
 ) {
     val colors = BabyLogTheme.colors
+    // Every chip in the app is this composable -- activity tabs, ranges, filters, diaper kinds, meal slots --
+    // so the tap that selects one is felt through one line of code everywhere.
+    val haptics = rememberHaptics()
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(Radius.pill))
             .background(if (selected) accent else colors.surfaceRaised)
-            .clickable(onClick = onClick)
+            .clickable {
+                haptics.tap()
+                onClick()
+            }
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),

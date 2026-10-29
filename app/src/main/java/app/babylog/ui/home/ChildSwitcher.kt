@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import app.babylog.domain.Child
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.badgesFor
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 
 /**
@@ -76,6 +77,7 @@ private fun SwitcherPill(
     onClick: () -> Unit,
 ) {
     val colors = BabyLogTheme.colors
+    val haptics = rememberHaptics()
     val shape = RoundedCornerShape(percent = 50)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -88,7 +90,10 @@ private fun SwitcherPill(
                 color = if (selected) colors.textPrimary else colors.divider,
                 shape = shape,
             )
-            .clickable(onClick = onClick)
+            .clickable {
+                haptics.tap()
+                onClick()
+            }
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         // Shared with the recent log rows, so the two cannot drift. The centring lives in ChildBadge.
