@@ -163,6 +163,8 @@ That is the nagging `AGENTS.md` rules out, and it is recorded for a decision rat
 | 7 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
 | 8 | Google Sign-In on a release build | **Not verified** ⚠️ — the phone was already signed in with email/password and the Google button only appears after a sign-out. The fingerprint is registered; the tap is unproven |
 | 9 | The second phone | Not attached, as in every pass since the import ⚠️ |
+| 10 | System back, checked at close-out | Back from Settings returned to Activity, app still foreground, `Today` behind it ✅ |
+| 11 | A logging sheet, opened and dismissed | `+ Log feed for Kai` rendered the Bottle feed sheet (`for Kai`, date, time, amount presets, `Save`) and back closed it without saving, Activity still foreground ✅ |
 
 **The pass could not read the database at all, and that is new.** `run-as app.babylog` answers `package not
 debuggable` — a release build has no debuggable data directory — so the counts above come from the app's own

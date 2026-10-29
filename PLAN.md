@@ -2011,7 +2011,13 @@ signature change from the debug key forces.
 | 8 | No crash | `logcat -b crash -d` → **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
 | 9 | Google Sign-In on a release build | **Not verified** ⚠️ — the phone was already signed in with email/password, and the Google button only appears after a sign-out. The fingerprint is registered; the tap is not proven |
 | 10 | The second phone | Not attached, as in every pass since the import ⚠️ |
-| 11 | What the pass could not measure | `run-as app.babylog` answers **`package not debuggable`**: a release build has no debuggable data directory, so the database cannot be pulled the way every earlier pass pulled it. The counts above come from the app's own Export instead |
+| 11 | System back, checked at close-out | Back from Settings returned to Activity with the app still foreground — `topResumedActivity=app.babylog/.MainActivity`, and the screen behind it was `Today` with the three cards ✅ |
+| 12 | A logging sheet, opened and dismissed without saving | `+ Log feed for Kai` opened the Bottle feed sheet (`Bottle feed`, `for Kai`, date `29 Oct 2026`, time `1:42 PM`, the amount presets, `Save`); back dismissed it, `Save` was gone and Activity was still foreground ✅ |
+
+The database itself could not be read at all: `run-as app.babylog` answers **`package not debuggable`**, so a
+release build has no data directory `adb` will open and the counts above come from the app's own Export
+instead. That is the one place the "pull the database with its `-wal` and `-shm`" rule stops working, and
+`AGENTS.md` now says so.
 
 ### Found on the phone, not fixed here
 
