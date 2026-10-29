@@ -25,6 +25,7 @@ import app.babylog.domain.formatTrendNumber
 import app.babylog.domain.trendDisplayValue
 import app.babylog.ui.charts.X_AXIS_GUTTER
 import app.babylog.ui.charts.Y_AXIS_GUTTER
+import app.babylog.ui.charts.ticksWithDistinctLabels
 import app.babylog.ui.charts.yRangeFor
 import app.babylog.ui.charts.yTicks
 import java.time.Instant
@@ -126,8 +127,13 @@ private fun DrawScope.drawTrends(
 
     // ---- grid and y labels ---------------------------------------------------------------------
     // A count axis is ticked in whole things: "0.4 meals" is a category error, not extra precision.
-    // Found on the phone in light mode, where a one-meal day produced a 0.2-step axis.
-    val ticks = if (series.metric == TrendMetric.COUNT) integerTicks(yRange) else yTicks(yRange)
+    // Found on the phone in light mode, where a one-meal day produced a 0.2-step axis. Every axis is then
+    // filtered so no two gridlines can read the same number — `0.1 / 0 / 0` was what a volume series with
+    // nothing recorded drew before `yRangeFor` stopped inventing a span for it.
+    val ticks = ticksWithDistinctLabels(
+        ticks = if (series.metric == TrendMetric.COUNT) integerTicks(yRange) else yTicks(yRange),
+        label = ::formatTrendNumber,
+    )
     for (tick in ticks) {
         val tickY = y(tick)
         drawLine(color = gridColor, start = Offset(left, tickY), end = Offset(right, tickY), strokeWidth = 1f)

@@ -1,5 +1,9 @@
 package app.babylog.ui.trends
 
+import app.babylog.domain.formatTrendNumber
+import app.babylog.ui.charts.ticksWithDistinctLabels
+import app.babylog.ui.charts.yRangeFor
+import app.babylog.ui.charts.yTicks
 import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -63,6 +67,33 @@ class TrendChartAxisTest {
         assertTrue("at least two gridlines", integerTicks(0f..9.72f).size >= 2)
         assertTrue("at least two gridlines on a flat zero", integerTicks(0f..0.1f).size >= 2)
         assertEquals(listOf(0.0, 1.0), integerTicks(0f..0.1f))
+    }
+
+    @Test
+    fun `a volume series with nothing recorded draws one gridline, not a fabricated scale`() {
+        // Found on the phone in Phase 12 and recorded as out of scope: a bottle series whose window held no
+        // volume drew `0.1 / 0 / 0`. The cause was `yRangeFor` inventing a 1.0 span for flat zero data — and
+        // not the count path, which already collapses.
+        val range = yRangeFor(List(14) { 0.0 }, floorAtZero = true)
+
+        assertEquals(0f, range.start, 0f)
+        assertEquals(0f, range.endInclusive, 0f)
+        assertEquals("one line, at zero", listOf(0.0), yTicks(range))
+        assertEquals(listOf("0"), yTicks(range).map { formatTrendNumber(it) })
+    }
+
+    @Test
+    fun `no two gridlines ever read the same number`() {
+        // The general guard, because the fabricated span was only one way to produce a repeat: any range whose
+        // step is finer than the label's own rounding does it. Growth's percentile axis goes through the same
+        // filter, with the same label function it draws with.
+        listOf(0f..0f, 0f..0.04f, 0f..0.08f, 0f..0.5f, 0f..1.08f, 0f..9.72f, 0f..260f, 40f..120f).forEach { range ->
+            val kept = ticksWithDistinctLabels(yTicks(range), ::formatTrendNumber)
+            val labels = kept.map { formatTrendNumber(it) }
+
+            assertEquals("$range drew $labels", labels.size, labels.distinct().size)
+            assertTrue("$range drew $labels", labels.isNotEmpty() && labels.size <= 6)
+        }
     }
 
     @Test

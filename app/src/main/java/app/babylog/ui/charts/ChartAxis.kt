@@ -33,6 +33,10 @@ internal fun yRangeFor(values: List<Double>, floorAtZero: Boolean = false): Clos
     if (finite.isEmpty()) return 0f..1f
     val low = if (floorAtZero) 0.0 else finite.min()
     val high = finite.max()
+    // Nothing was recorded in the window. Inventing a span here drew a scale above a flat line at zero — on the
+    // phone that read `0.1 / 0 / 0`, three gridlines of which two claim the same number. A zero-span range is
+    // the honest answer: `yTicks` collapses it to ONE line, and that line is zero.
+    if (floorAtZero && high <= 0.0) return 0f..0f
     val span = (high - low).takeIf { it > 1e-6 } ?: (high * 0.2).coerceAtLeast(1.0)
     val pad = span * 0.08
     return ((low - pad).coerceAtLeast(0.0)).toFloat()..(high + pad).toFloat()
@@ -82,6 +86,25 @@ private fun tickStep(range: ClosedFloatingPointRange<Float>, span: Double): Doub
         decade *= 10.0
     }
     return span
+}
+
+/**
+ * The gridlines that survive formatting, one per distinct label.
+ *
+ * Two gridlines reading the same number is a scale that does not exist. A bottle series with nothing recorded
+ * in the window drew `0.1 / 0 / 0` on the phone: `yTicks` stepped by 0.02 and every sub-0.1 label rounded to
+ * the same text. [yRangeFor] now refuses to invent that span at all, and this is the guard for every other
+ * range.
+ *
+ * Shared because it is a property of an axis, not of one chart — but **applied by Trends only**. Growth's
+ * `PercentileChart` draws `yTicks` through `unit.format` and still has no repeat filter; that was out of scope
+ * for the change that added this, and is recorded in `PLAN.md` rather than silently left to look fixed.
+ *
+ * Repeats are DROPPED, never relabelled: the axis answers "what scale is this" with fewer, true lines.
+ */
+internal fun ticksWithDistinctLabels(ticks: List<Double>, label: (Double) -> String): List<Double> {
+    val seen = mutableSetOf<String>()
+    return ticks.filter { seen.add(label(it)) }
 }
 
 /** Kept next to the axis maths because the growth chart's curve styling sorts on it too. */
