@@ -161,7 +161,7 @@ That is the nagging `AGENTS.md` rules out, and it is recorded for a decision rat
 | 5 | The log is intact, counted from the app's own Export | 13:34 export: **219 live events** — BOTTLE 104, DIAPER 80, GROWTH 19, SLEEP 2, SOLIDS 14 — 2 children. The pre-uninstall export at 13:12 held the same 219 live rows (221 including 2 tombstones) ✅ |
 | 6 | The screen agrees | Kai: Bottle `1d ago` 6 oz, Diaper `1d ago` Wet, Solids `10d ago` Carrot, Pumpkin, Chicken, Broccoli ✅ |
 | 7 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
-| 8 | Google Sign-In on a release build | **Not verified** ⚠️ — the phone was already signed in with email/password and the Google button only appears after a sign-out. The fingerprint is registered; the tap is unproven |
+| 8 | Google Sign-In on a release build | **Verified by the owner at close-out** — signed out of Sync, tapped `Sign in with Google`, signed back in; the registered release SHA-1 is accepted on a `CN=BabyLog` build ✅ |
 | 9 | The second phone | Not attached, as in every pass since the import ⚠️ |
 | 10 | System back, checked at close-out | Back from Settings returned to Activity, app still foreground, `Today` behind it ✅ |
 | 11 | A logging sheet, opened and dismissed | `+ Log feed for Kai` rendered the Bottle feed sheet (`for Kai`, date, time, amount presets, `Save`) and back closed it without saving, Activity still foreground ✅ |
