@@ -439,6 +439,11 @@ class TrendsTest {
         assertEquals("8.3", formatTrendNumber(trendDisplayValue(TrendMetric.COUNT, 8.25, UnitPreferences.Metric)))
         assertEquals(2.5, trendDisplayValue(TrendMetric.DURATION, 150.0, UnitPreferences.Metric), 1e-9)
         assertEquals("hours per day", trendAxisUnit(TrendMetric.DURATION, UnitPreferences.Metric))
+        // The caption names the bucket the chart actually draws. Found on the phone: 1Y and All still read
+        // "oz per day" above weekly and monthly buckets, which describes a different chart.
+        assertEquals("oz per week", trendAxisUnit(TrendMetric.VOLUME, UnitPreferences.Imperial, TrendBucket.WEEK))
+        assertEquals("ml per month", trendAxisUnit(TrendMetric.VOLUME, UnitPreferences.Metric, TrendBucket.MONTH))
+        assertEquals("per month", trendAxisUnit(TrendMetric.COUNT, UnitPreferences.Metric, TrendBucket.MONTH))
         assertEquals("8", formatTrendNumber(8.0))
         assertEquals("0", formatTrendNumber(Double.NaN))
     }

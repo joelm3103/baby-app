@@ -120,7 +120,7 @@ fun TrendPane(
                 }
                 Text(
                     text = "${series.type.displayName()} · ${series.range.windowText} · " +
-                        trendAxisUnit(series.metric, units) +
+                        trendAxisUnit(series.metric, units, series.range.bucket) +
                         if (childLabel.isNotEmpty()) " \u00b7 $childLabel" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary,

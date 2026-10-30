@@ -354,10 +354,15 @@ fun trendDisplayValue(metric: TrendMetric, canonical: Double, units: UnitPrefere
     }
 
 /** What one unit of the axis IS, for the caption under the chart. */
-fun trendAxisUnit(metric: TrendMetric, units: UnitPreferences): String = when (metric) {
-    TrendMetric.VOLUME -> if (units.volume == VolumeUnit.MILLILITRES) "ml per day" else "oz per day"
-    TrendMetric.DURATION -> "hours per day"
-    TrendMetric.COUNT -> "per day"
+fun trendAxisUnit(
+    metric: TrendMetric,
+    units: UnitPreferences,
+    bucket: TrendBucket = TrendBucket.DAY,
+): String = when (metric) {
+    TrendMetric.VOLUME ->
+        if (units.volume == VolumeUnit.MILLILITRES) "ml per ${bucket.noun}" else "oz per ${bucket.noun}"
+    TrendMetric.DURATION -> "hours per ${bucket.noun}"
+    TrendMetric.COUNT -> "per ${bucket.noun}"
 }
 
 /**
