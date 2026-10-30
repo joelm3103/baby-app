@@ -244,7 +244,11 @@ internal fun bucketStarts(
                 ?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
                 ?: today
             val last = YearMonth.from(today)
-            var month = YearMonth.from(firstDate)
+            // A FIRST event later than today -- a mistyped year on a sheet, or a phone whose clock came back
+            // from the future -- must not produce an empty bucket list: `trendWindow` takes its start from
+            // the first bucket, so an empty list used to throw instead of drawing. Clamping to the current
+            // month keeps the invariant "a range always has at least one bucket" true for every range.
+            var month = minOf(YearMonth.from(firstDate), last)
             buildList {
                 while (!month.isAfter(last)) {
                     add(month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli())

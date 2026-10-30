@@ -254,15 +254,19 @@ class SettingsViewModel(
      * lives here rather than behind a second confirm.
      */
     fun setActivityHidden(type: EventType, hidden: Boolean) = viewModelScope.launch {
-        if (hidden) {
-            val rules = settings.reminders.first()
-            // Every child's rule for this activity, not just the one in view: the card is the only place a
-            // rule can be edited, so a twin left armed would be unreachable.
-            reminderKeysToCancelOnHide(rules, type)
-                .forEach { settings.setReminder(it, ReminderConfig()) }
-            refreshReminders()
-        }
+        // Hidden is written FIRST, then the rules are swept. Either order leaves a window, but this one keeps
+        // the state a parent can see ahead of the state they cannot: if the sweep loses a race, the card is
+        // already gone and the leftover rule is what the next hide (or the reminders refresh) will catch,
+        // rather than a card still on screen whose reminder has silently been cancelled.
         settings.setActivityHidden(type, hidden)
+        if (!hidden) return@launch
+        // Re-read AFTER the write, so a rule saved in between is still in the set that gets cancelled. Every
+        // child's rule for this activity, not just the one in view: the card is the only place a rule can be
+        // edited, so a twin left armed would be unreachable.
+        val rules = settings.reminders.first()
+        reminderKeysToCancelOnHide(rules, type)
+            .forEach { settings.setReminder(it, ReminderConfig()) }
+        refreshReminders()
     }
 
     fun updateChild(child: Child) = viewModelScope.launch { children.upsert(child) }

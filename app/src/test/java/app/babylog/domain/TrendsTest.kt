@@ -28,6 +28,45 @@ class TrendsTest {
     private val secondTwin = Child(id = "second-twin", name = "Second Twin", birthDate = LocalDate.of(2025, 12, 31), sex = Sex.BOY, sortOrder = 1)
 
 
+
+    @Test
+    fun `a future-dated first event draws one month instead of throwing`() {
+        // A sheet accepts any date, so a mistyped year can put the FIRST event after today. The window takes
+        // its start from the first bucket, so an empty bucket list used to throw NoSuchElementException
+        // rather than draw -- found by review, not by the phone, because nobody types next year by accident.
+        val future = today.plusMonths(3).atStartOfDay(zone).toInstant().toEpochMilli()
+
+        val series = seriesOf(
+            EventType.BOTTLE,
+            listOf(firstTwin),
+            emptyList(),
+            range = TrendRange.ALL,
+            firstEventAt = future,
+        )
+        assertEquals(1, series.buckets.size)
+
+        val window = trendWindow(TrendRange.ALL, now, zone, firstEventAt = future)
+        assertEquals(
+            LocalDate.of(2026, 10, 1).atStartOfDay(zone).toInstant().toEpochMilli(),
+            window.from,
+        )
+        assertTrue("the window still ends tomorrow", window.to > window.from)
+    }
+
+    @Test
+    fun `every range draws at least one bucket, whatever the log looks like`() {
+        TrendRange.entries.forEach { range ->
+            assertTrue(
+                "$range drew no buckets",
+                bucketStarts(range, now, zone, firstEventAt = null).isNotEmpty(),
+            )
+            assertTrue(
+                "$range drew no buckets with a future first event",
+                bucketStarts(range, now, zone, firstEventAt = at(9, dayOffset = 90)).isNotEmpty(),
+            )
+        }
+    }
+
     // ---- buckets: a year of weeks, all time in months -----------------------
 
     @Test
