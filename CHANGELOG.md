@@ -17,6 +17,66 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-10-30]
+
+**In short:**
+
+- **`1.1.0` reached the phone and Phase 17 is closed.** Installed **in place over `1.0.0`** — same signing key,
+  `versionCode 27` — so the log survived an update rather than a reinstall: 219 live events, 2 children, no
+  crash.
+- **The five `todo.txt` items were seen working**: the Trends switcher and its five chips, `1Y` counting weeks
+  and `All` counting months from the first event, the About card naming the build it is, an activity hidden and
+  restored, and the hide-with-reminder prompt answered both ways.
+- **Two pre-existing defects were found and recorded rather than fixed.** The reminder sheet opens with
+  `Notify` **off** even when notifications are granted — so `Set` saves a rule that is silently disabled and
+  the card shows nothing — and tapping that disabled `Set` dismisses the sheet instead of doing nothing.
+
+### Versions
+
+- **No rung moved.** `1.1.0` / versionCode 27 landed on 2026-10-29 with the code; this section is its device
+  pass, and a pass does not open a second rung for one phase's work.
+
+### Fixed
+
+- **`trendAxisUnit` named the day above a chart of weeks or months.** The first 1.1.0 build on the phone read
+  `Bottle feed · the last 52 weeks · oz per day` — the headline under it already said `oz / week`, so one
+  caption disagreed with the chart and with the line above it. Found by reading the screen, not by a test;
+  now `trendAxisUnit(metric, units, bucket)` and pinned by three assertions in `TrendsTest`.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `1.1.0`, 2026-10-30
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=27 versionName=1.1.0`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-10-30 12:59 ✅ |
+| 2 | Signed by the family's key | `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f…5f4f` ✅ |
+| 3 | The log came through the update | the app's own Export at 13:28: 221 rows, **219 live** (BOTTLE 106, DIAPER 80, GROWTH 19, SOLIDS 14), 91 foods ✅ |
+| 4 | The Trends switcher changes the data | `Kai`/`Levi`/`Both` in the header, caption follows it, totals differ: `273 oz` against `274.6 oz` ✅ |
+| 5 | Five range chips on one row | `1W · 2W · 1M · 1Y · All`, each carrying its spoken form ✅ |
+| 6 | `1Y` counts weeks | `the last 52 weeks · oz per week`, `Weeks with no records count as zero.`, `4 of 52 weeks logged`, `Best week 127 oz · 12 Oct` ✅ |
+| 7 | `All` counts months from the first event | `all time · oz per month`, `Months with no records count as zero.`, `1 of 11 months logged`, `Best month 274.6 oz · Oct` ✅ |
+| 8 | Per-day ranges unchanged | 2W reads `the last 14 days` / `Days with no records count as zero.` / `Best day 30.5 oz · 17 Oct` ✅ |
+| 9 | Hiding and restoring an activity | `Solids` gone from Activity after the toggle, back after untoggling ✅ |
+| 10 | The hide-with-reminder prompt, both answers | with a Health rule armed (`Every 3h (4:31 PM)`): **Keep it visible** changed nothing; **Hide and cancel the reminder** removed the card and left no future babylog alarm ✅ |
+| 11 | The About card | `Version 1.1.0 (build 27) · release build`, the credits, the repository button, the WHO 2006 line, the no-analytics line ✅ |
+| 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the sheet work, three hide/restore cycles and the export ✅ |
+| 13 | Haptics | **Not judged** ⚠️ — the call path runs without crashing; whether the strength reads right is the owner's to feel |
+
+**Found on the phone and not fixed:** the reminder sheet opens with `Notify` **off** even after the permission
+is granted, so `Set` writes a **disabled** rule — no chip, no alarm, and nothing on screen to say why; the same
+rule works when `Notify` is turned on. And tapping the disabled `Set` (enabled only once a child is picked)
+falls through to the sheet's dismiss handler, so Save appears to do nothing except close the sheet. Both
+pre-date this phase, and the second is what made the first look like "saving does nothing". A disabled rule is
+also indistinguishable from no rule — the `⋮` still reads `Set reminder` — which is what concealed it.
+
+### Tests
+
+- **579 → 582: three cases for the rule a hide must follow.** `reminderKeysToCancelOnHide` is now a pure
+  function rather than a loop inside the ViewModel, and the tests pin that hiding an activity cancels that
+  activity's rules **for every child** (a twin left armed would be unreachable, because the card is the only
+  place a rule can be edited), that a hide with no rules cancels nothing, and that an already-disabled key is
+  still removed — "set but off" and "never set" look the same to a parent, so a leftover key would resurrect
+  the old interval.
+
 ## [2026-10-29]
 
 **In short:**

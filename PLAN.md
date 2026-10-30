@@ -51,7 +51,7 @@ everything after it is additive.**
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
 | 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 554 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
-| 17 — Five todo items | in progress — a child selector and `1Y`/`All` ranges on Trends, an About card, per-activity hiding on the Activity tab (hiding cancels a reminder behind a prompt), and haptics; `1.1.0` / versionCode 27. **Was Phase 18 in the planning of it** — see *Renumbering, 2026-10-29* |
+| 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **582 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**, which now exists (`1.0.0` on `<handset>`); use it for a week before more code. Was 17 |
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -118,9 +118,9 @@ Test counts in the table are the suite size **when that phase landed**, so they 
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified: `:app:assembleRelease` builds and signs (`1.1.0`, versionCode 27, `CN=BabyLog`, SHA-1
-`07:66:EE:…:4F`); `:app:testDebugUnitTest` is **579/579**
+`07:66:EE:…:4F`, installed on `<handset>` as `versionCode=27`); `:app:testDebugUnitTest` is **582/582**
 with 0 failures, 0 errors and 0 skipped, summed over the 55 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-29 — 565 plus Phase 17's fourteen. The line before it
+`app/build/test-results/testDebugUnitTest/` on 2026-10-30 — 565 plus Phase 17's seventeen. The line before it
 was `1.0.0` / versionCode 26 at 565/565: Phase 16 shipped no Kotlin, so the release rung did not move the
 count. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
@@ -2054,7 +2054,77 @@ close-out rather than in this pass, which is why row 9 says so.
 **Tag:** `v1.0.0`, annotated, cut on the delivered build — the first tag in the repository, and the only one:
 `0.1.0` … `0.19.0` stay untagged because a phase ending is not a release.
 
-## Phase 17 — Ship
+## Phase 17 — Five todo items — DONE, device-verified (`1.1.0`)
+
+The `todo.txt` batch, renumbered to 17 on 2026-10-29 when the owner chose to land features before Ship
+(see *Renumbering, 2026-10-29*). One branch, `feat/phase17-todo-batch`.
+
+### As built
+
+- **A child switcher on Trends**, the only tab without one. The selection was already global and
+  `TrendsViewModel` already resolved it, so the work was the shared `ScreenHeader` plus its callback — no new
+  stored state, and choosing a child on Trends changes the same selection Activity and Summary read.
+- **`1Y` and `All` as buckets, not a denser line.** `TrendRange` gained a `bucket` (`DAY`/`WEEK`/`MONTH`);
+  `1Y` draws the last 52 weekly buckets ending with this week's Monday, and `All` draws one bucket per calendar
+  month **starting at the first event** — `EventDao.earliestStartedAt` answers when the log begins, because a
+  window from epoch would draw months of zeros before either twin was born and average them into every
+  headline number. Every caption that counted days now counts the bucket it draws (`oz per week`,
+  `Months with no records count as zero`, `Best week`, `4 of 52 weeks logged`), which is a rule rather than
+  polish: a chart of weeks that said "7 of 30 days" would be describing a different chart. `trendAxisUnit`
+  was caught still saying `per day` above weekly buckets **on the phone**, in the first build of this pass.
+- **An About card** — `domain/About.kt`'s `aboutVersionLine` reads `BuildConfig`, so the row a parent would
+  quote in a bug report cannot disagree with the installed APK; the credits name the two children; the
+  repository opens with an `ACTION_VIEW` intent (guarded); the WHO 2006 attribution travels with it, and one
+  line states there are no analytics and no trackers.
+- **Per-activity hiding on the Activity tab** — `activities.hidden` in DataStore (a sorted set, unknown names
+  dropped), six toggles in Settings → Activities, `HomeUiState.shownCards`, and an all-hidden empty state that
+  names the way back. Hiding one that has a reminder asks first and cancels the rule with the hide
+  (`reminderKeysToCancelOnHide`, every child's rule for that activity, because the card is the only place a
+  rule can be edited). A reset clears the set, so first run shows everything.
+- **Haptics from one helper** (`ui/common/Haptics.kt`) with four meanings — tap, toggle, confirm, long press —
+  wired at `ChoiceChip`, `PillButton`, `SwitchRow`, `EntryRow`, `SwitcherPill` and the sheet's Save. No
+  preference: `View.performHapticFeedback` already honours the device's touch-feedback setting.
+- **The rung is `1.1.0` / versionCode 27**, not the `0.20.0` the scope first said: after `1.0.0` the ladder
+  cannot go back to a `0.x` name, and a `0.20.0` would install by versionCode and still read as going
+  backwards on the phone.
+
+### Device pass, 2026-10-30, `<handset>` (SM-S918U1) — DONE, device-verified
+
+Installed **in place over the release**: `:app:assembleRelease` + `adb install -r` with the same key, which is
+what the Phase 16 rule requires now that a debug APK can no longer install over `1.0.0`.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=27 versionName=1.1.0`; `firstInstallTime` still 2026-10-29 13:16, `lastUpdateTime` 2026-10-30 12:59 ✅ |
+| 2 | Signed by the family's key | `apksigner` → `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f…5f4f` ✅ |
+| 3 | The log survived the update | the app's own Export at 13:28: 221 rows, **219 live** (BOTTLE 106, DIAPER 80, GROWTH 19, SOLIDS 14), 2 children, 91 foods ✅ |
+| 4 | The Trends switcher works and changes the data | header carries `Kai`/`Levi`/`Both`; the caption follows it, and the totals differ (`273 oz` for Kai against `274.6 oz` for Levi) ✅ |
+| 5 | Five range chips, one row | `1W · 2W · 1M · 1Y · All`, each with its spoken form (`1 week` … `all time`), no wrap on this phone ✅ |
+| 6 | `1Y` counts weeks | `Bottle feed · the last 52 weeks · oz per week`, `Weeks with no records count as zero.`, `4 of 52 weeks logged`, `Best week 127 oz · 12 Oct` ✅ |
+| 7 | `All` counts months, from the first event | `Bottle feed · all time · oz per month`, `Months with no records count as zero.`, `1 of 11 months logged`, `Best month 274.6 oz · Oct` — 11 buckets, not a window from 1970 ✅ |
+| 8 | The per-day ranges are unchanged | 2W still reads `the last 14 days` / `Days with no records count as zero.` / `13 of 14 days logged` / `Best day 30.5 oz · 17 Oct` ✅ |
+| 9 | Hiding and restoring an activity | `Solids` hidden in Settings → Activities disappeared from Activity; shown again, the card came back ✅ |
+| 10 | The hide-with-reminder prompt, both answers | with a Health rule armed (`Every 3h (4:31 PM)`), hiding asked `Hide Health?`; **Keep it visible** left card and rule untouched, **Hide and cancel the reminder** removed the card and left `dumpsys alarm` with no future babylog alarm ✅ |
+| 11 | The About card | `Version 1.1.0 (build 27) · release build`, `Built by joelm3103, for Kai and Levi.`, `Open the repository`, the WHO 2006 line and the no-analytics line ✅ |
+| 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the reminder-sheet work, three hide/restore cycles and the export ✅ |
+| 13 | Haptics | **Not judged here** ⚠️ — the pass proves the call path runs (no crash, no swallowed error), not that the strength reads right; that is the owner's to feel |
+
+### Found on the phone, not fixed here
+
+- **The reminder sheet opens with `Notify` OFF even when notifications are granted.** The permission had just
+  been allowed (the sheet's own "Notifications are off" banner was gone), yet `Notify` still started off, so
+  `Set` saved a **disabled** rule: no chip, no alarm, and nothing on screen saying why. Turning `Notify` on made
+  the same rule work (`Every 3h (4:31 PM)`). Pre-existing — this phase did not touch the sheet — but it is the
+  worst kind of quiet: the parent believes a reminder exists.
+- **Tapping the disabled `Set` button dismisses the sheet.** `saveEnabled = childId.isNotEmpty()` until a child
+  is picked, and the tap falls through to the sheet's dismiss handler, so Save appears to do nothing except
+  close the sheet. Also pre-existing.
+- **A disabled rule is indistinguishable from no rule.** The `⋮` still reads `Set reminder`, which is what
+  concealed the first finding for three attempts.
+- **Haptics are unverified by feel** (row 13) and the **second phone is still not attached**, as in every pass
+  since the import.
+
+## Phase 18 — Ship
 Use the release APK already delivered over the air to both phones in Phase 16 for **a week before
 writing another line of code**. No second cable install is required.
 
