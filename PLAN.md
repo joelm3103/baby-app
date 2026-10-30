@@ -2082,8 +2082,11 @@ The `todo.txt` batch, renumbered to 17 on 2026-10-29 when the owner chose to lan
   (`reminderKeysToCancelOnHide`, every child's rule for that activity, because the card is the only place a
   rule can be edited). A reset clears the set, so first run shows everything.
 - **Haptics from one helper** (`ui/common/Haptics.kt`) with four meanings — tap, toggle, confirm, long press —
-  wired at `ChoiceChip`, `PillButton`, `SwitchRow`, `EntryRow`, `SwitcherPill` and the sheet's Save. No
-  preference: `View.performHapticFeedback` already honours the device's touch-feedback setting.
+  wired at `ChoiceChip`, `PillButton`, `SwitchRow`, `EntryRow`, `SwitcherPill`, the sheet's Save and the bottom
+  `NavItem` — the last one added after the owner tried the first build, because switching tabs was the most
+  repeated action in the app and the only surface left silent. Re-tapping the tab already on screen does not
+  buzz: that is not a switch. No preference: `View.performHapticFeedback` already honours the device's
+  touch-feedback setting.
 - **The rung is `1.1.0` / versionCode 27**, not the `0.20.0` the scope first said: after `1.0.0` the ladder
   cannot go back to a `0.x` name, and a `0.20.0` would install by versionCode and still read as going
   backwards on the phone.
@@ -2107,7 +2110,7 @@ what the Phase 16 rule requires now that a debug APK can no longer install over 
 | 10 | The hide-with-reminder prompt, both answers | with a Health rule armed (`Every 3h (4:31 PM)`), hiding asked `Hide Health?`; **Keep it visible** left card and rule untouched, **Hide and cancel the reminder** removed the card and left `dumpsys alarm` with no future babylog alarm ✅ |
 | 11 | The About card | `Version 1.1.0 (build 27) · release build`, `Built by joelm3103, for Kai and Levi.`, `Open the repository`, the WHO 2006 line and the no-analytics line ✅ |
 | 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the reminder-sheet work, three hide/restore cycles and the export ✅ |
-| 13 | Haptics | **Not judged here** ⚠️ — the pass proves the call path runs (no crash, no swallowed error), not that the strength reads right; that is the owner's to feel |
+| 13 | Haptics | **Judged by the owner** — the feel is right on card buttons, chips, toggles, long-press delete and Save. The tab bar was missing one; `NavItem` now taps the same helper, and the three tabs were switched on the phone afterwards with 0 `FATAL EXCEPTION` ✅ |
 
 ### Found on the phone, not fixed here
 

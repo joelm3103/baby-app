@@ -38,6 +38,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Fixed
 
+- **The bottom tab bar was the one surface with no haptic.** Every chip, card button, toggle, long press and
+  sheet Save buzzed; switching between Activity, Summary and Trends — the most repeated action in the app —
+  did not. `NavItem` now taps the same helper, and only when the destination actually changes: re-tapping the
+  tab already on screen is not a switch and stays silent.
 - **`trendAxisUnit` named the day above a chart of weeks or months.** The first 1.1.0 build on the phone read
   `Bottle feed · the last 52 weeks · oz per day` — the headline under it already said `oz / week`, so one
   caption disagreed with the chart and with the line above it. Found by reading the screen, not by a test;
@@ -59,7 +63,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 | 10 | The hide-with-reminder prompt, both answers | with a Health rule armed (`Every 3h (4:31 PM)`): **Keep it visible** changed nothing; **Hide and cancel the reminder** removed the card and left no future babylog alarm ✅ |
 | 11 | The About card | `Version 1.1.0 (build 27) · release build`, the credits, the repository button, the WHO 2006 line, the no-analytics line ✅ |
 | 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the sheet work, three hide/restore cycles and the export ✅ |
-| 13 | Haptics | **Not judged** ⚠️ — the call path runs without crashing; whether the strength reads right is the owner's to feel |
+| 13 | Haptics | **Judged by the owner**: the feel reads right on buttons, chips, toggles, long presses and Save. The tab bar was the one surface missing one, and now taps the same helper ✅ |
 
 **Found on the phone and not fixed:** the reminder sheet opens with `Notify` **off** even after the permission
 is granted, so `Set` writes a **disabled** rule — no chip, no alarm, and nothing on screen to say why; the same

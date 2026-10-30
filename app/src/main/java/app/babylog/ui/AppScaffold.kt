@@ -95,6 +95,7 @@ import app.babylog.ui.history.HistoryViewModel
 import app.babylog.ui.settings.SettingsScreen
 import app.babylog.ui.settings.SettingsViewModel
 import app.babylog.BuildConfig
+import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
@@ -865,9 +866,15 @@ private fun RowScope.NavItem(
     onSelect: (Destination) -> Unit,
 ) {
     val colors = BabyLogTheme.colors
+    // Switching tab is a deliberate act and gets the ordinary tap; re-tapping the tab already on screen is
+    // not a switch, so it stays silent rather than buzzing at a no-op.
+    val haptics = rememberHaptics()
     NavigationBarItem(
         selected = selected,
-        onClick = { onSelect(tab) },
+        onClick = {
+            if (!selected) haptics.tap()
+            onSelect(tab)
+        },
         icon = { Icon(tab.icon, contentDescription = null) },
         label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
         colors = NavigationBarItemDefaults.colors(
