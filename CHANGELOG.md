@@ -64,6 +64,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 | 11 | The About card | `Version 1.1.0 (build 27) · release build`, the credits, the repository button, the WHO 2006 line, the no-analytics line ✅ |
 | 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the sheet work, three hide/restore cycles and the export ✅ |
 | 13 | Haptics | **Judged by the owner**: the feel reads right on buttons, chips, toggles, long presses and Save. The tab bar was the one surface missing one, and now taps the same helper ✅ |
+| 14 | System back | Back from Settings returned to Activity, app still foreground; back with the Bottle feed sheet open dismissed it and left Activity in front ✅ |
 
 **Found on the phone and not fixed:** the reminder sheet opens with `Notify` **off** even after the permission
 is granted, so `Set` writes a **disabled** rule — no chip, no alarm, and nothing on screen to say why; the same

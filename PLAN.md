@@ -119,7 +119,7 @@ below — Phase 11 landed at 308, for instance. They are evidence at the time, n
 
 Verified: `:app:assembleRelease` builds and signs (`1.1.0`, versionCode 27, `CN=BabyLog`, SHA-1
 `07:66:EE:…:4F`, installed on `<handset>` as `versionCode=27`); `:app:testDebugUnitTest` is **582/582**
-with 0 failures, 0 errors and 0 skipped, summed over the 55 XML files under
+with 0 failures, 0 errors and 0 skipped, summed over the 56 XML files under
 `app/build/test-results/testDebugUnitTest/` on 2026-10-30 — 565 plus Phase 17's seventeen. The line before it
 was `1.0.0` / versionCode 26 at 565/565: Phase 16 shipped no Kotlin, so the release rung did not move the
 count. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
@@ -2111,6 +2111,7 @@ what the Phase 16 rule requires now that a debug APK can no longer install over 
 | 11 | The About card | `Version 1.1.0 (build 27) · release build`, `Built by joelm3103, for Kai and Levi.`, `Open the repository`, the WHO 2006 line and the no-analytics line ✅ |
 | 12 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, the reminder-sheet work, three hide/restore cycles and the export ✅ |
 | 13 | Haptics | **Judged by the owner** — the feel is right on card buttons, chips, toggles, long-press delete and Save. The tab bar was missing one; `NavItem` now taps the same helper, and the three tabs were switched on the phone afterwards with 0 `FATAL EXCEPTION` ✅ |
+| 14 | System back, checked at close-out | Back from Settings returned to Activity with the app still foreground; back with the Bottle feed sheet open dismissed the sheet and left Activity in front, `topResumedActivity=app.babylog/.MainActivity` ✅ |
 
 ### Found on the phone, not fixed here
 
