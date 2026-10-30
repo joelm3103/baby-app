@@ -75,12 +75,14 @@ also indistinguishable from no rule — the `⋮` still reads `Set reminder` —
 
 ### Tests
 
-- **579 → 582: three cases for the rule a hide must follow.** `reminderKeysToCancelOnHide` is now a pure
+- **579 → 584: five cases, all about rules rather than screens.** Three for the rule a hide must follow: `reminderKeysToCancelOnHide` is now a pure
   function rather than a loop inside the ViewModel, and the tests pin that hiding an activity cancels that
   activity's rules **for every child** (a twin left armed would be unreachable, because the card is the only
   place a rule can be edited), that a hide with no rules cancels nothing, and that an already-disabled key is
   still removed — "set but off" and "never set" look the same to a parent, so a leftover key would resurrect
-  the old interval.
+  the old interval. Two more came out of the review before merge: an `All` range whose FIRST event is dated in
+  the future draws one month instead of throwing, and every range draws at least one bucket whether the log is
+  empty, absent or future-dated.
 
 ## [2026-10-29]
 
