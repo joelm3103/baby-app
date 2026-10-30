@@ -471,4 +471,33 @@ class RemindersTest {
         assertEquals(emptyList<UpcomingReminder>(), rows)
     }
 
+    // ---- hiding an activity ------------------------------------------------
+
+    @Test
+    fun `hiding an activity cancels that activity's rules for every child`() {
+        val rules = mapOf(
+            ReminderKey(EventType.BOTTLE, "kai") to ReminderConfig(enabled = true),
+            ReminderKey(EventType.BOTTLE, "levi") to ReminderConfig(enabled = true, mode = ReminderMode.FIXED_TIMES),
+            ReminderKey(EventType.DIAPER, "kai") to ReminderConfig(enabled = true),
+        )
+
+        assertEquals(
+            listOf(ReminderKey(EventType.BOTTLE, "kai"), ReminderKey(EventType.BOTTLE, "levi")),
+            reminderKeysToCancelOnHide(rules, EventType.BOTTLE),
+        )
+    }
+
+    @Test
+    fun `hiding an activity with no rules cancels nothing`() {
+        val rules = mapOf(ReminderKey(EventType.DIAPER, "kai") to ReminderConfig(enabled = true))
+        assertEquals(emptyList<ReminderKey>(), reminderKeysToCancelOnHide(rules, EventType.SOLIDS))
+    }
+
+    @Test
+    fun `a disabled rule is still cancelled, because the key is what a hide removes`() {
+        // "Set but off" and "never set" look the same to a parent, so leaving a disabled key behind would
+        // resurrect the old interval the next time they set a rule.
+        val rules = mapOf(ReminderKey(EventType.SOLIDS, "levi") to ReminderConfig(enabled = false))
+        assertEquals(listOf(ReminderKey(EventType.SOLIDS, "levi")), reminderKeysToCancelOnHide(rules, EventType.SOLIDS))
+    }
 }

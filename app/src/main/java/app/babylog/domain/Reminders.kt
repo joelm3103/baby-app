@@ -92,6 +92,21 @@ data class ReminderConfig(
  * [night] is the same `NightWindow` Summary uses for its day/night split, so "stay quiet overnight" needs no
  * new setting and cannot disagree with the rest of the app about when night is.
  */
+/**
+ * The reminder keys a hide must cancel: every rule for that activity, for every child.
+ *
+ * Hiding is a per-ACTIVITY display choice and a rule is per activity AND child, so a hide that cancelled only
+ * the child in view would leave the twin's alarm ringing for a card that is no longer on the screen — and the
+ * card is the only place that rule can be edited. Pure, so the rule is pinned by a test rather than by driving
+ * the Settings screen.
+ */
+fun reminderKeysToCancelOnHide(
+    rules: Map<ReminderKey, ReminderConfig>,
+    type: EventType,
+): List<ReminderKey> = rules.keys
+    .filter { it.type == type }
+    .sortedBy { it.childId }
+
 fun nextReminderAt(
     config: ReminderConfig,
     anchorMs: Long?,

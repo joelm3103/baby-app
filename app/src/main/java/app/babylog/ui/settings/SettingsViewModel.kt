@@ -12,6 +12,7 @@ import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.ReminderConfig
+import app.babylog.domain.reminderKeysToCancelOnHide
 import app.babylog.domain.ReminderKey
 import app.babylog.data.sync.DrainResult
 import app.babylog.data.sync.ResetGate
@@ -255,8 +256,9 @@ class SettingsViewModel(
     fun setActivityHidden(type: EventType, hidden: Boolean) = viewModelScope.launch {
         if (hidden) {
             val rules = settings.reminders.first()
-            rules.keys
-                .filter { it.type == type }
+            // Every child's rule for this activity, not just the one in view: the card is the only place a
+            // rule can be edited, so a twin left armed would be unreachable.
+            reminderKeysToCancelOnHide(rules, type)
                 .forEach { settings.setReminder(it, ReminderConfig()) }
             refreshReminders()
         }
