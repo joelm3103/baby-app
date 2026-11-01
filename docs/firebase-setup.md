@@ -109,7 +109,27 @@ Copy each user's **uid** (the long string in the UID column). You need both in s
 3. Console → **Firestore Database → Rules** → paste the whole file → **Publish**.
 
 The rules are pasted by hand on purpose — there is no deploy step in this repo, and none is wanted for a
-two-person project. `children` and `events` are the only collections; anything else fails closed.
+ two-person project. The `children`, `events`, `foods_pending` and `foods_proposals` collections are
+client-readable/writable only by the two uids. `reference` is read-only to clients: the owner creates
+`reference/food_catalogue` in the console, and only the owner edits it.
+
+The document shape is:
+
+```json
+{
+  "version": "2026-11.1",
+  "foods": [
+    { "id": "courgette", "name": "Zucchini", "category": "Vegetable" }
+  ]
+}
+```
+
+Use stable ids from the bundled `app/src/main/assets/foods/foods.json` when renaming an existing food;
+changing the `name` while keeping the `id` is what preserves every meal that already refers to it. A new
+catalogue entry gets a stable slug id. Clients never write this document: a phone's rename becomes a
+`foods_proposals/{id}` suggestion until the owner decides to publish it, and a food a parent types goes to
+`foods_pending/{id}` so the other phone can read it immediately. Promote a pending entry by copying its
+id, name and category into the catalogue; the phones then stop treating that id as pending.
 
 Also record the two uids in `PLAN.md` under Phase 13 once the accounts exist, so the files stay traceable
 to the project.
@@ -194,7 +214,7 @@ after fixing the cause (or relaunch to trigger another drain); there is no perio
 | Sync card: "Sync is not set up on this build…" | `firebase.properties` absent, or blank values, **at build time**. Rebuild. |
 | "Signed in, but Firebase returned no account." | Auth succeeded oddly; usually a wrong `appId` for this project. |
 | `CONFIGURATION_NOT_FOUND` on sign-in | The Email/Password provider is not enabled (step 2). |
-| `PERMISSION_DENIED` on sync or an empty log on B | Rules not published, a uid typed wrong, or the database was never created (step 4). |
+| `PERMISSION_DENIED` on `foods_pending` or `foods_proposals`, or one phone never sees a typed food | Rules not updated/published; confirm both collection matches are in the console rules. The catalogue itself is `reference/food_catalogue` and must remain read-only to clients. |
 | No "Sign in with Google" button | `firebase.webClientId` is blank — that is the app choosing not to lie, not a bug. |
 | Google button signs in then refuses, on a debug build | That machine's debug SHA-1 is not registered on the Android app. |
 | `api-key-not-valid` from the console's perspective | An API key restriction that excludes `app.babylog` or the SHA-1. |

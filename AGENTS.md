@@ -375,9 +375,20 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   network call, so a connectivity check is what stops a reset on a plane from queuing deletions that never
   leave. *Delete all server data* is the deliberate escape and is offered only while signed in.
 
+- **The food catalogue is published, not row-synced (ADR-0002).** `reference/food_catalogue` is one owner-written
+  document, read-only to clients; it wins over the bundled `foods/foods.json` asset, and stable ids preserve
+  old meals across a rename. `foods_pending/{id}` carries parent additions through the outbox to both phones;
+  promotion is a console copy into the published catalogue, after which the pending document is removed.
+  `foods_proposals/{id}` records a rename suggestion, never a change: only a publish changes the shared
+  name. `localName`, `hidden` and `lastUsedAt` are per-device opinions and never travel. Missing pending
+  documents hide the local row rather than deleting it, so an old meal still has a readable name.
+- **A reset withdraws every pending food and clears local food opinions.** It pauses both inbound listeners;
+  then the local catalogue is wiped and the bundled asset seeds back on next launch. There are no food
+  tombstones and no merged `foods` server collection.
+
 ## Tests
 
-584 unit tests through Phase 17 (`1.1.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+611 unit tests through Phase 18 (`1.2.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -412,7 +423,8 @@ only, and `1.0.0` is the first release.
 | | | *not a phase:* three recorded gaps closed | `0.19.0` |
 | | | 16 update delivery (first release) | `1.0.0` |
 | | | 17 five todo items | `1.1.0` |
-| | | 18 ship | uses delivered release |
+| | | 18 published food catalogue | `1.2.0` |
+| | | 19 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -430,9 +442,8 @@ only, and `1.0.0` is the first release.
   `13.1`, `13.1.1` and `13.2`–`13.5` stay as history and nothing new is numbered `13.7`. Phase 13.5 keeps its
   number because three commits on `main` already say `phase13.5`, and its rung is `0.17.1` after its own device
   pass; a landed rung is never renumbered to match a tidier label. Phase 16 delivered `1.0.0`; **Phase 17 is
-a batch of five `todo.txt` items on `1.1.0`**, and **Phase 18 is Ship**, which was 17 until 2026-10-29 because
-  Ship has no commits and the owner chose to land features first — see `PLAN.md` *Renumbering, 2026-10-29*.
-  Ship still requires a build delivered over the air, which `1.0.0` already is.
+a batch of five `todo.txt` items on `1.1.0`**, **Phase 18 is the published food catalogue on `1.2.0`**,
+and **Phase 19 is Ship**. Ship has no commits and moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
   would install fine by `versionCode` and still read as going backwards on the phone.

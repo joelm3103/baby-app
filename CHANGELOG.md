@@ -17,6 +17,57 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-01]
+
+**In short:**
+
+- **The `1.2.0` food picker was installed and exercised on the real phone.** The local catalogue and rename disclosure rendered; no food or log entry was changed.
+- **The Phase 18 checks passed:** 611 JVM tests and debug/release builds. The Firestore console publication and second-phone read remain outstanding.
+
+### Versions
+
+- **No rung moved.** `1.2.0` / versionCode 28 is Phase 18's code; this date records its device pass, not another version.
+
+### Verification
+
+- `:app:testDebugUnitTest` — 611 tests, 0 failures, 0 errors, 0 skipped across 58 XML files under `app/build/test-results/testDebugUnitTest/`.
+- `:app:assembleDebug` and `:app:assembleRelease` succeeded. The release APK verified as `CN=BabyLog`, SHA-1 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`.
+- Installed the release-signed APK (not debug) on `<handset>`: versionCode 28 / versionName 1.2.0. Activity and the Solids food picker rendered; Salmon's action menu exposed Rename/Hide, and the rename dialog disclosed that a catalogue rename is local and proposes a change to the owner.
+- System back dismissed the dialog and sheet layers without leaving the app. `logcat -b crash -d` contained 0 `FATAL EXCEPTION`.
+- Firebase console publication/rules deployment and the second-phone read were not performed. This phone pass did not change a food or log entry.
+
+## [2026-10-31]
+
+**In short:**
+
+- **`1.2.0` / versionCode 28 adds a shared, owner-published food catalogue.** The bundled list stays the offline floor; phone-typed additions travel through `foods_pending`, and rename proposals wait for the owner.
+
+### Versions
+
+- `1.2.0` / versionCode 28 — **Phase 18, published food catalogue**. It has not yet been delivered to either phone.
+
+### Added
+
+- **`reference/food_catalogue`** lets the owner correct or add a stable-id food name without a new APK. It overrides the bundled asset; clients can read but cannot write it.
+- **`foods_pending/{id}`** carries parent-typed additions through the outbox to both phones. **`foods_proposals/{id}`** records a local rename suggestion for the owner rather than changing the shared name.
+- The picker now supports local hide/show, renaming, and deleting pending additions. Unknown food ids say `Unknown food` instead of printing a slug; hidden or removed custom-food rows stay available to name older meals.
+- Schema v4 adds local `localName` and `hidden` fields, with a v3 migration and exported schema.
+
+### Changed
+
+- **Reset includes custom foods.** It withdraws pending additions and clears local curation; the bundled list returns on the next seed.
+- **ADR-0002 records why the published catalogue replaced the first proposed row-sync design.**
+
+### Fixed
+
+- **A remote solids entry without a local food row no longer renders its identifier as if it were a name.**
+
+### Verification
+
+- `:app:testDebugUnitTest` — 611 tests, 0 failures, 0 errors, 0 skipped across 58 XML files.
+- `:app:assembleDebug` and `:app:assembleRelease` succeeded; release APK verification reported the existing `CN=BabyLog` certificate.
+- Device install, Firebase console publication/rules, and the second-phone read were not performed: no Android device is attached, and console publication remains an owner action.
+
 ## [2026-10-30]
 
 **In short:**

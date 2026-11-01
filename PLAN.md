@@ -52,7 +52,8 @@ everything after it is additive.**
 | 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 554 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
-| 18 — Ship | not started — **prerequisite: an over-the-air build delivered from Phase 16**, which now exists (`1.0.0` on `<handset>`); use it for a week before more code. Was 17 |
+| 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
+| 19 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.2.0` over the air, verify both phones, then use it for a week before more code |
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
 because it shipped no application code and so carries no version rung — a phase number whose build does not
@@ -114,15 +115,20 @@ The rung is `1.1.0` / versionCode 27, not a `0.20.0`: the ladder reached its rel
 newer than the release already on the phone (`AGENTS.md` rule), even though this work is a batch of small
 capabilities rather than one new subsystem.
 
+### Renumbering, 2026-11-01 — the food catalogue takes 18 before Ship
+
+Phase 18 — Ship had no commits. The owner-published food catalogue is the next landed capability, so it
+uses **Phase 18** and Ship moves freely to **Phase 19**. Phase 17 and its `1.1.0` rung are unchanged.
+
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified: `:app:assembleRelease` builds and signs (`1.1.0`, versionCode 27, `CN=BabyLog`, SHA-1
-`07:66:EE:…:4F`, installed on `<handset>` as `versionCode=27`); `:app:testDebugUnitTest` is **584/584**
-with 0 failures, 0 errors and 0 skipped, summed over the 56 XML files under
-`app/build/test-results/testDebugUnitTest/` on 2026-10-30 — 565 plus Phase 17's nineteen. The line before it
-was `1.0.0` / versionCode 26 at 565/565: Phase 16 shipped no Kotlin, so the release rung did not move the
-count. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+Verified (current state, 2026-11-01): `:app:testDebugUnitTest`, `:app:assembleDebug` and
+`:app:assembleRelease` succeeded. The release APK is `1.2.0` / versionCode 28, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`. The suite is **611/611**,
+0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (58 files).
+The previous close-out was `1.1.0` / versionCode 27 at 584/584; this suite has 27 more tests. The ladder
+behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -2133,9 +2139,49 @@ what the Phase 16 rule requires now that a debug APK can no longer install over 
 - **The second phone is still not attached**, as in every pass since the import. (Haptics WERE judged by the
   owner — see row 13 — and the tab bar was added because of it.)
 
-## Phase 18 — Ship
-Use the release APK already delivered over the air to both phones in Phase 16 for **a week before
-writing another line of code**. No second cable install is required.
+## Phase 18 — Published food catalogue — DONE, device-verified (`1.2.0`)
+
+One branch, `feat/phase18-food-catalogue`; version `1.2.0` / versionCode 28. The work adds a shared
+owner-published catalogue without making the bundled list or either parent's picker dependent on a live
+server.
+
+### As built
+
+- `reference/food_catalogue` is the owner-published canonical list. It overrides the bundled asset by stable
+  id; clients read it but cannot publish it. Parent additions travel as `foods_pending/{id}` through the
+  existing outbox, while `foods_proposals/{id}` records a rename request for the owner.
+- `localName`, `hidden` and `lastUsedAt` remain per-device opinions. Renaming a published food changes only
+  this phone's picker and queues a proposal; pending additions can be renamed or deleted. Missing pending
+  rows are hidden rather than hard-deleted so older meals retain their food name.
+- Schema v4 adds `localName` and `hidden`, with a v3 migration and exported schema. Reset withdraws pending
+  additions and clears local curation; bundled foods seed again on the next launch. The remote Solids summary
+  now says `Unknown food` instead of showing an unknown id as a name.
+- `docs/DECISIONS.md` records ADR-0002: the catalogue is published, not row-synced. The Firestore rules and
+  `docs/firebase-setup.md` describe the published, pending and proposal documents.
+
+### Device pass, 2026-11-01 — `<handset>` (SM-S918U1), `1.2.0`
+
+Installed the release-signed APK (the debug APK is not an update for the installed release identity). The
+package reported versionCode 28 / versionName 1.2.0. `topResumedActivity` was checked before the first tap;
+all taps below came from the current `uiautomator dump`. No food or log entry was changed during the pass.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Install/launch and foreground before input | `adb install -r` succeeded; `topResumedActivity=app.babylog/.MainActivity`; `versionCode=28 versionName=1.2.0` ✅ |
+| 2 | Activity screen after update | Kai, Levi and Both selectors, today's Activity cards and the existing reminder rows rendered ✅ |
+| 3 | Solids sheet and food picker | Opened Solids for Kai; picker listed `Salmon`, `Sweet potato`, `Almond butter`, `Apple`, and other foods ✅ |
+| 4 | Per-food actions and rename disclosure | Salmon's menu offered `Rename` and `Hide from the list`; the rename dialog said it changes the name on this phone while the shared catalogue stays unchanged. Dialog dismissed without saving ✅ |
+| 5 | System back | Back dismissed the rename dialog and picker/sheet layers; the app remained foreground on Activity ✅ |
+| 6 | Crash buffer | `logcat -b crash -d`: **0** `FATAL EXCEPTION` ✅ |
+
+**Not verified on-device:** Firebase console deployment/publication and the second phone's read. The pass verified
+local UI behavior only; cross-device Firestore behavior remains a Phase 19 acceptance check. The rename dialog
+was dismissed without changing data.
+
+## Phase 19 — Ship
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.2.0` release
+APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
+use the delivered build for **a week before writing another line of code**.
 
 ---
 
