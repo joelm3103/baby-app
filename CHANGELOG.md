@@ -34,7 +34,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - `:app:assembleDebug` and `:app:assembleRelease` succeeded. The release APK verified as `CN=BabyLog`, SHA-1 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`.
 - Installed the release-signed APK (not debug) on `<handset>`: versionCode 28 / versionName 1.2.0. Activity and the Solids food picker rendered; Salmon's action menu exposed Rename/Hide, and the rename dialog disclosed that a catalogue rename is local and proposes a change to the owner.
 - System back dismissed the dialog and sheet layers without leaving the app. `logcat -b crash -d` contained 0 `FATAL EXCEPTION`.
-- Firebase console publication/rules deployment and the second-phone read were not performed. This phone pass did not change a food or log entry.
+- This pass did not check live Firestore rules deployment or a second-phone read. An earlier `logs/phone-food-picker.png` capture shows `Console Test Food` in the picker, but is not a fresh server or cross-device check. This phone pass did not change a food or log entry.
 
 ## [2026-10-31]
 
