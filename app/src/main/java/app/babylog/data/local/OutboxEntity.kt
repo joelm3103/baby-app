@@ -14,7 +14,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "outbox")
 data class OutboxEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    /** CHILD | EVENT | FOOD */
+    /** CHILD | EVENT | FOOD_PENDING | FOOD_PROPOSAL */
     val entityType: String,
     val entityId: String,
     /** UPSERT | DELETE */

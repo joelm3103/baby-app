@@ -30,6 +30,7 @@ import app.babylog.data.sync.AndroidNetworkStatus
 import app.babylog.data.sync.FirebaseAuthenticator
 import app.babylog.data.sync.FirebaseSetup
 import app.babylog.data.sync.FirestoreGateway
+import app.babylog.data.sync.FoodCatalogueGateway
 import app.babylog.data.sync.OutboxDrainer
 import app.babylog.data.sync.SyncGateway
 import app.babylog.data.sync.SyncRepository
@@ -98,9 +99,16 @@ class AppContainer(private val context: Context) {
         FirebaseSetup.isConfigured && runCatching { FirebaseSetup.app(context) }.getOrNull() != null
     }
 
-    private val syncGateway: SyncGateway? by lazy {
-        if (!firebaseReady) null else FirebaseSetup.firestore(context)?.let(::FirestoreGateway)
+    /** One Firestore handle, exposed through two seams: the log's, and the catalogue's (ADR-0002). */
+    private val firestoreGateway: FirestoreGateway? by lazy {
+        if (!firebaseReady) null else FirebaseSetup.firestore(context)?.let { firestore ->
+            FirestoreGateway(firestore) { authenticator.currentAccount?.uid }
+        }
     }
+
+    private val syncGateway: SyncGateway? get() = firestoreGateway
+
+    private val foodCatalogueGateway: FoodCatalogueGateway? get() = firestoreGateway
 
     private val authenticator: AccountAuthenticator by lazy {
         val auth = if (firebaseReady) FirebaseSetup.auth(context) else null
@@ -117,6 +125,7 @@ class AppContainer(private val context: Context) {
                 outboxDao = database.outboxDao(),
                 childDao = database.childDao(),
                 eventDao = database.eventDao(),
+                foodDao = database.foodDao(),
                 gateway = it,
             )
         }
@@ -133,6 +142,8 @@ class AppContainer(private val context: Context) {
             outboxDao = database.outboxDao(),
             settings = settings,
             scope = scope,
+            foodCatalogue = foodCatalogueGateway,
+            foods = foods,
             network = AndroidNetworkStatus(context),
             googleSignInAvailable = FirebaseSetup.supportsGoogle,
         )
@@ -145,12 +156,17 @@ class AppContainer(private val context: Context) {
     val foods: FoodRepository by lazy {
         FoodRepository(
             foodDao = database.foodDao(),
+            outboxDao = database.outboxDao(),
+            settings = settings,
             loadCatalogue = {
                 context.assets.open(FoodCatalogueParser.ASSET_PATH)
                     .bufferedReader()
                     .use { it.readText() }
                     .let(FoodCatalogueParser::parse)
             },
+            // Deferred to call time: `sync` is built after this object, and the drain only needs to be
+            // requested once a food has been queued.
+            onQueued = { sync.requestDrain() },
         )
     }
 

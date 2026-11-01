@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ChildEntity::class, EventEntity::class, FoodEntity::class, OutboxEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,7 +57,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        /**
+         * v3 -> v4: the solids catalogue gained a published half (ADR-0002).
+         *
+         * Both columns are additive, and both defaults are the truth about every existing row: a food
+         * written before this migration has no local rename, and was not hidden. Nothing here writes a
+         * name — inventing one would rename a food on a parent's picker without them asking.
+         */
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE foods ADD COLUMN localName TEXT")
+                db.execSQL("ALTER TABLE foods ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NAME)

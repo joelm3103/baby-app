@@ -3,6 +3,7 @@ package app.babylog.data.sync
 import app.babylog.data.local.ChildDao
 import app.babylog.data.local.EventDao
 import app.babylog.data.local.OutboxDao
+import app.babylog.data.repo.FoodRepository
 import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.SyncRow
 import app.babylog.domain.SyncVerdict
@@ -12,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,6 +87,14 @@ class SyncRepository(
      * showing a Google button that cannot work would be the app lying about what it can do.
      */
     val googleSignInAvailable: Boolean = false,
+    /**
+     * The published solids catalogue and the pending additions (ADR-0002), or null on a build with no
+     * Firebase configuration. Kept beside the event listener on purpose: they share one job, so
+     * [withoutInboundApply] pauses all three at once.
+     */
+    private val foodCatalogue: FoodCatalogueGateway? = null,
+    /** Where a catalogue snapshot is folded in, and where a first-attach foods seed is queued from. */
+    private val foods: FoodRepository? = null,
 ) {
 
     private val _state = MutableStateFlow(initialState())
@@ -214,27 +224,58 @@ class SyncRepository(
         listenerJob = scope.launch {
             try {
                 seedIfNeeded()
+                // The foods this phone typed before the catalogue was published go out once, so the other
+                // phone can finally read their names (ADR-0002).
+                foods?.seedPendingFoodsOnce()
                 syncNow()
-                var first = true
-                gateway.observe()
-                    .catch { failure -> _message.value = "Listening stopped: ${failure.message ?: "unknown error"}" }
-                    .collect { snapshot ->
-                        applyRemote(snapshot)
-                        // One drain once the first snapshot has landed. The drain above can run before
-                        // the client is ready, and a snapshot that lost to a newer local row queues new
-                        // intent — so "the queue emptied on its own" has to be true AFTER the listener,
-                        // not only before it.
-                        if (first) {
-                            first = false
-                            syncNow()
-                        }
+                // The catalogue and the pending additions are observed in the SAME job as the log, so a
+                // reset pauses all of them: a snapshot arriving mid-wipe would otherwise put foods back
+                // into an emptied table, which is the exact bug Phase 15's device pass found for events.
+                coroutineScope {
+                    launch { observeEvents(gateway) }
+                    foodCatalogue?.let { catalogue ->
+                        launch { observeFoodCatalogue(catalogue) }
+                        launch { observePendingFoods(catalogue) }
                     }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
                 _message.value = "Sync could not start: ${failure.message ?: "unknown error"}"
             }
         }
+    }
+
+    private suspend fun observeEvents(gateway: SyncGateway) {
+        var first = true
+        gateway.observe()
+            .catch { failure -> _message.value = "Listening stopped: ${failure.message ?: "unknown error"}" }
+            .collect { snapshot ->
+                applyRemote(snapshot)
+                // One drain once the first snapshot has landed. The drain above can run before the client is
+                // ready, and a snapshot that lost to a newer local row queues new intent — so "the queue
+                // emptied on its own" has to be true AFTER the listener, not only before it.
+                if (first) {
+                    first = false
+                    syncNow()
+                }
+            }
+    }
+
+    private suspend fun observeFoodCatalogue(catalogue: FoodCatalogueGateway) {
+        catalogue.observeCatalogue()
+            .catch { failure ->
+                _message.value = "The food catalogue stopped updating: ${failure.message ?: "unknown error"}"
+            }
+            .collect { published -> foods?.applyPublished(published) }
+    }
+
+    private suspend fun observePendingFoods(catalogue: FoodCatalogueGateway) {
+        catalogue.observePending()
+            .catch { failure ->
+                _message.value = "The food list stopped updating: ${failure.message ?: "unknown error"}"
+            }
+            .collect { pending -> foods?.applyPending(pending) }
     }
 
     /**
@@ -357,6 +398,9 @@ class SyncRepository(
     suspend fun reseedAfterRestore() {
         settings.resetSyncSeed()
         seedIfNeeded()
+        // The restored file is the truth: every food it carries has to reach `foods_pending` again, or the
+        // other phone keeps the pre-restore list beside a log it no longer matches.
+        foods?.queueAllPendingFoods()
         syncNow()
     }
 

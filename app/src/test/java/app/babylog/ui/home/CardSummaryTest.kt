@@ -204,10 +204,10 @@ class CardSummaryTest {
     }
 
     @Test
-    fun `a food the catalogue no longer has still reads as words`() {
-        // A custom food deleted from the catalogue must not blank the line, and must not print a slug.
+    fun `a food the catalogue no longer has names the gap rather than printing a slug`() {
+        // A custom food deleted from the catalogue must not blank the line or invent a name from its slug.
         val e = event(EventType.SOLIDS).copy(foodIds = listOf("mango-lassi"))
-        assertEquals("mango lassi", detailLine(e, metric, emptyMap()))
+        assertEquals("Unknown food", detailLine(e, metric, emptyMap()))
     }
 
     @Test

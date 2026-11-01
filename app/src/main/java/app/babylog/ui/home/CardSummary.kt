@@ -32,6 +32,12 @@ import app.babylog.domain.formatDose
  */
 const val NO_AMOUNT = "No amount recorded"
 
+/**
+ * A food id nothing can name. Same shape as [NO_AMOUNT]: the record names the gap instead of printing an
+ * id (`callaloo`), which is a slug rather than a word a parent reads.
+ */
+const val UNKNOWN_FOOD = "Unknown food"
+
 /** Returns null when there is no value to shout about (sleep shows a duration or a timer instead). */
 fun bigValue(event: BabyEvent, units: UnitPreferences): Pair<String, String>? = when (event.type) {
     EventType.BOTTLE -> event.amountMl?.let { ml ->
@@ -80,7 +86,9 @@ fun detailLine(
     EventType.BOTTLE -> event.formulaBrand ?: if (event.amountMl == null) NO_AMOUNT else "Bottle"
     EventType.DIAPER -> diaperDetail(event)
     EventType.SOLIDS -> event.foodIds.takeIf { it.isNotEmpty() }
-        ?.joinToString(", ") { id -> foodNames[id] ?: id.replace('-', ' ') }
+        // An id the catalogue cannot name says so, rather than printing the id: `callaloo` is a slug, not a
+        // word a parent reads. Same rule as `No amount recorded` — a record names its gap.
+        ?.joinToString(", ") { id -> foodNames[id] ?: UNKNOWN_FOOD }
         ?: (event.mealSlot?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Solids")
     EventType.SLEEP -> if (event.isRunning) "Asleep now" else "Slept ${elapsed(event.durationMs ?: 0)}"
     EventType.GROWTH -> growthValues(event, units)

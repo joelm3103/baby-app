@@ -87,8 +87,11 @@ android {
         // MINOR rung because it adds capabilities, and a version ABOVE the release rather than a 0.x one:
         // the ladder reached 1.0.0, so the next name has to be newer than the release on the phone.
         // versionCode 27.
-        versionCode = 27
-        versionName = "1.1.0"
+        // 1.2.0 is Phase 18, the foods catalogue: a published catalogue document sits above the bundled
+        // asset, `foods_pending` carries additions between the phones, and local rename/hide opinions stay
+        // on-device with proposals for the owner. New capability, so a MINOR rung above 1.1.0: code 28.
+        versionCode = 28
+        versionName = "1.2.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

@@ -81,8 +81,8 @@
     { "id": "pitta", "name": "Pitta", "category": "Grain" },
     { "id": "barley", "name": "Barley", "category": "Grain" },
     { "id": "polenta", "name": "Polenta", "category": "Grain" },
-    { "id": "yoghurt", "name": "Yoghurt", "category": "Dairy" },
-    { "id": "greek-yoghurt", "name": "Greek yoghurt", "category": "Dairy" },
+	{ "id": "yogurt", "name": "Yogurt", "category": "Dairy" },
+	{ "id": "greek-yogurt", "name": "Greek yogurt", "category": "Dairy" },
     { "id": "cheese", "name": "Cheese", "category": "Dairy" },
     { "id": "cheddar", "name": "Cheddar", "category": "Dairy" },
     { "id": "cottage-cheese", "name": "Cottage cheese", "category": "Dairy" },
@@ -92,6 +92,8 @@
     { "id": "hummus", "name": "Hummus", "category": "Other" },
     { "id": "olive-oil", "name": "Olive oil", "category": "Other" },
     { "id": "tomato-sauce", "name": "Tomato sauce", "category": "Other" },
-    { "id": "pesto", "name": "Pesto", "category": "Other" }
+    { "id": "pesto", "name": "Pesto", "category": "Other" },
+	{ "id": "callaloo", "name": "Callaloo", "category": "Food" },
+	{ "id": "pancake", "name": "Pancake", "category": "Food" }
   ]
 }

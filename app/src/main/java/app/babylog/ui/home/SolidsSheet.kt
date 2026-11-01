@@ -42,6 +42,9 @@ fun SolidsSheet(
     now: Long,
     foods: List<FoodEntity>,
     onAddFood: suspend (String) -> FoodEntity,
+    onRenameFood: suspend (String, String) -> Unit,
+    onHideFood: suspend (String, Boolean) -> Unit,
+    onDeleteFood: suspend (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (EventDraft) -> Unit,
     initial: BabyEvent? = null,
@@ -141,6 +144,9 @@ fun SolidsSheet(
                 selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
             },
             onAddFood = onAddFood,
+            onRename = onRenameFood,
+            onHide = onHideFood,
+            onDelete = onDeleteFood,
             onClose = { showPicker = false },
         )
     }

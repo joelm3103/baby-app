@@ -13,6 +13,10 @@ interface FoodDao {
     @Query("SELECT * FROM foods ORDER BY name")
     suspend fun all(): List<FoodEntity>
 
+    /** One row, for a read-modify-write that must not disturb the other columns. */
+    @Query("SELECT * FROM foods WHERE id = :id")
+    suspend fun byId(id: String): FoodEntity?
+
     /**
      * The catalogue ordered the way the picker wants it: recently used first, then the rest
      * alphabetically. A Flow, so that logging a food (which touches `lastUsedAt`) reorders the picker
@@ -55,7 +59,14 @@ interface FoodDao {
     @Query("UPDATE foods SET lastUsedAt = :at WHERE id = :id")
     suspend fun touch(id: String, at: Long)
 
-    /** Replace-everything import. Foods carry no `deleted` flag, so wiping them is a wipe. */
+    /** Replace-everything import, and the reset's wipe (which is also what clears `hidden`/`localName`). */
     @Query("DELETE FROM foods")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM foods WHERE id = :id")
+    suspend fun hardDelete(id: String)
+
+    /** How many foods this phone has taken out of its picker, for the "N hidden" row. */
+    @Query("SELECT COUNT(*) FROM foods WHERE hidden = 1")
+    suspend fun hiddenCount(): Int
 }

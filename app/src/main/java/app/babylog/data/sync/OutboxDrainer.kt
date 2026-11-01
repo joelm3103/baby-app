@@ -2,6 +2,7 @@ package app.babylog.data.sync
 
 import app.babylog.data.local.ChildDao
 import app.babylog.data.local.EventDao
+import app.babylog.data.local.FoodDao
 import app.babylog.data.local.OutboxDao
 import app.babylog.data.local.OutboxEntity
 import java.time.Clock
@@ -62,6 +63,11 @@ class OutboxDrainer(
     private val clock: Clock = Clock.systemUTC(),
     /** Generous for one document write, small enough that a parent is still looking at the screen. */
     private val writeTimeoutMs: Long = DEFAULT_WRITE_TIMEOUT_MS,
+    /**
+     * The catalogue queue's local row lookup, optional for an older caller that only drains events/children.
+     * Any caller that can enqueue `FOOD_PENDING` or `FOOD_PROPOSAL` must provide it.
+     */
+    private val foodDao: FoodDao? = null,
 ) {
 
     private enum class Outcome { WRITTEN, TOMBSTONED, SKIPPED }
@@ -158,6 +164,39 @@ class OutboxDrainer(
             }
         }
 
+        /**
+         * A parent's addition to the solids catalogue (`foods_pending`).
+         *
+         * The row is re-read, so the name that travels is the current one. A row the catalogue has since
+         * published is SKIPPED rather than rewritten: `custom` is false there, and re-adding it to the
+         * pending list would claim an addition the owner already made.
+         */
+        ENTITY_FOOD_PENDING -> {
+            val food = foodDao?.byId(intent.entityId)
+            if (intent.op == OP_DELETE) {
+                gateway.deletePendingFood(intent.entityId)
+                Outcome.TOMBSTONED
+            } else if (food != null && food.custom) {
+                gateway.writePendingFood(food, clock.millis())
+                Outcome.WRITTEN
+            } else {
+                Outcome.SKIPPED
+            }
+        }
+
+        /** A rename proposal for a catalogue entry, which changes nothing until the owner publishes. */
+        ENTITY_FOOD_PROPOSAL -> {
+            val food = foodDao?.byId(intent.entityId)
+            val to = food?.localName
+            if (food != null && to != null) {
+                gateway.writeFoodProposal(food.id, food.name, to, clock.millis())
+                Outcome.WRITTEN
+            } else {
+                // The rename was cleared before the drain ran. A proposal with no opinion is not a proposal.
+                Outcome.SKIPPED
+            }
+        }
+
         else -> Outcome.SKIPPED
     }
 
@@ -167,6 +206,12 @@ class OutboxDrainer(
     companion object {
         const val ENTITY_CHILD = "CHILD"
         const val ENTITY_EVENT = "EVENT"
+
+        /** A parent's addition to the solids catalogue, written to `foods_pending` (ADR-0002). */
+        const val ENTITY_FOOD_PENDING = "FOOD_PENDING"
+
+        /** A rename this parent would like the owner to make, written to `foods_proposals`. */
+        const val ENTITY_FOOD_PROPOSAL = "FOOD_PROPOSAL"
         const val OP_UPSERT = "UPSERT"
         const val OP_DELETE = "DELETE"
 

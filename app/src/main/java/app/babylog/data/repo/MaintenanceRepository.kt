@@ -135,14 +135,19 @@ class MaintenanceRepository(
     suspend fun resetLocal(at: Long = clock.millis()) {
         val childIds = childDao.allIncludingDeleted().map { it.id }
         val eventIds = eventDao.allIncludingDeleted().map { it.id }
+        // The catalogue is part of first-run state now (ADR-0002): a parent's additions are withdrawn from
+        // `foods_pending`, and the local wipe is what clears every `hidden` flag and local rename. The
+        // bundled asset re-seeds itself on the next launch, so nothing is put back by hand.
+        val foodIds = foodDao.all().filter { it.custom }.map { it.id }
         database.withTransaction {
             // Intents first, deletes second: the other direction leaves a window where the rows are gone
             // and nothing remembers them.
-            enqueueTombstones(childIds = childIds, eventIds = eventIds, at = at)
+            enqueueTombstones(childIds = childIds, eventIds = eventIds, foodIds = foodIds, at = at)
             eventDao.deleteAll()
             childDao.deleteAll()
+            foodDao.deleteAll()
             // A queued UPSERT now points at a row that no longer exists; the DELETE just queued is the truth.
-            outboxDao.deleteUpserts(entityIds = eventIds + childIds)
+            outboxDao.deleteUpserts(entityIds = eventIds + childIds + foodIds)
         }
         onQueued()
     }
@@ -150,7 +155,12 @@ class MaintenanceRepository(
     private suspend fun enqueueTombstones(childId: String, eventIds: List<String>, at: Long) =
         enqueueTombstones(childIds = listOf(childId), eventIds = eventIds, at = at)
 
-    private suspend fun enqueueTombstones(childIds: List<String>, eventIds: List<String>, at: Long) {
+    private suspend fun enqueueTombstones(
+        childIds: List<String>,
+        eventIds: List<String>,
+        foodIds: List<String> = emptyList(),
+        at: Long,
+    ) {
         // An id that already has a DELETE queued is skipped, not queued twice: a server wipe reconciles the
         // remote ids and then deletes locally, and both passes see the same rows, so without this the queue
         // holds two intents per row and the "still queued" count reads double what it means.
@@ -167,6 +177,14 @@ class MaintenanceRepository(
         }
         eventIds.filterNot { it in alreadyDeleted }.forEach { id ->
             outboxDao.enqueue(outboxIntent(OutboxDrainer.ENTITY_EVENT, id, deleted = true, queuedAt = at))
+        }
+        // `foods_pending` is an addition list rather than a merged set, so a DELETE there removes the
+        // document rather than tombstoning it — and a reset must withdraw the additions it is wiping, or
+        // the other phone keeps names this phone no longer has.
+        foodIds.filterNot { it in alreadyDeleted }.forEach { id ->
+            outboxDao.enqueue(
+                outboxIntent(OutboxDrainer.ENTITY_FOOD_PENDING, id, deleted = true, queuedAt = at),
+            )
         }
     }
 

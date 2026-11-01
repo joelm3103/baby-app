@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -62,9 +63,9 @@ class MigrationTest {
             assertNull(old.doseAmount)
             assertNull(old.doseUnit)
 
-            // The chain now runs to v3 (Phase 13.3), so this reads 3 rather than 2. The claim is the same
+            // The chain now runs to v4 (Phase 18), so this reads 4 rather than 3. The claim is the same
             // one it always made: a v1 log survives every migration this build carries.
-            assertEquals(3, db.openHelper.readableDatabase.version)
+            assertEquals(4, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -115,7 +116,7 @@ class MigrationTest {
             assertNull(old.diaperColoursCsv)
             assertNull(old.diaperConsistencyCsv)
 
-            assertEquals(3, db.openHelper.readableDatabase.version)
+            assertEquals(4, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -142,6 +143,42 @@ class MigrationTest {
             assertNotNull(read)
             assertEquals("BROWN,GREEN", read!!.diaperColoursCsv)
             assertEquals("MUSHY,PEBBLES", read.diaperConsistencyCsv)
+            assertEquals(4, db.openHelper.readableDatabase.version)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `the v3 log and catalogue survive the upgrade with only local v4 opinions added`() = runBlocking {
+        createDatabaseAt(3) { v3 ->
+            v3.execSQL(
+                "INSERT INTO events (id, childId, type, startedAt, createdBy, updatedAt, deleted) " +
+                    "VALUES ('old', 'first-twin', 'SOLIDS', $t0, 'local', $t0, 0)",
+            )
+            v3.execSQL(
+                "INSERT INTO foods (id, name, category, lastUsedAt, custom) " +
+                    "VALUES ('callaloo', 'Callaloo', 'Custom', NULL, 1)",
+            )
+        }
+
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
+            .addMigrations(*AppDatabase.MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            assertEquals("first-twin", db.eventDao().allIncludingDeleted().single { it.id == "old" }.childId)
+            val food = db.foodDao().byId("callaloo")
+            assertNotNull(food)
+            assertEquals("Callaloo", food!!.name)
+            assertNull(food.localName)
+            assertFalse(food.hidden)
+            assertEquals(4, db.openHelper.readableDatabase.version)
+
+            db.foodDao().upsert(food.copy(localName = "Kallaloo", hidden = true))
+            val curated = db.foodDao().byId("callaloo")!!
+            assertEquals("Kallaloo", curated.localName)
+            assertTrue(curated.hidden)
         } finally {
             db.close()
         }
@@ -154,6 +191,7 @@ class MigrationTest {
         // are asserted too - v2 is what the v2 -> v3 test above is built from.
         assertTrue("expected the v2 schema to be exported and committed", schemaFile(2).exists())
         assertTrue("expected the v3 schema to be exported and committed", schemaFile(3).exists())
+        assertTrue("expected the v4 schema to be exported and committed", schemaFile(4).exists())
     }
 
     /** Builds the v1 database exactly as version 1 of the app would have left it. */

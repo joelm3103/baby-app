@@ -2,6 +2,7 @@ package app.babylog.data.sync
 
 import app.babylog.data.local.ChildEntity
 import app.babylog.data.local.EventEntity
+import app.babylog.data.local.FoodEntity
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -19,6 +20,9 @@ class FakeSyncGateway : SyncGateway {
     val eventWrites = mutableListOf<EventEntity>()
     val childTombstones = mutableListOf<Pair<String, Long>>()
     val eventTombstones = mutableListOf<Pair<String, Long>>()
+    val pendingFoodWrites = mutableListOf<Pair<FoodEntity, Long>>()
+    val pendingFoodDeletes = mutableListOf<String>()
+    val foodProposals = mutableListOf<Triple<String, String, String>>()
 
     /** How many writes succeed before the next one throws. [Int.MAX_VALUE] means never fail. */
     var failAfter: Int = Int.MAX_VALUE
@@ -63,7 +67,8 @@ class FakeSyncGateway : SyncGateway {
     private var successes = 0
 
     val writeCount: Int
-        get() = childWrites.size + eventWrites.size + childTombstones.size + eventTombstones.size
+        get() = childWrites.size + eventWrites.size + childTombstones.size + eventTombstones.size +
+            pendingFoodWrites.size + pendingFoodDeletes.size + foodProposals.size
 
     override suspend fun writeChild(child: ChildEntity) {
         record(child.id)
@@ -83,6 +88,21 @@ class FakeSyncGateway : SyncGateway {
     override suspend fun deleteEvent(id: String, updatedAt: Long) {
         record(id)
         eventTombstones += id to updatedAt
+    }
+
+    override suspend fun writePendingFood(food: FoodEntity, at: Long) {
+        record(food.id)
+        pendingFoodWrites += food to at
+    }
+
+    override suspend fun deletePendingFood(id: String) {
+        record(id)
+        pendingFoodDeletes += id
+    }
+
+    override suspend fun writeFoodProposal(id: String, from: String, to: String, at: Long) {
+        record(id)
+        foodProposals += Triple(id, from, to)
     }
 
     override suspend fun fetchAll(): RemoteDataset = inbound

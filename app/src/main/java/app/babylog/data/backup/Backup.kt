@@ -160,6 +160,10 @@ object Backup {
         put("category", f.category)
         putNullable("lastUsedAt", f.lastUsedAt)
         put("custom", f.custom)
+        // Device-local opinions, carried so a restore onto a replacement phone lands on the same picker the
+        // parent curated. Absent in a backup made before schema v4, hence the defensive reads below.
+        putNullable("localName", f.localName)
+        put("hidden", f.hidden)
     }
 
     private fun food(o: JSONObject) = FoodEntity(
@@ -168,6 +172,8 @@ object Backup {
         category = o.optString("category", "Other"),
         lastUsedAt = o.longOrNull("lastUsedAt"),
         custom = o.optBoolean("custom", false),
+        localName = if (o.has("localName") && !o.isNull("localName")) o.getString("localName") else null,
+        hidden = o.optBoolean("hidden", false),
     )
 
     // ---- helpers ----------------------------------------------------------

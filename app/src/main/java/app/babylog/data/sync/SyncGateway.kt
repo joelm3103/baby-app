@@ -2,6 +2,7 @@ package app.babylog.data.sync
 
 import app.babylog.data.local.ChildEntity
 import app.babylog.data.local.EventEntity
+import app.babylog.data.local.FoodEntity
 import kotlinx.coroutines.flow.Flow
 
 /** Everything the server holds, as one snapshot. Small enough to be a list: one family's log. */
@@ -29,6 +30,22 @@ interface SyncGateway {
     suspend fun deleteChild(id: String, updatedAt: Long)
 
     suspend fun deleteEvent(id: String, updatedAt: Long)
+
+    // ---- the solids catalogue (ADR-0002) ----------------------------------
+    //
+    // Three writes, and none of them merges: `foods_pending` is a list of additions and
+    // `foods_proposals` is a list of opinions, both keyed by the food's own id so a retried drain is a
+    // repeat rather than a duplicate. The catalogue itself lives under `reference/`, which clients may
+    // read and never write.
+
+    /** Publish one parent's addition so the other phone can read the name. */
+    suspend fun writePendingFood(food: FoodEntity, at: Long)
+
+    /** Withdraw an addition this phone made. A pending document is an addition, so removing it is the news. */
+    suspend fun deletePendingFood(id: String)
+
+    /** Ask the owner to rename a catalogue entry. Changes nothing on any phone by itself. */
+    suspend fun writeFoodProposal(id: String, from: String, to: String, at: Long)
 
     /** Used by the first-sign-in seed freshness check and by tests; one read, no listener. */
     suspend fun fetchAll(): RemoteDataset

@@ -6,6 +6,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.babylog.data.local.AppDatabase
 import app.babylog.data.local.FoodCatalogue
 import app.babylog.data.local.FoodCatalogueParser
+import app.babylog.data.sync.OutboxDrainer
+import app.babylog.data.sync.PublishedCatalogue
+import app.babylog.domain.CatalogueClaim
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -44,6 +47,7 @@ class FoodRepositoryTest {
         )
         repo = FoodRepository(
             foodDao = db.foodDao(),
+            outboxDao = db.outboxDao(),
             loadCatalogue = { catalogue },
             newId = { "generated" },
         )
@@ -116,6 +120,116 @@ class FoodRepositoryTest {
         assertEquals("Custom", food.category)
         assertEquals("first-twin-s-special-porridge", food.id)
         assertTrue(repo.observeCatalogue().first().any { it.id == food.id })
+    }
+
+    @Test
+    fun `adding a food queues one pending upsert`() = runBlocking {
+        val food = repo.addCustom("Callaloo")
+
+        val queued = db.outboxDao().pending().single()
+        assertEquals(OutboxDrainer.ENTITY_FOOD_PENDING, queued.entityType)
+        assertEquals(food.id, queued.entityId)
+        assertEquals(OutboxDrainer.OP_UPSERT, queued.op)
+    }
+
+    @Test
+    fun `renaming a catalogue food stores a local name and queues a proposal`() = runBlocking {
+        repo.seedIfNeeded()
+
+        repo.rename("courgette", "Zucchini")
+
+        assertEquals("Zucchini", repo.byId("courgette")!!.localName)
+        val queued = db.outboxDao().pending().single()
+        assertEquals(OutboxDrainer.ENTITY_FOOD_PROPOSAL, queued.entityType)
+        assertEquals("courgette", queued.entityId)
+    }
+
+    @Test
+    fun `hiding a food is local and queues nothing`() = runBlocking {
+        repo.seedIfNeeded()
+
+        repo.setHidden("banana", true)
+
+        assertTrue(repo.byId("banana")!!.hidden)
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
+    fun `deleting a custom food hides it locally and queues a pending removal`() = runBlocking {
+        val food = repo.addCustom("Callaloo")
+        db.outboxDao().deleteEverything()
+
+        repo.delete(food.id)
+
+        assertTrue(repo.byId(food.id)!!.hidden)
+        assertEquals(OutboxDrainer.ENTITY_FOOD_PENDING, db.outboxDao().pending().single().entityType)
+        assertEquals(OutboxDrainer.OP_DELETE, db.outboxDao().pending().single().op)
+    }
+
+    @Test
+    fun `a catalogue row cannot be deleted`() = runBlocking {
+        repo.seedIfNeeded()
+
+        repo.delete("banana")
+
+        assertTrue(repo.byId("banana") != null)
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
+    fun `published catalogue renames a seeded row but preserves local curation and recency`() = runBlocking {
+        repo.seedIfNeeded()
+        db.foodDao().touch("banana", t0)
+        db.foodDao().upsert(db.foodDao().byId("banana")!!.copy(localName = "My banana", hidden = true))
+
+        repo.applyPublished(
+            PublishedCatalogue(
+                version = "2026-11.1",
+                foods = listOf("banana" to CatalogueClaim("Plantain", "Fruit")),
+            ),
+        )
+
+        val food = repo.byId("banana")!!
+        assertEquals("Plantain", food.name)
+        assertEquals("My banana", food.localName)
+        assertTrue(food.hidden)
+        assertEquals(t0, food.lastUsedAt)
+        assertEquals("2026-11.1", repo.catalogueVersion)
+    }
+
+    @Test
+    fun `pending snapshot cannot remove an offline custom food still queued`() = runBlocking {
+        val food = repo.addCustom("Callaloo")
+
+        repo.applyPending(emptyList())
+
+        assertEquals(food, repo.byId(food.id))
+        assertFalse(food.hidden)
+    }
+
+    @Test
+    fun `a removed pending document hides its row but keeps its old-meal name`() = runBlocking {
+        val food = repo.addCustom("Callaloo")
+        db.outboxDao().deleteEverything()
+
+        repo.applyPending(emptyList())
+
+        assertEquals("Callaloo", repo.byId(food.id)!!.name)
+        assertTrue(repo.byId(food.id)!!.hidden)
+    }
+
+    @Test
+    fun `published promotion withdraws the pending document but keeps its food id`() = runBlocking {
+        val food = repo.addCustom("Callaloo")
+        db.outboxDao().deleteEverything()
+
+        repo.applyPublished(
+            PublishedCatalogue("v1", listOf(food.id to CatalogueClaim("Callaloo", "Vegetable"))),
+        )
+
+        assertFalse(repo.byId(food.id)!!.custom)
+        assertEquals(OutboxDrainer.ENTITY_FOOD_PENDING, db.outboxDao().pending().single().entityType)
+        assertEquals(OutboxDrainer.OP_DELETE, db.outboxDao().pending().single().op)
     }
 
     @Test

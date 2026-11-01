@@ -11,12 +11,12 @@ rules_version = '2';
 //   1. Nothing is readable or writable unless the request is from one of the two uids. That is the real
 //      gate — the app's own allow-list only exists so a third account gets a sentence instead of a
 //      permission error on a screen that would otherwise look empty.
-//   2. Only `children` and `events` exist. There is no catch-all match, so a typo'd collection name
-//      fails closed instead of quietly creating a new one.
+//   2. Only `children`, `events`, `foods_pending` and `foods_proposals` exist. There is no catch-all
+//      match, so a typo'd collection name fails closed instead of quietly creating a new one.
 //
-// Deliberately NOT restricted further: a client may write a tombstone for a row it holds, and may
-// update its own rows. Per-field validation would be the next rung, and is not worth it for a two-uid
-// log that only this app writes.
+// Deliberately NOT restricted further for the event log: a client may write a tombstone for a row it
+// holds, and may update its own rows. The food catalogue is the exception: clients can add pending foods
+// and propose renames, but the published reference document is read-only to them.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -39,8 +39,16 @@ service cloud.firestore {
       allow read, write: if oneOfTheTwo();
     }
 
-    // Growth datasets are published by hand in the console and read by the two accounts. Clients never
-    // write them, so a compromised client cannot replace the reference tables a percentile depends on.
+    match /foods_pending/{foodId} {
+      allow read, write: if oneOfTheTwo();
+    }
+
+    match /foods_proposals/{foodId} {
+      allow read, write: if oneOfTheTwo();
+    }
+
+    // Published by the owner in the console. The clients read one `food_catalogue` document and never
+    // write it; edits become proposals in `foods_proposals` until the owner promotes them.
     match /reference/{documentId} {
       allow read: if oneOfTheTwo();
       allow write: if false;

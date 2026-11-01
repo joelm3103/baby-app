@@ -17,6 +17,7 @@ import app.babylog.domain.nextReminderAt
 import app.babylog.domain.reminderChipText
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.EventType
+import app.babylog.domain.displayFoodName
 import java.time.ZoneId
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -174,7 +175,7 @@ class HomeViewModel(
             val nullableSelection: ChildSelection? = combined.selection
             val selection: ChildSelection = nullableSelection ?: ChildSelection.Both
             val ids = selection.resolve(kids.map { it.id })
-            val names = combined.foods.associate { it.id to it.name }
+            val names = combined.foods.associate { it.id to displayFoodName(it.name, it.localName) }
             events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units, names, hidden) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
@@ -423,6 +424,15 @@ class HomeViewModel(
 
     /** Called from the picker's coroutine scope; the new food appears (and sorts) on its own via the flow. */
     suspend fun addCustomFood(name: String): FoodEntity = foods.addCustom(name)
+
+    /** Renames a food: a local override for a catalogue entry, a real rename for this phone's addition. */
+    suspend fun renameFood(id: String, name: String) = foods.rename(id, name)
+
+    /** Takes a food out of this phone's picker, or puts it back. Never leaves the device. */
+    suspend fun setFoodHidden(id: String, hidden: Boolean) = foods.setHidden(id, hidden)
+
+    /** Removes a food this phone added. A catalogue entry is refused by the repository — hide it instead. */
+    suspend fun deleteFood(id: String) = foods.delete(id)
 
     fun undo(event: BabyEvent) = viewModelScope.launch { events.undoDelete(event) }
 

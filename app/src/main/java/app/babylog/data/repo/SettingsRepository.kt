@@ -78,6 +78,18 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun resetSyncSeed() = dataStore.edit { it[KEY_SYNC_SEEDED] = false }
 
     /**
+     * True once the foods this phone had already typed were queued for `foods_pending`.
+     *
+     * A one-way flag for the same reason as [syncSeedDone]: the queue empties as soon as the drain works,
+     * so "never seeded" and "seeded and drained" are only tellable apart by a flag. It exists because a
+     * custom food created before the published catalogue shipped (ADR-0002) would otherwise never be
+     * announced to the other phone — nothing else ever queues a food that already exists.
+     */
+    val foodSeedDone: Flow<Boolean> = dataStore.data.map { it[KEY_FOOD_SEEDED] == true }
+
+    suspend fun markFoodSeedDone() = dataStore.edit { it[KEY_FOOD_SEEDED] = true }
+
+    /**
      * When night is, for the History day/night diaper split. Defaults to 18:00-06:00; `start == end`
      * means no night at all (see [NightWindow]).
      */
@@ -248,6 +260,9 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
      *   never cleared and re-set — one ordering hazard fewer.
      * - `growth.dataset.*` — which reference produced a percentile is not the family's log, and a reset
      *   must not silently downgrade a dataset that was verified and accepted.
+     * - `foods.seeded` — a reset wipes the catalogue table back to the bundled asset, so there is nothing to
+     *   announce and re-seeding would queue nothing. Keeping the flag set is what stops a reset from
+     *   re-announcing foods it just deleted.
      */
     suspend fun clearForReset() = dataStore.edit { prefs ->
         listOf<Preferences.Key<*>>(
@@ -275,6 +290,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val KEY_THEME = stringPreferencesKey("ui.theme")
         val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
         val KEY_SYNC_SEEDED = booleanPreferencesKey("sync.seeded")
+        val KEY_FOOD_SEEDED = booleanPreferencesKey("foods.seeded")
         val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
         val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
         val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")

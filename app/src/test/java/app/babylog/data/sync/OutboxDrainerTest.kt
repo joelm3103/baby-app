@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.babylog.data.local.AppDatabase
 import app.babylog.data.local.ChildEntity
 import app.babylog.data.local.EventEntity
+import app.babylog.data.local.FoodEntity
 import app.babylog.data.local.OutboxEntity
 import java.time.Clock
 import java.time.Instant
@@ -49,6 +50,7 @@ class OutboxDrainerTest {
             outboxDao = db.outboxDao(),
             childDao = db.childDao(),
             eventDao = db.eventDao(),
+            foodDao = db.foodDao(),
             gateway = gateway,
             clock = Clock.fixed(Instant.ofEpochMilli(t0 + 500), ZoneOffset.UTC),
         )
@@ -263,18 +265,65 @@ class OutboxDrainerTest {
         outboxDao = db.outboxDao(),
         childDao = db.childDao(),
         eventDao = db.eventDao(),
+        foodDao = db.foodDao(),
         gateway = gateway,
         clock = Clock.fixed(Instant.ofEpochMilli(t0 + 500), ZoneOffset.UTC),
         writeTimeoutMs = 60,
     )
 
-    private suspend fun queue(
-        entityType: String,
-        entityId: String,
-        op: String,
-        queuedAt: Long = t0,
-    ) {
-        db.outboxDao().enqueue(OutboxEntity(entityType = entityType, entityId = entityId, op = op, queuedAt = queuedAt))
+    @Test
+    fun `a pending food upsert re-reads the current row and clears the intent`() = runBlocking {
+        db.foodDao().upsert(FoodEntity(id = "callaloo", name = "Callaloo", category = "Custom", custom = true))
+        queue(OutboxDrainer.ENTITY_FOOD_PENDING, "callaloo", OP_UPSERT)
+
+        drainer.drain()
+
+        assertEquals("Callaloo", gateway.pendingFoodWrites.single().first.name)
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
+    fun `a pending food delete removes the shared document even while its local row remains for old meals`() = runBlocking {
+        db.foodDao().upsert(FoodEntity(id = "callaloo", name = "Callaloo", category = "Custom", custom = true))
+        queue(OutboxDrainer.ENTITY_FOOD_PENDING, "callaloo", OP_DELETE)
+
+        drainer.drain()
+
+        assertEquals(listOf("callaloo"), gateway.pendingFoodDeletes)
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
+    fun `a proposal writes the local rename and is idempotent by food id`() = runBlocking {
+        db.foodDao().upsert(
+            FoodEntity(id = "courgette", name = "Courgette", category = "Vegetable", localName = "Zucchini"),
+        )
+        queue(OutboxDrainer.ENTITY_FOOD_PROPOSAL, "courgette", OP_UPSERT)
+
+        drainer.drain()
+
+        assertEquals(Triple("courgette", "Courgette", "Zucchini"), gateway.foodProposals.single())
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    @Test
+    fun `a proposal whose local rename was cleared before drain is skipped`() = runBlocking {
+        db.foodDao().upsert(
+            FoodEntity(id = "courgette", name = "Courgette", category = "Vegetable", localName = null),
+        )
+        queue(OutboxDrainer.ENTITY_FOOD_PROPOSAL, "courgette", OP_UPSERT)
+
+        val result = drainer.drain()
+
+        assertEquals(1, result.skipped)
+        assertTrue(gateway.foodProposals.isEmpty())
+        assertTrue(db.outboxDao().pending().isEmpty())
+    }
+
+    private suspend fun queue(type: String, id: String, op: String, queuedAt: Long = t0) {
+        db.outboxDao().enqueue(
+            OutboxEntity(entityType = type, entityId = id, op = op, queuedAt = queuedAt),
+        )
     }
 
     private fun child(id: String, updatedAt: Long) = ChildEntity(
