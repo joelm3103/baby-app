@@ -128,7 +128,7 @@ posting path is unchanged.
 
 ### Tests
 
-- **611 → 631: twenty cases in five new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
+- **611 → 635: twenty-four cases in six new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `ReminderNotificationIdTest` (4), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
 - `SettingsNavTest` (5) pins what a build cannot see: that the menu is the root and its back answer is null,
   that every submenu's back lands on the menu, that opening from a submenu replaces rather than nests, and that
   the eleven menu entries exist in their order with unique non-blank names.
@@ -145,6 +145,10 @@ posting path is unchanged.
   — and that a nought, a negative and an over-cap amount are refused rather than written.
 - `ReminderSaveTest` (3) pins that saving brings a stored disabled rule back on without resetting the interval
   the parent chose, which is the defect this phase fixes.
+- `ReminderNotificationIdTest` (4) pins that the id under which a notification is posted, replaced and cancelled
+  is unique per (activity, child). It was `type.ordinal * 31 + childId.hashCode()`, which gave two children whose
+  ids share a `String.hashCode()` (`Aa` / `BB`) exactly the same id — harmless while an id only decided which
+  notification replaced which, and destructive once a refresh could CANCEL by it.
 
 ## [2026-11-01]
 

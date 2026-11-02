@@ -54,7 +54,7 @@ everything after it is additive.**
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
 | 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
-| 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **631 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
+| 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **635 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
 | 21 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.3.0` over the air, verify both phones, then use it for a week before more code. Was 20, then 21 |
 
 
@@ -147,10 +147,10 @@ below — Phase 11 landed at 308, for instance. They are evidence at the time, n
 Verified (current state, 2026-11-02): `:app:testDebugUnitTest`, `:app:assembleDebug` and
 `:app:assembleRelease` succeeded. The release APK is `1.3.0` / versionCode 30, signed `CN=BabyLog`, SHA-1
 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.2.1`. The suite is
-**631/631**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(63 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
-Phase 20 — five `PostedNotificationTest`, three `BottleQuickLogTest`, three `ReminderSaveTest` — and the eleven
-before them from Phase 19's `SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+**635/635**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(64 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
+Phase 20 — five `PostedNotificationTest`, four `ReminderNotificationIdTest`, three `BottleQuickLogTest`, three
+`ReminderSaveTest` — and the eleven before them from Phase 19's `SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -2324,7 +2324,7 @@ health record, so that check belongs to the owner rather than to a script.
 | # | Check | Result |
 |---|---|---|
 | 1 | An update, not a reinstall | `versionCode=30 versionName=1.3.0`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-11-02 10:54 ✅ |
-| 2 | The pass ran against this exact artifact | the installed `base.apk` pulled back is byte-identical to the built APK, both SHA-256 `145b5109…34f2` ✅ |
+| 2 | The pass ran against this exact artifact | the installed `base.apk` pulled back is byte-identical to the built APK, both SHA-256 `145b5109…34f2` — re-checked after the review's id fix, which rebuilt it to `60546a1f…b2b9` and reinstalled it the same day ✅ |
 | 3 | Foreground before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
 | 4 | Preset pills on the card | `5 oz`, `5.5 oz`, `6 oz` — the three stored presets, labelled in fl oz — tappable above the log button ✅ |
 | 5 | The pills did not replace the sheet | `+ Log feed for Kai` still full width beneath, reading `for both` in Both mode ✅ |
@@ -2336,6 +2336,15 @@ health record, so that check belongs to the owner rather than to a script.
 | 11 | Removal only when there is something to remove | `Remove notification` on the Bottle sheet; absent on the Diaper sheet, where neither child has a rule ✅ |
 | 12 | Dismissing writes nothing | back closed both sheets, Activity stayed in front, the log and the rules were unchanged ✅ |
 | 13 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, both selections, two sheets and the back presses ✅ |
+
+**Known, unfixed — the one gap a review found that is not worth a schema change:** the clearing rule compares
+wall-clock values (an event's `startedAt` against the notification's own `postTime`), so a log written *after* a
+manual BACKWARDS clock change is stamped earlier than the post and does not clear the notification. Nothing the
+other way round: moving the clock forward changes neither value, so a notification with no log behind it stays
+up, and every other way the comparison can hold involves an actual log of that activity. The failure mode is
+therefore the pre-Phase-20 behaviour — a stale notification the parent swipes — never a wrong clear. Fixing it
+properly needs a monotonic write sequence rather than a timestamp, which is a storage change this phase's scope
+excludes, and the app orders events by wall clock everywhere else (relative times, day grouping, totals).
 
 **Left to the owner, and confirmed by them the same day:** the one-tap feed — the write itself, which the pass
 declined to make because a test feed is a record that never happened in this log — and the notification

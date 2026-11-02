@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import app.babylog.ui.theme.DarkColors
 import app.babylog.ui.theme.accentFor
+import java.nio.ByteBuffer
+import java.security.MessageDigest
 import java.time.ZoneId
 
 /**
@@ -131,9 +133,26 @@ class ReminderNotifications(private val context: Context) : ReminderNotifier {
         /**
          * Distinct per (activity, child), so two children due at the same moment are two notifications rather
          * than one silently replacing the other.
+         *
+         * Derived from a digest of the pair, NOT `type.ordinal * 31 + childId.hashCode()`. That scheme was
+         * sound enough while an id only ever decided which notification REPLACED which, and it stopped being
+         * sound in Phase 20: a refresh now CANCELS by id, so two keys landing on one id would take away the
+         * other twin's reminder instead of merely overwriting it. It collided in two ways — the `31 *` term
+         * let one activity's ordinal meet another's hash, and two child ids sharing a `String.hashCode()` (the
+         * classic `Aa` / `BB`) collided outright.
+         *
+         * A digest over the combined key puts every pair in one namespace, where a clash needs a real 32-bit
+         * hash collision: eight keys (two children × four reminder-capable activities) sit at roughly 1 in 10^9.
+         *
+         * One consequence worth knowing: an id is also the PendingIntent request code, so a notification posted
+         * by an older build carries an id this build will not cancel. It is orphaned rather than wrong — it
+         * stays in the shade until it is tapped or swiped, and nothing can be cancelled in its place.
          */
-        fun notificationId(type: EventType, childId: String): Int =
-            type.ordinal * 31 + childId.hashCode()
+        fun notificationId(type: EventType, childId: String): Int {
+            val digest = MessageDigest.getInstance("SHA-256")
+                .digest("${type.name}|$childId".toByteArray(Charsets.UTF_8))
+            return ByteBuffer.wrap(digest, 0, Int.SIZE_BYTES).int
+        }
 
         /**
          * The activity's own hue for the notification's icon tint.
