@@ -2394,10 +2394,13 @@ redesign started, and it changed one composable and everything that reaches it.
   had been avoided because "the dial does not fit a phone dialog at small widths". It fits, at 1.0 and at 1.3, and
   the comment now says so.
 
-### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), `1.4.0`
+### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), rows run on the rung-less build, re-checked on `1.4.0`
 
-Read-only apart from two stored values used to reach the states under test, both restored: the app's Time format
-(12 → 24 → 12-hour) and the system font scale (1.0 → 1.3 → 1.0). **Nothing was written to the log.**
+**Every row in the table below was run on the rung-less build** (`versionCode 30`), which is the behaviour the
+version fields do not change; the post-rung re-check on `1.4.0` covered rows 0, 2 and 5 rather than all of
+them, and the note underneath says exactly which. Read-only apart from two stored values used to reach the
+states under test, both restored: the app's Time format (12 → 24 → 12-hour) and the system font scale
+(1.0 → 1.3 → 1.0). **Nothing was written to the log.**
 
 The release-signed APK is installed, not the debug one: `adb install -r app-debug.apk` answers
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` because `1.0.0` onward is release-signed, and uninstalling to make the

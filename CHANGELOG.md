@@ -136,11 +136,13 @@ that write, because a test feed is a record that never happened in this log, and
 needs an alarm to have actually fired; its decision is pinned by `PostedNotificationTest` meanwhile, and the
 posting path is unchanged.
 
-### Verified on the phone — `<handset>` (SM-S918U1), `1.4.0`, 2026-11-02
+### Verified on the phone — `<handset>` (SM-S918U1), rows run on the rung-less build, re-checked on `1.4.0`, 2026-11-02
 
-Every check below was read off the screen; **nothing was written to the log**. Two stored values were changed to
-reach the states under test and both were restored: the app's Time format (12 → 24 → 12-hour) and the system
-font scale (1.0 → 1.3 → 1.0).
+**Every row below was run on the rung-less build** (`versionCode 30`), which is the behaviour the version fields do
+not change; the post-rung re-check on `1.4.0` covered rows 0, 2 and 5 rather than all of them, and the note
+underneath says exactly which. Every check was read off the screen; **nothing was written to the log**. Two
+stored values were changed to reach the states under test and both were restored: the app's Time format
+(12 → 24 → 12-hour) and the system font scale (1.0 → 1.3 → 1.0).
 
 The release-signed APK is installed, not the debug one: `adb install -r app-debug.apk` answers
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` because `1.0.0` onward is release-signed, and uninstalling to make the
