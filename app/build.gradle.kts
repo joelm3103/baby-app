@@ -94,13 +94,16 @@ android {
         // submenu each, and back now means "up one level" before it means "leave Settings". Polish only —
         // no setting moved between groups, no control changed, no schema change — so a PATCH rung, and code
         // 29 so the pass installs in place over the delivered 1.2.0.
+        // 1.4.0 is Phase 21, the time picker: the one time dialog in the app gains a switch between the dial
+        // and the wheels, keeping the two-field keyboard it shipped with as the third. A MINOR rung — two new
+        // input modes and a control that reaches them, with nothing about the stored value changing. Code 31.
         // 1.3.0 is Phase 20, the tracking changes: a bottle preset becomes a one-tap log on the card (the
         // Diaper pills' path, borrowed), a Both-mode card names its child instead of showing an initial, the
         // reminder sheet stops asking whether to notify and can remove a rule, and a posted reminder is
         // cleared when its activity is logged or its rule goes off. One new capability, so a MINOR rung:
         // code 30.
-        versionCode = 30
-        versionName = "1.3.0"
+        versionCode = 31
+        versionName = "1.4.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

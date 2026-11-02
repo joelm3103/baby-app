@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The time dialog's switch: "the clock face". Shown on the button when the tap LEADS to the dial, so the mark
+  always names the destination rather than the current state — the same rule the `›` on an input row follows.
+
+  Stroke line-art at 1.7dp on a 24dp viewport, the style and weight of every other mark in the app.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- the face -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,3.6 a8.4,8.4 0 1 1 0,16.8 a8.4,8.4 0 1 1 0,-16.8 z" />
+    <!-- an hour hand pointing at 10, the angle every dial in the reference shows -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,12 L6.6,9.1" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,12 L17.2,9.4" />
+</vector>

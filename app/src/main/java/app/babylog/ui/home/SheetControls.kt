@@ -23,6 +23,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -30,10 +31,13 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -184,9 +189,11 @@ internal fun decimalInput(typed: String): String {
 }
 
 /**
- * Editable time, defaulting to now. Opens a compact dial-free picker: `TimeInput` (two fields) rather
- * than the clock dial, because the dial does not fit a phone dialog at small widths and this needs to
- * be right the first time without a device iteration to discover a clip.
+ * Editable time, defaulting to now.
+ *
+ * Opens [TimeOfDayDialog], which carries its own switch: the dial, the wheels, and the two-field
+ * keyboard. It used to be the keyboard alone, chosen because "the dial does not fit a phone dialog at
+ * small widths" — Phase 21 reverses that, so the dial is now measured on the phone rather than assumed.
  */
 @Composable
 fun TimeRow(
@@ -212,6 +219,24 @@ fun TimeRow(
     }
 }
 
+/**
+ * The one time dialog in the app, and the only place a time is edited: every logging sheet reaches it through
+ * [TimeRow], and the reminder sheet reaches it for a fixed-time rule.
+ *
+ * **Three inputs, one switch.** The dial (Material3's `TimePicker`) and the wheels (ours — Material3 has no
+ * wheel) are the two inputs the owner asked to move between; the original two-field keyboard is kept because
+ * it is the only one that can type an exact minute without scrolling. The button in the title bar carries the
+ * mode the tap LEADS TO, so its content description says what will happen rather than what is happening.
+ *
+ * **Nothing is persisted and the dialog opens on the dial every time.** A remembered mode is a preference the
+ * owner declined, and a dialog that opens differently depending on last week's habit is the kind of hidden
+ * state this app avoids.
+ *
+ * **One pair of numbers, two objects.** [hour]/[minute] are the wheel's value and the hand-off between modes;
+ * `TimePickerState` is the Material modes' value. Before leaving a Material mode its numbers are copied into
+ * the pair, and the pair keys the state — so cycling never loses an edit, and `TimePickerState.hour` never
+ * needs a setter it does not have.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TimeOfDayDialog(
@@ -220,20 +245,76 @@ internal fun TimeOfDayDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit,
 ) {
+    val colors = BabyLogTheme.colors
     val local = Instant.ofEpochMilli(instantMs).atZone(zone).toLocalTime()
-    // Match the selected clock format in both the picker and the row.
-    val state = rememberTimePickerState(
-        initialHour = local.hour,
-        initialMinute = local.minute,
-        is24Hour = LocalTimeFormat.current == app.babylog.domain.TimeFormat.TWENTY_FOUR_HOUR,
-    )
+    // Match the selected clock format in every mode: the AM/PM column and the dial's inner ring exist only
+    // when the parent reads a 12-hour clock.
+    val is24Hour = LocalTimeFormat.current == app.babylog.domain.TimeFormat.TWENTY_FOUR_HOUR
+
+    var hour by remember { mutableIntStateOf(local.hour) }
+    var minute by remember { mutableIntStateOf(local.minute) }
+    var mode by remember { mutableStateOf(TimeInputMode.DIAL) }
+
+    val state = key(hour, minute) {
+        rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = is24Hour)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onConfirm(state.hour, state.minute) }) { Text("OK") }
+            TextButton(onClick = {
+                // Read the mode that was actually being edited: they are two objects, and only one of them
+                // has been touched.
+                if (mode == TimeInputMode.WHEEL) onConfirm(hour, minute) else onConfirm(state.hour, state.minute)
+            }) { Text("OK") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        text = { TimeInput(state = state) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    // The reference's own headings, and they differ for a reason: a dial selects, a field is
+                    // entered into.
+                    text = if (mode == TimeInputMode.TEXT) "Enter time" else "Select time",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                val next = nextTimeInputMode(mode)
+                IconButton(
+                    onClick = {
+                        // Capture this mode's edit before leaving it, so the next mode opens on it.
+                        if (mode != TimeInputMode.WHEEL) {
+                            hour = state.hour
+                            minute = state.minute
+                        }
+                        mode = next
+                    },
+                ) {
+                    Icon(
+                        painter = painterResource(next.iconRes()),
+                        // Names the DESTINATION: "Switch to wheels" is an instruction, "wheels" is not.
+                        contentDescription = "Switch to ${next.spoken}",
+                        tint = colors.textSecondary,
+                    )
+                }
+            }
+        },
+        text = {
+            when (mode) {
+                TimeInputMode.DIAL -> TimePicker(state = state, modifier = Modifier.fillMaxWidth())
+                TimeInputMode.WHEEL -> WheelTimePicker(
+                    hour = hour,
+                    minute = minute,
+                    is24Hour = is24Hour,
+                    onHour = { hour = it },
+                    onMinute = { minute = it },
+                    // The half-day shift is done here, on the one number that owns it, rather than by a
+                    // column converting an index it would first have to be told.
+                    onHalfDay = { pm -> hour = if (pm) (hour % 12) + 12 else hour % 12 },
+                )
+                TimeInputMode.TEXT -> TimeInput(state = state)
+            }
+        },
     )
 }
 

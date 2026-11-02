@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The time dialog's switch: the keyboard. A field with a caret, not a keypad — the app already reads a field
+  this way in `TextFieldRow`, so the mark is the one shape the parent has already tapped.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4.4,8.2 h15.2 a1.8,1.8 0 0 1 1.8,1.8 v4 a1.8,1.8 0 0 1 -1.8,1.8 h-15.2 a1.8,1.8 0 0 1 -1.8,-1.8 v-4 a1.8,1.8 0 0 1 1.8,-1.8 z" />
+    <!-- the digits, then the caret that says this one is typed into -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M7.4,10.6 v2.8" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M12,10.6 v2.8" />
+</vector>
