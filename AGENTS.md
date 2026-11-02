@@ -211,6 +211,19 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   the field survives a colour-blind parent. Its seven silhouettes (`res/drawable/ic_stool_*`, mapped by
   `DiaperConsistency.stoolRes()`) are FILLED, unlike the stroke line-art of the activity glyphs: at 16dp
   inside a chip a 1.7dp outline muddies, and what these have to show is a form (pebbles are pebbles).
+- **Bottle presets are one-tap log pills on the card, and the full-width button stays** (Phase 20). The tap IS
+  the record — `HomeViewModel.logBottle` borrows the Diaper path exactly, so Both mode writes one row per child
+  with an identical timestamp — and the button underneath remains the route to a custom amount, a brand, a note
+  or a feed that happened earlier. The label is composed in the display unit from a value stored in ml, so the
+  same preset reads `4 oz` or `120 ml` without moving. An empty list draws no pills at all rather than an empty
+  row, the row is a `FlowRow` because Settings lets a parent add as many sizes as they like, and
+  `SettingsRepository.MAX_BOTTLE_PRESET_ML` is the one cap both the screen that stores a preset and the card
+  that logs one read — two gates that must not drift about what a bottle is.
+- **A Both-mode card names the child; a badge stays where a name does not fit** (Phase 20). The name replaces
+  the initial on the headline that owns the big number and on every entry row, and also in the Growth and Health
+  columns, which were already headed by the name — the same fact twice at the cost of the width. The switcher,
+  the reminder chips, the Growth chart and the fever table keep `ChildBadge`, so `ChildBadge` itself is not
+  dead code and must not be deleted.
 - **A silhouette must be checked at 16dp, and two of them were wrong.** `Mucousy` shipped as a wide bar over
   a stem with a dot under it, which is a letter `T` at chip size; `Runny` was three heavy circles on an
   ellipse that merged into `Mushy`. Both were redrawn in Phase 14 and rendered at 16/24/48dp before and after
@@ -295,6 +308,22 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **A health reminder names the ACTIVITY, never a medicine and never a dose.** The same rule as the names-only
   medicine list, applied to the one surface the parent sees without opening the app. `ReminderNotificationsTest`
   checks it against the whole bundled catalogue.
+- **Setting a reminder turns it ON, and there is no `Notify` toggle to leave off** (Phase 20). The toggle was
+  a silent trap: the sheet opened with it off, so `Set` wrote a rule that looked saved on the card, armed
+  nothing, and said nothing about why — and tapping the disabled `Set` then just closed the sheet, which is what
+  made it read as "saving does nothing".  A rule the parent wants is a rule they want to hear; one they do not
+  want is REMOVED, not stored switched off. `sheetSaveConfig` is the one place that decides, and
+  `ReminderSaveTest` pins it. Removal lives at the bottom of the sheet through the same destructive row every
+  other editing sheet offers, labelled `Remove notification` because a button that says `Delete this entry` in a
+  sheet that created no entry is a false label on the one control that cannot be undone.
+- **A posted reminder is cleared when it stops being true, and `Reminders.refresh()` is what clears it**
+  (Phase 20). `ReminderNotifications` could post and nothing else, so a night's reminders sat in the shade all
+  morning, each still saying `3h 5m since the last feed`. Two facts make one false — the rule is gone or
+  switched off, or the activity has been logged since it was posted — and both are decided by the pure
+  `shouldClearPostedNotification`, comparing the notification's own `postTime` (read back from the shade, never
+  remembered in preferences) with the child's newest row of that activity. The shade is read through
+  `ReminderNotifier`, the third interface of the `ReminderDeps` family, so the decision is testable with no
+  device. Clearing is in `refresh()` and nowhere else, for the same reason re-arming is.
 - **A reminder is set from its activity's card, per child — never from Settings, never for "Both".** The `⋮` menu
   exists only on the four reminder-capable cards. A shared rule hid which twin was overdue, and a Settings section put
   the setting a screen away from the thing it is about.
@@ -397,7 +426,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-620 unit tests through Phase 19 (`1.2.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+631 unit tests through Phase 20 (`1.3.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -434,7 +463,8 @@ only, and `1.0.0` is the first release.
 | | | 17 five todo items | `1.1.0` |
 | | | 18 published food catalogue | `1.2.0` |
 | | | 19 settings submenus | `1.2.1` |
-| | | 20 Ship | uses delivered release |
+| | | 20 tracking changes | `1.3.0` |
+| | | 21 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -454,8 +484,9 @@ only, and `1.0.0` is the first release.
   pass; a landed rung is never renumbered to match a tidier label. Phase 16 delivered `1.0.0`; **Phase 17 is
 a batch of five `todo.txt` items on `1.1.0`**, **Phase 18 is the published food catalogue on `1.2.0`**,
 **Phase 19 is the Settings submenus on `1.2.1`** — a PATCH, because it moved where every setting is reached
-and changed none of them — and **Phase 20 is Ship**. Ship has no commits and moves freely until its work
-starts.
+and changed none of them — **Phase 20 is the four tracking changes on `1.3.0`**, a MINOR because a preset that
+logs a feed in one tap is a capability the app did not have, and **Phase 21 is Ship**. Ship has no commits and
+moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
   would install fine by `versionCode` and still read as going backwards on the phone.

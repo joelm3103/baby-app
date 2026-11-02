@@ -54,7 +54,9 @@ everything after it is additive.**
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
 | 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
-| 20 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.2.1` over the air, verify both phones, then use it for a week before more code. Was 19 before the Settings redo took that number |
+| 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **631 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
+| 21 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.3.0` over the air, verify both phones, then use it for a week before more code. Was 20, then 21 |
+
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
 because it shipped no application code and so carries no version rung — a phase number whose build does not
@@ -121,6 +123,14 @@ capabilities rather than one new subsystem.
 Phase 18 — Ship had no commits. The owner-published food catalogue is the next landed capability, so it
 uses **Phase 18** and Ship moves freely to **Phase 19**. Phase 17 and its `1.1.0` rung are unchanged.
 
+### Renumbering, 2026-11-02 — two phases land before Ship
+
+The Settings redo took **19** and the tracking changes took **20**, both on 2026-11-02, and Ship moved from 20
+to 21 for the second time in a day. Both new phases had no commits when they were numbered and Ship still has
+none, so all three moved for free under the rule above. The rungs are `1.2.1` / code 29 (a PATCH — the redo
+changed where settings are reached and nothing they do) and `1.3.0` / code 30 (a MINOR — a one-tap feed is a
+capability the app did not have).
+
 ### Renumbering, 2026-11-02 — the Settings redo takes 19 before Ship
 
 Phase 19 — Ship had no commits. The Settings redo (`todo.txt`: *Settings Tab may need a redo, all settings
@@ -135,12 +145,12 @@ Test counts in the table are the suite size **when that phase landed**, so they 
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified (current state, 2026-11-02): `:app:testDebugUnitTest`, `:app:assembleDebug` and
-`:app:assembleRelease` succeeded. The release APK is `1.2.1` / versionCode 29, signed `CN=BabyLog`, SHA-1
-`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.2.0`. The suite is
-**620/620**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(60 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; this suite has 9 more tests — five
-in the new `SettingsNavTest` for the back rule and the eleven menu entries, four in `SettingsSummaryTest` for
-the two defects the device pass found. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+`:app:assembleRelease` succeeded. The release APK is `1.3.0` / versionCode 30, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.2.1`. The suite is
+**631/631**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(63 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
+Phase 20 — five `PostedNotificationTest`, three `BottleQuickLogTest`, three `ReminderSaveTest` — and the eleven
+before them from Phase 19's `SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -2273,8 +2283,65 @@ second back returned to the menu. The dialog owns the back press through `AlertD
 **Not verified in this pass:** no setting was toggled, so no write path was driven end to end. Every callback the
 submenus render is the original, unmoved code, but this pass proves the screens, not the writes.
 
-## Phase 20 — Ship
-Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.2.1` release
+## Phase 20 — Tracking changes — DONE, device-verified (`1.3.0`)
+
+One branch, `feat/phase20-tracking-changes`; version `1.3.0` / versionCode 30. Four changes the owner asked for,
+and nothing else: a feed in one tap, the child's name where an initial was, a reminder sheet that sets rather
+than asks, and a notification that leaves when its reason does.
+
+### As built
+
+- **The Bottle card borrows the Diaper path deliberately.** `HomeViewModel.logBottle(amountMl)` is
+  `logDiaper(kind)` with a different draft, so Both mode writes one row per child with an identical timestamp and
+  the write path is the one already covered against a real database. `quickBottleDraft` holds the whole of the
+  quick-log decision — activity, amount, moment — and exists because `HomeViewModel.state` is Room-backed, so a
+  test that went through the ViewModel would hang rather than assert.
+- **The presets come from Settings, through the state.** `HomeUiState.bottlePresets` is fed by
+  `settings.bottlePresets`, so a preset added in Settings appears on the card and the card never learns that
+  Settings exists. Labelled in the selected unit, stored in ml.
+- **Both-mode names.** `EntryRow` takes a `childName` instead of `initials`, and the card's headline shows the
+  name beside the big number. The Growth and Health columns lost their badge as well, because that column is
+  already headed by the name — the same fact twice, paid for in width.
+- **The reminder sheet's `Notify` toggle is gone and its save is unconditional** (`sheetSaveConfig`), because a
+  rule the parent set is a rule they want to hear. Removal moved in beside it through `ActivitySheet`'s existing
+  destructive row, which needed one new parameter (`deleteLabel`) so the button does not claim to delete an
+  entry that was never created.
+- **Clearing is a pure rule plus a seam.** `shouldClearPostedNotification` compares the live notification's own
+  `postTime`, read from the shade, with the child's newest row of that activity — so the app never has to
+  remember what it posted, and a notification swiped away by hand is simply absent. `ReminderNotifier` is the
+  third interface of the `ReminderDeps` family, and `Reminders.refresh()` is where it is called, because that is
+  the one function every write, rule change, launch and boot already goes through.
+- **A build-time surprise worth recording:** Kotlin's typed `combine` overloads stop at five flows, and the sixth
+  silently resolves to the `Array<Any>` vararg form — which compiles as a type error several lines away from the
+  cause. The state is now two `combine` calls, the inner one keeping every type named.
+
+### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), `1.3.0`
+
+**Read-only, with one exception**: the child switcher was moved to Both and back to Kai, which is a stored
+display preference. Nothing was written to the log. One tap writes a real feed, and this log is the children's
+health record, so that check belongs to the owner rather than to a script.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=30 versionName=1.3.0`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-11-02 10:54 ✅ |
+| 2 | The pass ran against this exact artifact | the installed `base.apk` pulled back is byte-identical to the built APK, both SHA-256 `145b5109…34f2` ✅ |
+| 3 | Foreground before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 4 | Preset pills on the card | `5 oz`, `5.5 oz`, `6 oz` — the three stored presets, labelled in fl oz — tappable above the log button ✅ |
+| 5 | The pills did not replace the sheet | `+ Log feed for Kai` still full width beneath, reading `for both` in Both mode ✅ |
+| 6 | A Both-mode card names the child | `Kai` beside the big number, with the time beside it, where a `K` badge used to be ✅ |
+| 7 | Both-mode rows name the child | `Kai 6 oz 5:39 AM` and `Levi 4 oz 5:05 AM` ✅ |
+| 8 | Reminder chips kept their badge | the two Bottle chips still carry `K` and `L` — a chip has no room for a name ✅ |
+| 9 | No `Notify` toggle anywhere in the sheet | `For`, `Mode`, `Time`, `Skip night`, `Days` — and no switch ✅ |
+| 10 | Save reads as an action, not a question | `Update` where the child has a rule, `Set` where they do not ✅ |
+| 11 | Removal only when there is something to remove | `Remove notification` on the Bottle sheet; absent on the Diaper sheet, where neither child has a rule ✅ |
+| 12 | Dismissing writes nothing | back closed both sheets, Activity stayed in front, the log and the rules were unchanged ✅ |
+| 13 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, both selections, two sheets and the back presses ✅ |
+
+**Left to the owner:** one tap on a preset — the write itself — and the notification clearing, which needs an
+alarm to have fired. The clearing decision is pinned by `PostedNotificationTest`; the posting path is unchanged.
+
+## Phase 21 — Ship
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.3.0` release
 APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
 use the delivered build for **a week before writing another line of code**.
 

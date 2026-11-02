@@ -21,14 +21,15 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 **In short:**
 
-- **Settings became a category menu with a submenu per group.** Eleven rows, each naming a group and its current value, each name opening that group alone. No setting moved between groups and no control changed — only how they are reached.
-- **Back means "up one level" before it means "leave Settings"**, and that rule is a tested value (`SettingsNav.back()`), not an `if` in the handler.
-- **The pass found two defects in the new rows and both were fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
-- **Nothing was written to the log or to any setting during the pass.**
+- **Settings became a category menu with a submenu per group, and back means "up one level" before it means "leave Settings"** — a tested value (`SettingsNav.back()`), not an `if` in the handler. No setting moved between groups and no control changed, only how they are reached.
+- **Four tracking changes landed: one-tap bottle presets on the card, the child's name instead of an initial on Both-mode cards and rows, a reminder sheet that sets and removes without asking whether to notify, and posted reminders cleared when the feed is logged or the rule goes off.**
+- **The Phase 19 pass found two defects in its own new rows, both fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
+- **The Phase 20 pass wrote nothing to the log** — one test feed is left to the owner, because the app's log is the children's health record.
 
 ### Versions
 
 - `1.2.1` / versionCode 29 — **Phase 19, Settings submenus**. A PATCH rung: no capability and no stored data changed, only the way every setting is reached. Ship moves to Phase 20.
+- `1.3.0` / versionCode 30 — **Phase 20, the tracking changes**. A MINOR rung: a preset that logs a feed in one tap is a capability the app did not have. Ship moves to Phase 21.
 
 ### Added
 
@@ -39,6 +40,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   - It replaces rather than nests, so opening a second group from a submenu lands there instead of two backs away from the menu.
   - `back()` answers null at the menu, which the shell reads as "leave Settings".
 - **A category menu replaces the single scroll of eleven cards.** Each row carries a one-line summary of its group's current value, so which units or theme the app is on is legible without opening anything.
+- **Bottle presets are one-tap quick-log pills on the Bottle feed card**, the path the Diaper pills already use: a tap writes `EventDraft(BOTTLE, now, amountMl)` for the current selection, so Both mode writes one row per child with an identical timestamp. The full-width `+ Log feed for X` button stays for a custom amount, a brand, a note or a feed that happened earlier. An empty preset list draws no pills at all.
+  - Labeled in the display volume unit but stored canonically in ml, so the same preset reads `4 oz` or `120 ml` without the stored value moving.
+  - `FlowRow`, because Settings lets a parent add as many sizes as they like and a fixed row would clip the fifth one off the card.
+- **The pure rule for when a posted reminder has stopped being true** (`shouldClearPostedNotification`) and **a `ReminderNotifier` seam** with `cancel`/`postedAt` beside the existing `ReminderStore`/`ReminderAnchors`, so the decision is testable with no device and no notification shade.
 
 ### Changed
 
@@ -49,12 +54,21 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   - Settings therefore keeps two scroll states. The menu returns to its own row, and each submenu opens at its own top.
   - Leaving Settings resets to the menu, so a submenu is never restored without its parent on screen.
 - **`counted()` takes its plural explicitly** instead of appending an `s`, and **`datasetSummary()`** shortens the growth identity line to name and version for the menu row.
+- **A Both-mode card names the child rather than showing their initial**, on the headline that owns the big number and on every entry row. The badge stays where a name does not fit: the switcher, the reminder chips, the Growth chart and the fever table.
+  - `Why:` `K` over a column of amounts is a code the parent has to hold in their head, and the name was already in the state.
+  - The Growth and Health Both-mode columns lose the badge too, because that column is already headed by the name — the same fact twice, at the cost of the width.
+- **The reminder sheet saves an ENABLED rule, whatever the stored one said.** There is no `Notify` toggle to leave off, so setting a reminder is turning it on.
+- **The reminder sheet removes rules itself**, through the same bottom destructive row every other editing sheet offers, drawn only when the child on screen actually has one and labelled `Remove notification` rather than `Delete this entry`.
+- **`ActivitySheet` takes a `deleteLabel`**, because a button reading `Delete this entry` in a sheet that never created an entry is a false label on the one control that cannot be undone.
+- **`Reminders.refresh()` clears the shade as well as the alarms**, which is the one path every write, rule change, launch and boot already goes through.
 
 ### Fixed
 
 - **The Children settings row printed `2 childs`.** It reads `2 children`.
 - **The growth-reference row printed the full identity line**, which wrapped to two lines and, being left-aligned among right-aligned values, made that row taller than every other row in the Settings menu.
   - The row now shows `WHO 2006 · v2026.10`; the submenu still shows the update date, because the version is what identifies the tables and the date is not.
+- **A reminder could be saved silently switched off.** The sheet opened with `Notify` off, so `Set` wrote a rule that looked saved on the card, armed nothing and said nothing about why; tapping the disabled `Set` then just closed the sheet, which is what made it read as "saving does nothing". Recorded against Phase 17 on 2026-10-30 and fixed here.
+- **A posted reminder notification outlived the thing it was about.** Nothing cleared it — not logging the feed, not opening the app, not removing the rule — so a night's reminders were still in the shade in the morning, each still saying `3h 5m since the last feed`. `ReminderNotifications` could post and nothing else; it now also cancels, and `refresh()` decides when.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `1.2.1`, 2026-11-02
 
@@ -83,9 +97,36 @@ this phase carries the corrected code rather than a broken row followed by a rep
 `&` as `&amp;`, so it was opened by coordinate instead. The row and its summary (`6:00 PM – 4:00 AM`) were
 present all along.
 
+### Verified on the phone — `<handset>` (SM-S918U1), `1.3.0`, 2026-11-02
+
+The release APK was installed in place over `1.2.1` and the pass was **read-only with one exception**: the
+child switcher was moved to Both and back to Kai, which is a stored display preference. Nothing was written to
+the log — tapping a preset is the one check left to the owner, because this log is the children's health record
+and a test feed would be a record that never happened.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=30 versionName=1.3.0`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-11-02 10:54 ✅ |
+| 2 | The pass ran against this exact artifact | the installed `base.apk` pulled back is byte-identical to the built APK, both SHA-256 `145b5109…34f2` ✅ |
+| 3 | Foreground before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 4 | The preset pills are on the card | `5 oz`, `5.5 oz` and `6 oz` render as tappable pills above `+ Log feed for Kai`, from the three presets stored in Settings — labelled in the selected unit (fl oz) ✅ |
+| 5 | The pills do not replace the sheet | `+ Log feed for Kai` is still full width beneath them, and reads `for both` in Both mode ✅ |
+| 6 | A Both-mode card names the child | the headline beside the big number reads `Kai`, not `K`, with the time beside it ✅ |
+| 7 | Both-mode rows name the child | `Kai 6 oz 5:39 AM` and `Levi 4 oz 5:05 AM` — two rows that used to be told apart by one initial ✅ |
+| 8 | The reminder chips keep their badge | the Bottle card's two chips still carry `K` and `L`, as chosen: a chip has no room for a name ✅ |
+| 9 | The reminder sheet has no `Notify` toggle | the sheet lists `For`, `Mode`, `Time`, `Skip night` and `Days` — no toggle anywhere ✅ |
+| 10 | Saving is an enable, not a question | the Bottle sheet's button reads `Update` for a child who has a rule and `Set` for one who does not; neither offers a switch to leave off ✅ |
+| 11 | Removal is offered only when there is a rule | the Bottle sheet shows `Remove notification` at the bottom; the Diaper sheet, with no rule for either child, does not show it at all ✅ |
+| 12 | Dismissing writes nothing | system back closed both sheets and left Activity in front, with the log and the rules unchanged ✅ |
+| 13 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, both child selections, two sheets and the back presses ✅ |
+
+**Not verified on the phone:** the one-tap write itself, deliberately (see above); and the notification
+clearing, which needs an alarm to have actually fired — its decision is pinned by `PostedNotificationTest`
+instead, and the posting path is unchanged.
+
 ### Tests
 
-- **611 → 620: nine cases in two new classes, neither of them about layout.**
+- **611 → 631: twenty cases in five new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
 - `SettingsNavTest` (5) pins what a build cannot see: that the menu is the root and its back answer is null,
   that every submenu's back lands on the menu, that opening from a submenu replaces rather than nests, and that
   the eleven menu entries exist in their order with unique non-blank names.
@@ -94,6 +135,14 @@ present all along.
 - `SettingsSummaryTest` (4) pins the two defects the phone found, so `2 childs` and a two-line menu value
   cannot come back: the plural for children, the default appended `s`, the shortened dataset line, and that a
   line in an unrecognised shape still renders rather than vanishing.
+- `PostedNotificationTest` (5) pins when a posted reminder has stopped being true: a disabled rule, a log newer
+  than the post, a log older than it, a log at the same instant, no post at all, and an enabled rule with no log.
+  - `Why:` a notification that clears itself on the wrong write and one that never clears look identical until
+    somebody is awake at the wrong time of night.
+- `BottleQuickLogTest` (3) pins what one tap writes — the activity, the amount, the moment, and nothing invented
+  — and that a nought, a negative and an over-cap amount are refused rather than written.
+- `ReminderSaveTest` (3) pins that saving brings a stored disabled rule back on without resetting the interval
+  the parent chose, which is the defect this phase fixes.
 
 ## [2026-11-01]
 
