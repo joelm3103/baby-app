@@ -24,7 +24,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Settings became a category menu with a submenu per group, and back means "up one level" before it means "leave Settings"** — a tested value (`SettingsNav.back()`), not an `if` in the handler. No setting moved between groups and no control changed, only how they are reached.
 - **Four tracking changes landed: one-tap bottle presets on the card, the child's name instead of an initial on Both-mode cards and rows, a reminder sheet that sets and removes without asking whether to notify, and posted reminders cleared when the feed is logged or the rule goes off.**
 - **The Phase 19 pass found two defects in its own new rows, both fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
-- **The Phase 20 pass wrote nothing to the log** — one test feed is left to the owner, because the app's log is the children's health record.
+- **The Phase 20 pass wrote nothing to the log, so the one-tap feed was left to the owner — who tested it and confirmed it works.** The pass could not make that write itself: a test feed is a record that never happened in the children's health log.
 
 ### Versions
 
@@ -120,9 +120,11 @@ and a test feed would be a record that never happened.
 | 12 | Dismissing writes nothing | system back closed both sheets and left Activity in front, with the log and the rules unchanged ✅ |
 | 13 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, both child selections, two sheets and the back presses ✅ |
 
-**Not verified on the phone:** the one-tap write itself, deliberately (see above); and the notification
-clearing, which needs an alarm to have actually fired — its decision is pinned by `PostedNotificationTest`
-instead, and the posting path is unchanged.
+**Confirmed by the owner the same day, from the app on the phone:** the two checks the pass deliberately left
+to them — the one-tap feed and the reminder behaviour around it — both work. The pass itself could not make
+that write, because a test feed is a record that never happened in this log, and the notification clearing
+needs an alarm to have actually fired; its decision is pinned by `PostedNotificationTest` meanwhile, and the
+posting path is unchanged.
 
 ### Tests
 

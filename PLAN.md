@@ -2337,8 +2337,10 @@ health record, so that check belongs to the owner rather than to a script.
 | 12 | Dismissing writes nothing | back closed both sheets, Activity stayed in front, the log and the rules were unchanged ✅ |
 | 13 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, both selections, two sheets and the back presses ✅ |
 
-**Left to the owner:** one tap on a preset — the write itself — and the notification clearing, which needs an
-alarm to have fired. The clearing decision is pinned by `PostedNotificationTest`; the posting path is unchanged.
+**Left to the owner, and confirmed by them the same day:** the one-tap feed — the write itself, which the pass
+declined to make because a test feed is a record that never happened in this log — and the notification
+clearing, which needs an alarm to have actually fired. Both work. The clearing decision is pinned by
+`PostedNotificationTest` as well, and the posting path is unchanged.
 
 ## Phase 21 — Ship
 Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.3.0` release
