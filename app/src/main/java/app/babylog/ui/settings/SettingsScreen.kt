@@ -17,7 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,9 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -92,14 +98,23 @@ private fun hourLabel(hour: Int): String = java.time.LocalTime.of(hour, 0).forma
     java.time.format.DateTimeFormatter.ofPattern(
         if (LocalTimeFormat.current == TimeFormat.TWELVE_HOUR) "h:mm a" else "HH:mm", Locale.ENGLISH))
 
+/** The theme's name as it is offered on the chip row, so the menu row and the chip cannot disagree. */
+private fun themeLabel(mode: ThemeMode): String =
+    mode.name.lowercase().replaceFirstChar { it.uppercase() }
+
 /**
- * Settings, one CARD per section.
+ * Settings: a category menu, and one submenu per category.
  *
- * The sections used to flow into each other as a single undifferentiated list, so where Appearance
- * ended and Units began was guesswork. Each section now sits on its own surface with a gap between
- * them, which is the cheapest way to make the boundaries unmissable without adding navigation.
+ * Every setting the app has is still here, under the name it had; what changed is how it is reached.
+ * The menu lists each group with a one-line summary of its current value, so the answer to "which
+ * units am I on" is legible without opening anything, and each name opens that group alone.
  *
- * Stateless on purpose — it takes values and reports intent, so the ViewModel owns every write.
+ * There is exactly one card per view now, which is why the old alternating `surfaceRaised` shading is
+ * gone: it existed to separate consecutive cards down one long scroll, and there is no longer a
+ * second card for a boundary to fall between.
+ *
+ * Stateless about navigation and about every write: the section shown, and the state a back press
+ * lands on, are owned by the shell (`SettingsNav`), and this screen reports intent.
  */
 @Composable
 fun SettingsScreen(
@@ -163,6 +178,15 @@ fun SettingsScreen(
     onSignInWithGoogle: () -> Unit = {},
     onSignOut: () -> Unit = {},
     onSyncNow: () -> Unit = {},
+    /**
+     * Which submenu is open. Null is the category menu, which is Settings' root.
+     *
+     * A single nullable section rather than a stack: Settings is two levels deep, and a stack would
+     * invite a third.
+     */
+    section: SettingsSection? = null,
+    onOpenSection: (SettingsSection) -> Unit = {},
+    onBackToMenu: () -> Unit = {},
     contentPadding: PaddingValues,
     listState: LazyListState,
     /**
@@ -190,6 +214,9 @@ fun SettingsScreen(
     // Which activity a hide is waiting on, because hiding one that still has a reminder must warn first.
     var pendingHide by remember { mutableStateOf<EventType?>(null) }
 
+    // Smart-cast once, so the `when` below is over a non-null section.
+    val open = section
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(bottom = bottomInset),
@@ -197,333 +224,340 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
     ) {
         item {
-            Text("Settings", style = MaterialTheme.typography.titleLarge, color = colors.textPrimary)
+            SettingsHeader(
+                title = open?.title ?: "Settings",
+                // Only a submenu has somewhere to go back to; the menu is Settings' root.
+                onBack = if (open == null) null else onBackToMenu,
+            )
         }
 
         item {
-            SectionCard("Appearance") {
-                ChipRow(
-                    label = "Theme",
-                    options = ThemeMode.entries,
-                    selected = theme,
-                    accent = selection,
-                    labelOf = { mode -> mode.name.lowercase().replaceFirstChar { it.uppercase() } },
-                    onSelect = onTheme,
-                )
-            }
-        }
-
-        item {
-            SectionCard("Units", alternate = true) {
-                // Only the two presets are offered: picking a family individually is what makes it Custom.
-                ChipRow(
-                    label = "Preset",
-                    options = listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL),
-                    selected = units.system.takeIf { it != UnitSystem.CUSTOM },
-                    accent = selection,
-                    labelOf = { system -> system.name.lowercase().replaceFirstChar { it.uppercase() } },
-                    onSelect = onUnitSystem,
-                )
-                ChipRow(
-                    label = "Length",
-                    options = LengthUnit.entries,
-                    selected = units.length,
-                    accent = selection,
-                    labelOf = { if (it == LengthUnit.INCHES) "Inches" else "Centimetres" },
-                    onSelect = onLengthUnit,
-                )
-                ChipRow(
-                    label = "Weight",
-                    options = WeightUnit.entries,
-                    selected = units.weight,
-                    accent = selection,
-                    labelOf = { if (it == WeightUnit.POUNDS_OUNCES) "lb & oz" else "kg" },
-                    onSelect = onWeightUnit,
-                )
-                ChipRow(
-                    label = "Volume",
-                    options = VolumeUnit.entries,
-                    selected = units.volume,
-                    accent = selection,
-                    labelOf = { if (it == VolumeUnit.FLUID_OUNCES) "fl oz" else "ml" },
-                    onSelect = onVolumeUnit,
-                )
-                ChipRow(label = "Temperature", options = TemperatureUnit.entries,
-                    selected = units.temperature, accent = selection,
-                    labelOf = { it.label }, onSelect = onTemperatureUnit)
-                ChipRow(label = "Time format", options = TimeFormat.entries,
-                    selected = LocalTimeFormat.current, accent = selection,
-                    labelOf = { if (it == TimeFormat.TWELVE_HOUR) "12-hour" else "24-hour" },
-                    onSelect = onTimeFormat)
-            }
-        }
-
-        item {
-            SectionCard("Day & night") {
-                Text(
-                    text = "Overnight changes count as night in the Summary diaper split.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                )
-                // Hours wrap at midnight rather than clamping, because that is how a clock reads.
-                StepperRow(
-                    label = "Night starts",
-                    value = hourLabel(nightWindow.startHour),
-                    onDecrease = { onNightStart((nightWindow.startHour + 23) % 24) },
-                    onIncrease = { onNightStart((nightWindow.startHour + 1) % 24) },
-                )
-                StepperRow(
-                    label = "Night ends",
-                    value = hourLabel(nightWindow.endHour),
-                    onDecrease = { onNightEnd((nightWindow.endHour + 23) % 24) },
-                    onIncrease = { onNightEnd((nightWindow.endHour + 1) % 24) },
-                )
-                if (nightWindow.isEmpty) {
-                    Text(
-                        text = "Start and end are the same, so nothing counts as night.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-        }
-
-        item {
-            SectionCard("Bottle presets", alternate = true) {
-                val unit = units.volume
-                Text(
-                    text = "Amounts worth one tap in the bottle sheet, shown in ${volumeUnitLabel(unit)}.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                )
-                if (presets.isEmpty()) {
-                    Text(
-                        text = "No presets yet.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                }
-                presets.forEach { millilitres ->
-                    InputRow(
-                        label = formatVolume(millilitres.toDouble(), unit),
-                        onClick = { onRemovePreset(millilitres) },
-                    ) {
-                        InputValue("Remove")
-                    }
-                }
-                TextFieldRow(
-                    label = "Add preset (${volumeUnitLabel(unit)})",
-                    value = presetInput,
-                    onValueChange = { typed -> presetInput = typed.filter { it.isDigit() || it == '.' } },
-                    placeholder = "e.g. ${formatVolume(120.0, unit).substringBefore(' ')}",
-                    keyboardType = KeyboardType.Decimal,
-                )
-                SecondaryButton(
-                    label = "Add preset",
-                    onClick = {
-                        val ml = presetInput.trim().toDoubleOrNull()
-                            ?.let { toMillilitres(it, unit).roundToInt() }
-                        if (ml != null && ml in 1..MAX_PRESET_ML) {
-                            onAddPreset(ml)
-                            presetInput = ""
+            SectionCard {
+                if (open == null) {
+                    SettingsSection.entries.forEach { entry ->
+                        InputRow(
+                            label = entry.title,
+                            onClick = { onOpenSection(entry) },
+                        ) {
+                            InputValue(
+                                sectionSummary(
+                                    section = entry,
+                                    theme = theme,
+                                    units = units,
+                                    nightWindow = nightWindow,
+                                    presetCount = presets.size,
+                                    medicationPresetCount = medicationPresets.size,
+                                    childCount = children.size,
+                                    hiddenActivityCount = hiddenActivities.size,
+                                    syncState = syncState,
+                                    pendingWrites = pendingWrites,
+                                    growthReference = growthReference,
+                                ),
+                            )
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-            }
-        }
-
-        item {
-            SectionCard("Medication presets") {
-                Text(
-                    text = "Medications worth one tap in the health sheet. Left empty on purpose: the " +
-                        "app does not suggest a medicine or a dose, so these are the ones you actually use.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                )
-                if (medicationPresets.isEmpty()) {
-                    Text(
-                        text = "No presets yet.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                }
-                medicationPresets.forEach { medication ->
-                    InputRow(
-                        label = medication,
-                        onClick = { onRemoveMedicationPreset(medication) },
-                    ) {
-                        InputValue("Remove")
                     }
-                }
-                TextFieldRow(
-                    label = "Add medication",
-                    value = medicationInput,
-                    onValueChange = { typed -> medicationInput = typed },
-                    placeholder = "e.g. Calpol 2.5 ml",
-                )
-                SecondaryButton(
-                    label = "Add preset",
-                    onClick = {
-                        if (medicationInput.isNotBlank()) {
-                            onAddMedicationPreset(medicationInput.trim())
-                            medicationInput = ""
+                } else {
+                    when (open) {
+                        SettingsSection.APPEARANCE -> ChipRow(
+                            label = "Theme",
+                            options = ThemeMode.entries,
+                            selected = theme,
+                            accent = selection,
+                            labelOf = ::themeLabel,
+                            onSelect = onTheme,
+                        )
+
+                        SettingsSection.UNITS -> {
+                            // Only the two presets are offered: picking a family individually is what
+                            // makes it Custom.
+                            ChipRow(
+                                label = "Preset",
+                                options = listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL),
+                                selected = units.system.takeIf { it != UnitSystem.CUSTOM },
+                                accent = selection,
+                                labelOf = { system -> system.name.lowercase().replaceFirstChar { it.uppercase() } },
+                                onSelect = onUnitSystem,
+                            )
+                            ChipRow(
+                                label = "Length",
+                                options = LengthUnit.entries,
+                                selected = units.length,
+                                accent = selection,
+                                labelOf = { if (it == LengthUnit.INCHES) "Inches" else "Centimetres" },
+                                onSelect = onLengthUnit,
+                            )
+                            ChipRow(
+                                label = "Weight",
+                                options = WeightUnit.entries,
+                                selected = units.weight,
+                                accent = selection,
+                                labelOf = { if (it == WeightUnit.POUNDS_OUNCES) "lb & oz" else "kg" },
+                                onSelect = onWeightUnit,
+                            )
+                            ChipRow(
+                                label = "Volume",
+                                options = VolumeUnit.entries,
+                                selected = units.volume,
+                                accent = selection,
+                                labelOf = { if (it == VolumeUnit.FLUID_OUNCES) "fl oz" else "ml" },
+                                onSelect = onVolumeUnit,
+                            )
+                            ChipRow(label = "Temperature", options = TemperatureUnit.entries,
+                                selected = units.temperature, accent = selection,
+                                labelOf = { it.label }, onSelect = onTemperatureUnit)
+                            ChipRow(label = "Time format", options = TimeFormat.entries,
+                                selected = LocalTimeFormat.current, accent = selection,
+                                labelOf = { if (it == TimeFormat.TWELVE_HOUR) "12-hour" else "24-hour" },
+                                onSelect = onTimeFormat)
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-            }
-        }
 
-        item {
-            // Alternation follows the inserted section: Bottle presets is raised, so this one is not,
-            // and Children flips below to keep the shades strictly alternating.
-            SectionCard("Children") {
-                if (children.isEmpty()) {
-                    Text(
-                        text = "No children yet. Add one to start logging.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                }
-                children.forEach { child ->
-                    ChildEditor(
-                        child = child,
-                        selection = selection,
-                        onUpdate = onUpdateChild,
-                        onArchive = { onArchiveChild(child) },
-                        onDelete = { pendingDelete = child },
-                    )
-                }
-                SecondaryButton(
-                    label = "Add child",
-                    onClick = onAddChild,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-            }
-        }
-
-        item {
-            SectionCard("Activities", alternate = true) {
-                Text(
-                    text = "Which cards the Activity tab shows. Hiding one keeps every record it holds — " +
-                        "this is a display choice, not a delete. A hidden activity is out of the way, not gone.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                )
-                EVENT_DISPLAY_ORDER.forEach { type ->
-                    SwitchRow(
-                        label = type.displayName(),
-                        checked = type !in hiddenActivities,
-                        accent = colors.accentFor(type),
-                        onCheckedChange = { shown ->
-                            when {
-                                shown -> onSetActivityHidden(type, false)
-                                // A reminder is set from its card, so hiding the card would leave the rule
-                                // with no surface. Ask, then cancel it with the hide.
-                                type in activitiesWithReminders -> pendingHide = type
-                                else -> onSetActivityHidden(type, true)
+                        SettingsSection.DAY_NIGHT -> {
+                            Text(
+                                text = "Overnight changes count as night in the Summary diaper split.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                            )
+                            // Hours wrap at midnight rather than clamping, because that is how a clock reads.
+                            StepperRow(
+                                label = "Night starts",
+                                value = hourLabel(nightWindow.startHour),
+                                onDecrease = { onNightStart((nightWindow.startHour + 23) % 24) },
+                                onIncrease = { onNightStart((nightWindow.startHour + 1) % 24) },
+                            )
+                            StepperRow(
+                                label = "Night ends",
+                                value = hourLabel(nightWindow.endHour),
+                                onDecrease = { onNightEnd((nightWindow.endHour + 23) % 24) },
+                                onIncrease = { onNightEnd((nightWindow.endHour + 1) % 24) },
+                            )
+                            if (nightWindow.isEmpty) {
+                                Text(
+                                    text = "Start and end are the same, so nothing counts as night.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
                             }
-                        },
-                    )
+                        }
+
+                        SettingsSection.BOTTLE_PRESETS -> {
+                            val unit = units.volume
+                            Text(
+                                text = "Amounts worth one tap in the bottle sheet, shown in ${volumeUnitLabel(unit)}.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                            )
+                            if (presets.isEmpty()) {
+                                Text(
+                                    text = "No presets yet.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            }
+                            presets.forEach { millilitres ->
+                                InputRow(
+                                    label = formatVolume(millilitres.toDouble(), unit),
+                                    onClick = { onRemovePreset(millilitres) },
+                                ) {
+                                    InputValue("Remove")
+                                }
+                            }
+                            TextFieldRow(
+                                label = "Add preset (${volumeUnitLabel(unit)})",
+                                value = presetInput,
+                                onValueChange = { typed -> presetInput = typed.filter { it.isDigit() || it == '.' } },
+                                placeholder = "e.g. ${formatVolume(120.0, unit).substringBefore(' ')}",
+                                keyboardType = KeyboardType.Decimal,
+                            )
+                            SecondaryButton(
+                                label = "Add preset",
+                                onClick = {
+                                    val ml = presetInput.trim().toDoubleOrNull()
+                                        ?.let { toMillilitres(it, unit).roundToInt() }
+                                    if (ml != null && ml in 1..MAX_PRESET_ML) {
+                                        onAddPreset(ml)
+                                        presetInput = ""
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            )
+                        }
+
+                        SettingsSection.MEDICATION_PRESETS -> {
+                            Text(
+                                text = "Medications worth one tap in the health sheet. Left empty on purpose: the " +
+                                    "app does not suggest a medicine or a dose, so these are the ones you actually use.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                            )
+                            if (medicationPresets.isEmpty()) {
+                                Text(
+                                    text = "No presets yet.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(top = 12.dp),
+                                )
+                            }
+                            medicationPresets.forEach { medication ->
+                                InputRow(
+                                    label = medication,
+                                    onClick = { onRemoveMedicationPreset(medication) },
+                                ) {
+                                    InputValue("Remove")
+                                }
+                            }
+                            TextFieldRow(
+                                label = "Add medication",
+                                value = medicationInput,
+                                onValueChange = { typed -> medicationInput = typed },
+                                placeholder = "e.g. Calpol 2.5 ml",
+                            )
+                            SecondaryButton(
+                                label = "Add preset",
+                                onClick = {
+                                    if (medicationInput.isNotBlank()) {
+                                        onAddMedicationPreset(medicationInput.trim())
+                                        medicationInput = ""
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            )
+                        }
+
+                        SettingsSection.CHILDREN -> {
+                            if (children.isEmpty()) {
+                                Text(
+                                    text = "No children yet. Add one to start logging.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textSecondary,
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                )
+                            }
+                            children.forEach { child ->
+                                ChildEditor(
+                                    child = child,
+                                    selection = selection,
+                                    onUpdate = onUpdateChild,
+                                    onArchive = { onArchiveChild(child) },
+                                    onDelete = { pendingDelete = child },
+                                )
+                            }
+                            SecondaryButton(
+                                label = "Add child",
+                                onClick = onAddChild,
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            )
+                        }
+
+                        SettingsSection.ACTIVITIES -> {
+                            Text(
+                                text = "Which cards the Activity tab shows. Hiding one keeps every record it holds — " +
+                                    "this is a display choice, not a delete. A hidden activity is out of the way, not gone.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                            )
+                            EVENT_DISPLAY_ORDER.forEach { type ->
+                                SwitchRow(
+                                    label = type.displayName(),
+                                    checked = type !in hiddenActivities,
+                                    accent = colors.accentFor(type),
+                                    onCheckedChange = { shown ->
+                                        when {
+                                            shown -> onSetActivityHidden(type, false)
+                                            // A reminder is set from its card, so hiding the card would leave the rule
+                                            // with no surface. Ask, then cancel it with the hide.
+                                            type in activitiesWithReminders -> pendingHide = type
+                                            else -> onSetActivityHidden(type, true)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+
+                        SettingsSection.DATA -> {
+                            InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
+                            InputRow(label = "Import backup", onClick = { confirmImport = true }) { InputValue("Replaces everything") }
+                            Text(
+                                text = "The backup includes both children, every event (including deleted ones) and the " +
+                                    "food list. Keep it somewhere that is not this phone.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                            InputRow(
+                                label = "Reset local data",
+                                onClick = { pendingReset = ResetRequest.LOCAL },
+                            ) { InputValue("Erases this log") }
+                            // Offered only while signed in: a server wipe that cannot reach the server is a button
+                            // that lies about what it did.
+                            if (syncState is SyncState.SignedIn) {
+                                InputRow(
+                                    label = "Delete all server data",
+                                    onClick = { pendingReset = ResetRequest.SERVER },
+                                ) { InputValue("Both phones") }
+                            }
+                            Text(
+                                text = "Both of these erase every event and every child, and clear your settings, " +
+                                    "presets and reminders. Neither deletes an exported backup.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                            message?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            }
+                        }
+
+                        SettingsSection.SYNC -> SyncSection(
+                            state = syncState,
+                            message = syncMessage,
+                            pendingWrites = pendingWrites,
+                            googleSignInAvailable = googleSignInAvailable,
+                            selection = selection,
+                            onSignIn = onSignIn,
+                            onSignInWithGoogle = onSignInWithGoogle,
+                            onSignOut = onSignOut,
+                            onSyncNow = onSyncNow,
+                        )
+
+                        SettingsSection.GROWTH_REFERENCE -> {
+                            Text(
+                                text = growthReference ?: "Reading the bundled reference…",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.textPrimary,
+                            )
+                            Text(
+                                text = "Percentiles are computed from this dataset. A newer one can be fetched without " +
+                                    "reinstalling the app; the bundled copy stays if the check fails.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                            SecondaryButton(
+                                label = "Check for updates",
+                                onClick = onCheckGrowthUpdates,
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            )
+                            growthUpdateMessage?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textPrimary,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            }
+                        }
+
+                        SettingsSection.ABOUT -> AboutContent()
+                    }
                 }
             }
-        }
-
-        item {
-            SectionCard("Data", alternate = true) {
-                InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
-                InputRow(label = "Import backup", onClick = { confirmImport = true }) { InputValue("Replaces everything") }
-                Text(
-                    text = "The backup includes both children, every event (including deleted ones) and the " +
-                        "food list. Keep it somewhere that is not this phone.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                InputRow(
-                    label = "Reset local data",
-                    onClick = { pendingReset = ResetRequest.LOCAL },
-                ) { InputValue("Erases this log") }
-                // Offered only while signed in: a server wipe that cannot reach the server is a button
-                // that lies about what it did.
-                if (syncState is SyncState.SignedIn) {
-                    InputRow(
-                        label = "Delete all server data",
-                        onClick = { pendingReset = ResetRequest.SERVER },
-                    ) { InputValue("Both phones") }
-                }
-                Text(
-                    text = "Both of these erase every event and every child, and clear your settings, " +
-                        "presets and reminders. Neither deletes an exported backup.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                message?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-        }
-
-        item {
-            // Raised, so the alternation keeps working down the list (Data is plain, Growth is plain).
-            SectionCard("Sync") {
-                SyncSection(
-                    state = syncState,
-                    message = syncMessage,
-                    pendingWrites = pendingWrites,
-                    googleSignInAvailable = googleSignInAvailable,
-                    selection = selection,
-                    onSignIn = onSignIn,
-                    onSignInWithGoogle = onSignInWithGoogle,
-                    onSignOut = onSignOut,
-                    onSyncNow = onSyncNow,
-                )
-            }
-        }
-
-        item {
-            SectionCard("Growth reference", alternate = true) {
-                Text(
-                    text = growthReference ?: "Reading the bundled reference…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textPrimary,
-                )
-                Text(
-                    text = "Percentiles are computed from this dataset. A newer one can be fetched without " +
-                        "reinstalling the app; the bundled copy stays if the check fails.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                SecondaryButton(
-                    label = "Check for updates",
-                    onClick = onCheckGrowthUpdates,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                )
-                growthUpdateMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-        }
-
-        item {
-            AboutCard()
         }
     }
 
@@ -645,6 +679,110 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * The one-line answer on a menu row.
+ *
+ * This exists so the menu is worth reading rather than a list of names: it says what each group is
+ * currently set to. Every string here is derived from the same value the submenu's own control reads,
+ * so the summary cannot drift from the control it summarises.
+ */
+@Composable
+private fun sectionSummary(
+    section: SettingsSection,
+    theme: ThemeMode,
+    units: UnitPreferences,
+    nightWindow: NightWindow,
+    presetCount: Int,
+    medicationPresetCount: Int,
+    childCount: Int,
+    hiddenActivityCount: Int,
+    syncState: SyncState,
+    pendingWrites: Int,
+    growthReference: String?,
+): String = when (section) {
+    SettingsSection.APPEARANCE -> themeLabel(theme)
+    SettingsSection.UNITS -> units.system.name.lowercase().replaceFirstChar { it.uppercase() }
+    SettingsSection.DAY_NIGHT -> "${hourLabel(nightWindow.startHour)} – ${hourLabel(nightWindow.endHour)}"
+    SettingsSection.BOTTLE_PRESETS -> counted(presetCount, "preset")
+    SettingsSection.MEDICATION_PRESETS -> counted(medicationPresetCount, "preset")
+    SettingsSection.CHILDREN -> counted(childCount, singular = "child", plural = "children")
+    SettingsSection.ACTIVITIES ->
+        if (hiddenActivityCount == 0) "All shown" else "$hiddenActivityCount hidden"
+    SettingsSection.DATA -> "Backup & reset"
+    SettingsSection.SYNC -> when (syncState) {
+        SyncState.NotConfigured -> "Not set up"
+        SyncState.SignedOut -> "Signed out"
+        is SyncState.Refused -> "Account refused"
+        is SyncState.SignedIn ->
+            if (pendingWrites == 0) "Signed in" else "Signed in · $pendingWrites waiting"
+    }
+    SettingsSection.GROWTH_REFERENCE -> datasetSummary(growthReference) ?: "Bundled"
+    SettingsSection.ABOUT -> BuildConfig.VERSION_NAME
+}
+
+/**
+ * `1 preset` / `3 presets`, `1 child` / `2 children`, and `None` when there are zero.
+ *
+ * [plural] is passed explicitly rather than having an `s` appended, because `2 childs` is exactly what
+ * appending one produced — it shipped to the phone in the Phase 19 pass and was read off the menu.
+ *
+ * `None` rather than `0 presets` because an empty list is a state the app is deliberately designed to
+ * start in (the medication list ships empty), and "0 presets" reads like something failed.
+ */
+internal fun counted(
+    count: Int,
+    singular: String,
+    plural: String = "${singular}s",
+    zero: String = "None",
+): String = when (count) {
+    0 -> zero
+    1 -> "1 $singular"
+    else -> "$count $plural"
+}
+
+/**
+ * `WHO 2006 · v2026.10` from the full `WHO 2006 · v2026.10 · updated 15 Oct 2026`.
+ *
+ * The submenu shows the whole line; the menu row cannot. It was measured on the phone in the Phase 19
+ * pass: the full line wrapped to two lines, and a two-line left-aligned value in a column of one-line
+ * right-aligned ones made that row taller than every other row in the menu. The update date is the part
+ * dropped rather than the version, because the version is what identifies which tables produced a
+ * percentile.
+ */
+internal fun datasetSummary(identity: String?): String? =
+    identity?.split(" · ")?.take(2)?.joinToString(" · ")
+
+/**
+ * The title of whichever Settings view is showing, with the way back when there is one.
+ *
+ * The back arrow is inside the scroll, matching where every other screen's title sits, and it carries a
+ * content description because an icon-only control has no text for a screen reader to announce.
+ */
+@Composable
+private fun SettingsHeader(title: String, onBack: (() -> Unit)? = null) {
+    val colors = BabyLogTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = Modifier.padding(end = 8.dp)) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back to Settings",
+                    tint = colors.textPrimary,
+                )
+            }
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary,
+        )
+    }
+}
+
 @Composable
 private fun SyncSection(
     state: SyncState,
@@ -760,32 +898,23 @@ private fun SyncSection(
 }
 
 /**
- * One section, on its own surface.
+ * One view, on its own surface.
  *
- * The gap between cards plus the surface change is what makes the boundary obvious; a heading alone was
- * not enough. Consecutive sections also ALTERNATE between `surface` and the slightly lighter
- * `surfaceRaised`, so the boundary reads even at a glance down a long scrolled list.
+ * The surface change plus the gap between cards is what makes a boundary obvious where a heading alone
+ * was not. There is now one card per view — the category menu's rows, or one setting group — so the
+ * old `alternate` shading, which existed to separate consecutive cards down a single long scroll, has
+ * nothing left to separate and is gone.
  */
 @Composable
-private fun SectionCard(
-    title: String,
-    alternate: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit,
-) {
+private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
     val colors = BabyLogTheme.colors
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(if (alternate) colors.surfaceRaised else colors.surface)
+            .background(colors.surface)
             .padding(Spacing.cardPadding),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = colors.textPrimary,
-            modifier = Modifier.padding(bottom = 4.dp),
-        )
         content()
     }
 }
@@ -865,44 +994,42 @@ private fun ChildEditor(
  * is the difference between a credit and a treasure hunt.
  */
 @Composable
-private fun AboutCard() {
+private fun AboutContent() {
     val colors = BabyLogTheme.colors
     val context = LocalContext.current
-    SectionCard("About") {
-        Text(
-            text = aboutVersionLine(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.DEBUG),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.textPrimary,
-        )
-        Text(
-            text = ABOUT_CREDITS,
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        SecondaryButton(
-            label = "Open the repository",
-            onClick = {
-                // A phone with no browser gets nothing rather than a crash: an optional credit must not be
-                // able to take the Settings screen down.
-                runCatching {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_REPOSITORY_URL)))
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        )
-        Text(
-            text = "Growth percentiles: WHO Child Growth Standards 2006 (igrowup).",
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        Text(
-            text = "No analytics, no trackers, no ads. The log lives on this phone, and with sync on it " +
-                "also lives in your own Firebase project.",
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-    }
+    Text(
+        text = aboutVersionLine(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.DEBUG),
+        style = MaterialTheme.typography.bodyMedium,
+        color = colors.textPrimary,
+    )
+    Text(
+        text = ABOUT_CREDITS,
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.textSecondary,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+    SecondaryButton(
+        label = "Open the repository",
+        onClick = {
+            // A phone with no browser gets nothing rather than a crash: an optional credit must not be
+            // able to take the Settings screen down.
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_REPOSITORY_URL)))
+            }
+        },
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+    )
+    Text(
+        text = "Growth percentiles: WHO Child Growth Standards 2006 (igrowup).",
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.textSecondary,
+        modifier = Modifier.padding(top = 12.dp),
+    )
+    Text(
+        text = "No analytics, no trackers, no ads. The log lives on this phone, and with sync on it " +
+            "also lives in your own Firebase project.",
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.textSecondary,
+        modifier = Modifier.padding(top = 6.dp),
+    )
 }

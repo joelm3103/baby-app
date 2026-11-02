@@ -92,7 +92,9 @@ import app.babylog.ui.home.VaccineSheet
 import app.babylog.ui.home.lastDoses as lastDosesFor
 import app.babylog.ui.history.HistoryScreen
 import app.babylog.ui.history.HistoryViewModel
+import app.babylog.ui.settings.SettingsNav
 import app.babylog.ui.settings.SettingsScreen
+import app.babylog.ui.settings.SettingsSection
 import app.babylog.ui.settings.SettingsViewModel
 import app.babylog.BuildConfig
 import app.babylog.ui.common.rememberHaptics
@@ -132,6 +134,11 @@ enum class Destination(val label: String, val icon: ImageVector) {
 @Composable
 fun AppScaffold(container: AppContainer) {
     var destination by rememberSaveable { mutableStateOf(Destination.ACTIVITY) }
+    // Which Settings submenu is open, or null for the category menu. Owned here rather than inside the
+    // screen because the shell has to answer two questions about it: what a back press does, and which
+    // list the top scrim follows.
+    var settingsSection by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
+    val settingsNav = SettingsNav(settingsSection)
     val factory = remember {
         viewModelFactory {
             initializer {
@@ -264,7 +271,13 @@ fun AppScaffold(container: AppContainer) {
     // `Updated to v2026.11` until the parent left Settings and came back.
     val growthIdentity by container.growthDatasetRepository.identityLine.collectAsState()
     LaunchedEffect(destination) {
-        if (destination == Destination.SETTINGS) container.growth()
+        if (destination == Destination.SETTINGS) {
+            container.growth()
+        } else {
+            // Settings reopens at its menu, never at whichever submenu was last open. A submenu is only
+            // reachable from the menu, so restoring one reads as a screen with no way to its siblings.
+            settingsSection = null
+        }
     }
 
     // Backup files go through the Storage Access Framework: no permission, no FileProvider, and the
@@ -386,9 +399,15 @@ fun AppScaffold(container: AppContainer) {
     // battery icons while scrolling.
     val activityListState = rememberLazyListState()
     val historyListState = rememberLazyListState()
-    val settingsListState = rememberLazyListState()
+    // Settings owns two lists: the category menu's and the open submenu's. They are separate because
+    // sharing one opens every submenu at the menu's offset and returns the menu at the submenu's.
+    val settingsMenuListState = rememberLazyListState()
+    // Keyed by section, so each submenu starts at its own top rather than where the last one stopped.
+    val settingsSectionListState = key(settingsSection) { rememberLazyListState() }
     // Trends scrolls its own list now that it holds a chart pane, so it fades like the others.
     val trendsListState = rememberLazyListState()
+    val settingsListState =
+        if (settingsSection == null) settingsMenuListState else settingsSectionListState
     val activeListState = when (destination) {
         Destination.ACTIVITY -> activityListState
         Destination.HISTORY -> historyListState
@@ -405,7 +424,15 @@ fun AppScaffold(container: AppContainer) {
     val scrimAlpha by animateFloatAsState(if (scrolled) 1f else 0f, label = "topScrim")
 
     BackHandler(enabled = destination != Destination.ACTIVITY) {
-        destination = Destination.ACTIVITY
+        // A Settings submenu consumes the first back press and lands on the menu; only the menu's own
+        // back leaves Settings for Activity. `SettingsNav` owns that rule, so the screen, the handler
+        // and the test all read the same one.
+        val afterBack = settingsNav.back()
+        if (afterBack == null) {
+            destination = Destination.ACTIVITY
+        } else {
+            settingsSection = afterBack.section
+        }
     }
 
     // The whole shell sits inside a Box so the logging sheet can be drawn, as a SIBLING of the
@@ -515,6 +542,9 @@ fun AppScaffold(container: AppContainer) {
                     listState = trendsListState,
                 )
                 Destination.SETTINGS -> SettingsScreen(
+                    section = settingsSection,
+                    onOpenSection = { entry -> settingsSection = settingsNav.open(entry).section },
+                    onBackToMenu = { settingsSection = null },
                     children = settingsChildren,
                     units = settingsUnits,
                     nightWindow = settingsNight,

@@ -90,8 +90,12 @@ android {
         // 1.2.0 is Phase 18, the foods catalogue: a published catalogue document sits above the bundled
         // asset, `foods_pending` carries additions between the phones, and local rename/hide opinions stay
         // on-device with proposals for the owner. New capability, so a MINOR rung above 1.1.0: code 28.
-        versionCode = 28
-        versionName = "1.2.0"
+        // 1.2.1 is Phase 19, the Settings redo: the eleven settings groups became a category menu with one
+        // submenu each, and back now means "up one level" before it means "leave Settings". Polish only —
+        // no setting moved between groups, no control changed, no schema change — so a PATCH rung, and code
+        // 29 so the pass installs in place over the delivered 1.2.0.
+        versionCode = 29
+        versionName = "1.2.1"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".
