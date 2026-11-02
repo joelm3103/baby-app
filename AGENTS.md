@@ -223,6 +223,15 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **Colour and consistency are null unless the nappy was dirty**, like `rash` — "not recorded" is the truth
   and the line says nothing rather than "unknown". The sheet clears both when Dirty is off, and
   `diaperDetail` ignores them for a wet-only row so a synced row cannot disagree with its own card.
+- **Settings is an index of eleven groups, not a scroll of eleven sections** (Phase 19, `SettingsSection.kt`).
+  Each menu row carries a one-line summary of its group's current value — the answer to "which units am I on"
+  should not need a tap — and each name opens that group alone. A group's name exists once, as `title`, and is
+  the menu row, the submenu heading and what the back arrow returns to; a second label beside it is how the two
+  come to disagree. **Back means "up one level" before it means "leave Settings"**, and that rule is
+  `SettingsNav.back()` — a tested value, not an `if` in the handler, because a menu that swallowed back traps
+  the parent and a submenu that passes it through dumps them on Activity. Two defects came off the phone: an
+  appended `s` printed `2 childs`, so `counted()` takes its plural explicitly, and a summary long enough to wrap
+  made its row taller than the rest, so a value that cannot fit one line belongs in the submenu instead.
 
 ## Domain rules that already cost us
 
@@ -388,7 +397,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-611 unit tests through Phase 18 (`1.2.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+620 unit tests through Phase 19 (`1.2.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -424,7 +433,8 @@ only, and `1.0.0` is the first release.
 | | | 16 update delivery (first release) | `1.0.0` |
 | | | 17 five todo items | `1.1.0` |
 | | | 18 published food catalogue | `1.2.0` |
-| | | 19 Ship | uses delivered release |
+| | | 19 settings submenus | `1.2.1` |
+| | | 20 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -443,7 +453,9 @@ only, and `1.0.0` is the first release.
   number because three commits on `main` already say `phase13.5`, and its rung is `0.17.1` after its own device
   pass; a landed rung is never renumbered to match a tidier label. Phase 16 delivered `1.0.0`; **Phase 17 is
 a batch of five `todo.txt` items on `1.1.0`**, **Phase 18 is the published food catalogue on `1.2.0`**,
-and **Phase 19 is Ship**. Ship has no commits and moves freely until its work starts.
+**Phase 19 is the Settings submenus on `1.2.1`** — a PATCH, because it moved where every setting is reached
+and changed none of them — and **Phase 20 is Ship**. Ship has no commits and moves freely until its work
+starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
   would install fine by `versionCode` and still read as going backwards on the phone.

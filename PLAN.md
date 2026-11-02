@@ -53,7 +53,8 @@ everything after it is additive.**
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
-| 19 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.2.0` over the air, verify both phones, then use it for a week before more code |
+| 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
+| 20 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.2.1` over the air, verify both phones, then use it for a week before more code. Was 19 before the Settings redo took that number |
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
 because it shipped no application code and so carries no version rung — a phase number whose build does not
@@ -120,15 +121,26 @@ capabilities rather than one new subsystem.
 Phase 18 — Ship had no commits. The owner-published food catalogue is the next landed capability, so it
 uses **Phase 18** and Ship moves freely to **Phase 19**. Phase 17 and its `1.1.0` rung are unchanged.
 
+### Renumbering, 2026-11-02 — the Settings redo takes 19 before Ship
+
+Phase 19 — Ship had no commits. The Settings redo (`todo.txt`: *Settings Tab may need a redo, all settings
+would be in sub menu under their respective names*) is the next landed change, so it uses **Phase 19** and Ship
+moves freely to **Phase 20**. Phase 18 and its `1.2.0` rung are unchanged.
+
+The rung is `1.2.1` / versionCode 29 — a PATCH rather than a MINOR, because this phase adds no capability and
+changes no stored data: every setting the app had is still there, under the name it had, with only the way to
+reach it changed.
+
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-01): `:app:testDebugUnitTest`, `:app:assembleDebug` and
-`:app:assembleRelease` succeeded. The release APK is `1.2.0` / versionCode 28, signed `CN=BabyLog`, SHA-1
-`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`. The suite is **611/611**,
-0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (58 files).
-The previous close-out was `1.1.0` / versionCode 27 at 584/584; this suite has 27 more tests. The ladder
-behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+Verified (current state, 2026-11-02): `:app:testDebugUnitTest`, `:app:assembleDebug` and
+`:app:assembleRelease` succeeded. The release APK is `1.2.1` / versionCode 29, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.2.0`. The suite is
+**620/620**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(60 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; this suite has 9 more tests — five
+in the new `SettingsNavTest` for the back rule and the eleven menu entries, four in `SettingsSummaryTest` for
+the two defects the device pass found. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -2176,14 +2188,93 @@ all taps below came from the current `uiautomator dump`. No food or log entry wa
 
 **Not verified on-device in this pass:** live Firestore rules deployment and a second phone's read. An existing
 capture, `logs/phone-food-picker.png`, shows `Console Test Food` in the picker, but it does not establish a fresh
-server read in this pass or verify the other phone. Cross-device Firestore behavior remains a Phase 19 acceptance
+server read in this pass or verify the other phone. Cross-device Firestore behavior remains a Phase 20 acceptance
 check. The rename dialog was dismissed without changing data.
 
 **Evidence files:** `logs/phase18-closeout-build.log`, `logs/phase18-closeout-picker.xml`,
 `logs/phase18-closeout-crash.log`, and `logs/phone-food-picker.png`.
 
-## Phase 19 — Ship
-Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.2.0` release
+## Phase 19 — Settings submenus — DONE, device-verified (`1.2.1`)
+
+One branch, `feat/settings-submenus`; version `1.2.1` / versionCode 29. The work changes how Settings is
+reached and nothing about what it holds.
+
+### As built
+
+- `ui/settings/SettingsSection.kt` is the whole of the new shape: an enum whose declaration order is the menu
+  order and whose `title` is the only name a group has — the menu row, the submenu heading and what the back
+  arrow returns to — plus `SettingsNav`, the two-level value that decides what a back press does.
+- `SettingsScreen` renders one view at a time: the category menu, where each of the eleven rows carries a
+  one-line summary of its group's current value, or that group's existing content under a back arrow. Every
+  control, validation, confirmation, gating rule and destructive dialog is the original code, moved rather
+  than rewritten; nothing was dropped and nothing moved between groups.
+- The alternating card shading is gone with the second card it existed to separate: there is one card per view
+  now, so there is no boundary for a shade to fall between.
+- `AppScaffold` owns which submenu is open, because the shell has to answer two questions about it — what back
+  does, and which list the top scrim follows. Settings therefore keeps two scroll states: the menu returns to
+  its own row, and each submenu opens at its own top. Leaving Settings resets to the menu, so a submenu is
+  never restored without its parent.
+- `SettingsNav.back()` returns null at the menu, which the shell reads as "leave Settings": the back rule is a
+  tested value rather than an `if` in a handler, because a menu that swallowed back would trap the parent and a
+  submenu that passed it through would dump them on Activity from a screen they had just opened.
+
+### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), `1.2.1`
+
+Two passes were made the same day against the same artifact: one that found the two defects below, and this
+one, which re-checked everything after the fix. Every tap coordinate came from a fresh `uiautomator dump` and
+`topResumedActivity` was checked before the first input. **No setting was changed during either pass** — the
+defects were found by reading the screen, not by flipping a control.
+
+The release APK is installed, not the debug one: `adb install -r app-debug.apk` answers
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` because `1.0.0` onward is release-signed, and uninstalling to make the
+debug build fit would discard the log. AGENTS.md records that rule; this pass exercised it.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=29 versionName=1.2.1`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-11-02 09:49 ✅ |
+| 2 | The pass ran against this exact artifact | the installed `base.apk`, pulled back off the phone, is byte-identical to the built APK — both SHA-256 `4666322e…3670` ✅ |
+| 3 | Signed by the family's key | `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f…5f4f` — the same certificate as `1.2.0` ✅ |
+| 4 | The debug APK is refused, as expected | `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; the release APK was installed instead and nothing was uninstalled ✅ |
+| 5 | Foreground before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 6 | The menu lists all eleven groups with summaries | `Appearance · System`, `Units · Custom`, `Day & night · 6:00 PM – 4:00 AM`, `Bottle presets · 3 presets`, `Medication presets · None`, `Children · 2 children`, `Activities · 2 hidden`, `Data · Backup & reset`, `Sync · Signed in`, `Growth reference · WHO 2006 · v2026.10`, `About · 1.2.1` ✅ |
+| 7 | No bottom navigation bar in Settings | the menu dump held no `Activity` / `Summary` / `Trends` node; all three came back on leaving ✅ |
+| 8 | Back is "up one level" | from **all eleven** submenus, back returned to the menu; a second back left Settings for Activity ✅ |
+| 9 | Each submenu names itself | every submenu dump held the back arrow (`content-desc="Back to Settings"`) then its own title as the first two labels ✅ |
+| 10 | Every group is reachable, its content present | Appearance (`System` filled), Units (six chip rows), Day & night (`6:00 PM` / `4:00 AM`), Bottle presets (`5 oz` / `5.5 oz` / `6 oz`, each removable), Medication presets (empty), Children (both editors, archive/delete, `Add child`), Activities (six switches), Data (export/import/reset, *Delete all server data* only while signed in), Sync (signed in, `Everything here is on the server.`, `Up to date.`), Growth reference (full line + `Check for updates`), About (`Version 1.2.1 (build 29) · release build`) — presence and content only; no control was toggled ✅ |
+| 11 | The summary agrees with the control behind it | `System` is the filled chip in Appearance; neither `Metric` nor `Imperial` is filled while the row reads `Custom` — both read off a zoomed screenshot, not assumed ✅ |
+| 12 | A long submenu clears the system bar | the nav-bar inset is 135 px (`[0,2181][1080,2316]`); after scrolling the Children submenu to its end, `Add child` finished at y=2111 — 70 px clear ✅ |
+| 13 | The top fade follows the open submenu | behind the clock and status icons the background is **opaque** on a scrolled submenu — the bug the shell's one-scrim rule was written for ✅ |
+| 14 | Nothing was written | the menu summaries after the pass read exactly as before it: `System`, `Custom`, `3 presets`, `None`, `2 children`, `2 hidden`, `Signed in` ✅ |
+| 15 | Crash buffer | `logcat -b crash -d`: **0** `FATAL EXCEPTION` across the install, all eleven submenus and the back navigation ✅ |
+
+**A script artifact worth recording, because it looked like a defect:** the first sweep reported the
+`Day & night` row missing. The dump escapes `&` as `&amp;`, so the label match failed; the row and its summary
+were present, and it was opened by coordinate. Nothing in the app was wrong.
+
+**Found on the phone, fixed in the same pass, then re-verified on it:**
+
+- **`2 childs` on the Children row.** The summary appended an `s` to `child`. `counted()` now takes its plural
+  explicitly, and `SettingsSummaryTest` pins `1 child` / `2 children`. The row reads `2 children` on the phone.
+- **The growth-reference value wrapped to two lines** and, being a left-aligned block in a column of right-aligned
+  one-line values, made its row taller than every other row in the menu. The row now shows `WHO 2006 · v2026.10`
+  (`datasetSummary()` drops the update date, not the version, because the version is what identifies the tables),
+  and the submenu still shows the full line. Re-measured on the phone after the fix: one line, 49 px tall like
+  its neighbours.
+
+Both were in code that had never been committed, so the phase's first commit carries the corrected rows rather
+than shipping the two defects and repairing them in a second commit.
+
+**Checked because a review flagged it:** system back with a Settings confirmation dialog open dismisses the
+**dialog**, not the submenu: it does not reset `settingsSection` underneath a still-mounted dialog. Driven on the
+phone from Settings → Data → *Import backup*, back closed the dialog and left the Data submenu in place, and a
+second back returned to the menu. The dialog owns the back press through `AlertDialog`'s default
+`dismissOnBackPress`, so the shell's handler never runs while one is up. `logcat -b crash -d` stayed at **0**.
+
+**Not verified in this pass:** no setting was toggled, so no write path was driven end to end. Every callback the
+submenus render is the original, unmoved code, but this pass proves the screens, not the writes.
+
+## Phase 20 — Ship
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.2.1` release
 APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
 use the delivered build for **a week before writing another line of code**.
 

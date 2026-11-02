@@ -17,6 +17,84 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-02]
+
+**In short:**
+
+- **Settings became a category menu with a submenu per group.** Eleven rows, each naming a group and its current value, each name opening that group alone. No setting moved between groups and no control changed — only how they are reached.
+- **Back means "up one level" before it means "leave Settings"**, and that rule is a tested value (`SettingsNav.back()`), not an `if` in the handler.
+- **The pass found two defects in the new rows and both were fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
+- **Nothing was written to the log or to any setting during the pass.**
+
+### Versions
+
+- `1.2.1` / versionCode 29 — **Phase 19, Settings submenus**. A PATCH rung: no capability and no stored data changed, only the way every setting is reached. Ship moves to Phase 20.
+
+### Added
+
+- **`SettingsSection`** names each of the eleven settings groups once, and its declaration order is the menu order.
+  - A group's `title` is the menu row, the submenu heading and what the back arrow returns to. A second label beside it is how the two come to disagree.
+  - `Why:` the shape it replaces was one long list of eleven section cards, where reaching bottle presets meant scrolling past six unrelated groups.
+- **`SettingsNav`** is the two-level value that decides what a back press does.
+  - It replaces rather than nests, so opening a second group from a submenu lands there instead of two backs away from the menu.
+  - `back()` answers null at the menu, which the shell reads as "leave Settings".
+- **A category menu replaces the single scroll of eleven cards.** Each row carries a one-line summary of its group's current value, so which units or theme the app is on is legible without opening anything.
+
+### Changed
+
+- **Settings renders one view at a time** — the menu, or one group under a back arrow.
+  - Every control, validation, confirmation, gating rule and destructive dialog is the original code, moved rather than rewritten. Nothing was dropped and nothing moved between groups.
+  - The old alternating `surfaceRaised` shading is gone: it existed to separate consecutive cards down one long scroll, and one card per view has no boundary for a shade to fall between.
+- **`AppScaffold` owns which submenu is open**, because the shell has to answer two questions about it: what a back press does, and which list the top scrim follows.
+  - Settings therefore keeps two scroll states. The menu returns to its own row, and each submenu opens at its own top.
+  - Leaving Settings resets to the menu, so a submenu is never restored without its parent on screen.
+- **`counted()` takes its plural explicitly** instead of appending an `s`, and **`datasetSummary()`** shortens the growth identity line to name and version for the menu row.
+
+### Fixed
+
+- **The Children settings row printed `2 childs`.** It reads `2 children`.
+- **The growth-reference row printed the full identity line**, which wrapped to two lines and, being left-aligned among right-aligned values, made that row taller than every other row in the Settings menu.
+  - The row now shows `WHO 2006 · v2026.10`; the submenu still shows the update date, because the version is what identifies the tables and the date is not.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `1.2.1`, 2026-11-02
+
+| # | Check | Result |
+|---|---|---|
+| 1 | An update, not a reinstall | `versionCode=29 versionName=1.2.1`; `firstInstallTime` unchanged at 2026-10-29 13:16, `lastUpdateTime` 2026-11-02 09:49 ✅ |
+| 2 | The pass ran against this exact artifact | the installed `base.apk` pulled back is byte-identical to the built APK, both SHA-256 `4666322e…3670` ✅ |
+| 3 | Signed by the family's key | `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f…5f4f` ✅ |
+| 4 | The debug APK is refused | `adb install -r app-debug.apk` answered `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, so the release APK was installed — as it must be, and never by uninstalling ✅ |
+| 5 | Foreground checked before any input | `topResumedActivity=app.babylog/.MainActivity` ✅ |
+| 6 | The menu lists all eleven groups | `Appearance, Units, Day & night, Bottle presets, Medication presets, Children, Activities, Data, Sync, Growth reference, About`, each with a summary ✅ |
+| 7 | No bottom bar in Settings | the menu dump held no `Activity` / `Summary` / `Trends` node; all three came back on leaving ✅ |
+| 8 | Back is "up one level" | from **all eleven** submenus, back returned to the menu; a second back left Settings for Activity ✅ |
+| 9 | Each submenu names itself | every dump held the back arrow (`content-desc=Back to Settings`) then its own title as the first two labels ✅ |
+| 10 | The summary agrees with the control behind it | `System` is the filled chip in Appearance; neither `Metric` nor `Imperial` is filled while the row reads `Custom` ✅ |
+| 11 | A long submenu clears the system bar | the nav-bar inset is 135 px (`[0,2181][1080,2316]`); the last element after scrolling, `Add child`, ended at y=2111 — 70 px clear ✅ |
+| 12 | The top fade follows the open submenu | behind the clock and status icons the background is **opaque** on a scrolled submenu ✅ |
+| 13 | Nothing was written | the menu summaries after the pass read exactly as before it: `System`, `Custom`, `3 presets`, `None`, `2 children`, `2 hidden`, `Signed in` ✅ |
+| 14 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install, all eleven submenus and the back navigation ✅ |
+
+**Found on the phone, fixed and re-verified on it:** the two `### Fixed` entries above. The order matters to
+read the history honestly — both were in the new code and neither existed in a commit, so the first commit of
+this phase carries the corrected code rather than a broken row followed by a repair.
+
+**A note on the sweep, not a defect:** the first sweep reported the `Day & night` row missing because the dump escapes
+`&` as `&amp;`, so it was opened by coordinate instead. The row and its summary (`6:00 PM – 4:00 AM`) were
+present all along.
+
+### Tests
+
+- **611 → 620: nine cases in two new classes, neither of them about layout.**
+- `SettingsNavTest` (5) pins what a build cannot see: that the menu is the root and its back answer is null,
+  that every submenu's back lands on the menu, that opening from a submenu replaces rather than nests, and that
+  the eleven menu entries exist in their order with unique non-blank names.
+  - `Why:` the two failure modes are a Settings that traps the parent and a group that loses its only way in,
+    and neither shows up as a compile error or a failed screenshot.
+- `SettingsSummaryTest` (4) pins the two defects the phone found, so `2 childs` and a two-line menu value
+  cannot come back: the plural for children, the default appended `s`, the shortened dataset line, and that a
+  line in an unrecognised shape still renders rather than vanishing.
+
 ## [2026-11-01]
 
 **In short:**
