@@ -482,6 +482,7 @@ fun AppScaffold(container: AppContainer) {
                     onOpenSheet = home::openSheet,
                     onOpenVaccine = home::openVaccineRecord,
                     onQuickDiaper = home::logDiaper,
+                    onQuickBottle = home::logBottle,
                     onStartSleep = home::startSleep,
                     onStop = home::stopSleep,
                     onOpenSettings = { destination = Destination.SETTINGS },
@@ -649,6 +650,15 @@ fun AppScaffold(container: AppContainer) {
                             snackbarHostState.showSnackbar("${type.displayName()} reminder added")
                         }
                     },
+                    // The same path the card's `⋮` menu uses, so a rule removed from the sheet and one removed
+                    // from the menu cannot do different things.
+                    onRemove = { childId ->
+                        home.removeReminder(type, childId)
+                        reminderSheet = null
+                        scope.launch {
+                            snackbarHostState.showSnackbar("${type.displayName()} reminder removed")
+                        }
+                    },
                     onAllowNotifications = onRequestNotifications,
                 )
             }
@@ -670,7 +680,7 @@ fun AppScaffold(container: AppContainer) {
                 units = state.units,
                 foodNames = state.foodNames,
                 childLabel = state.childLabel,
-                childInitials = badgesFor(state.children),
+                childNames = state.children.associate { it.id to it.name },
                 showChildBadge = state.childIds.size > 1,
                 zone = remember { ZoneId.systemDefault() },
                 now = listNow,

@@ -94,8 +94,13 @@ android {
         // submenu each, and back now means "up one level" before it means "leave Settings". Polish only —
         // no setting moved between groups, no control changed, no schema change — so a PATCH rung, and code
         // 29 so the pass installs in place over the delivered 1.2.0.
-        versionCode = 29
-        versionName = "1.2.1"
+        // 1.3.0 is Phase 20, the tracking changes: a bottle preset becomes a one-tap log on the card (the
+        // Diaper pills' path, borrowed), a Both-mode card names its child instead of showing an initial, the
+        // reminder sheet stops asking whether to notify and can remove a rule, and a posted reminder is
+        // cleared when its activity is logged or its rule goes off. One new capability, so a MINOR rung:
+        // code 30.
+        versionCode = 30
+        versionName = "1.3.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

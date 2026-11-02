@@ -28,6 +28,8 @@ fun ActivityScreen(
     onOpenSheet: (app.babylog.domain.EventType) -> Unit,
     onOpenVaccine: () -> Unit,
     onQuickDiaper: (app.babylog.domain.DiaperKind) -> Unit,
+    /** One tap on a bottle preset logs that feed; see `HomeViewModel.logBottle`. */
+    onQuickBottle: (Int) -> Unit = {},
     onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -118,6 +120,8 @@ fun ActivityScreen(
                 onOpenSheet = onOpenSheet,
                 onOpenVaccine = onOpenVaccine,
                 onQuickDiaper = onQuickDiaper,
+                onQuickBottle = onQuickBottle,
+                bottlePresets = state.bottlePresets,
                 onStartSleep = onStartSleep,
                 onStop = onStop,
                 onSeeAll = { onSeeAll(card.type) },

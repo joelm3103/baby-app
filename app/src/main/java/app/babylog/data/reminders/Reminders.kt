@@ -7,6 +7,7 @@ import app.babylog.domain.ReminderKey
 import app.babylog.domain.ReminderMode
 import app.babylog.domain.TimeFormat
 import app.babylog.domain.nextReminderAt
+import app.babylog.domain.shouldClearPostedNotification
 import java.time.ZoneId
 
 /**
@@ -17,7 +18,7 @@ import java.time.ZoneId
  */
 class Reminders(
     private val deps: ReminderDeps,
-    private val notifications: ReminderNotifications,
+    private val notifications: ReminderNotifier,
     private val timeFormat: suspend () -> TimeFormat,
 ) {
 
@@ -66,12 +67,22 @@ class Reminders(
             EventType.entries.forEach { type ->
                 val key = ReminderKey(type, child.id)
                 val config = configs[key] ?: ReminderConfig()
+                // Read once and used twice: the newest row of this activity is both the anchor the next reminder
+                // counts from and the evidence that a posted one is now stale.
+                val anchor = deps.anchors.latestAnchor(type, child.id)
                 val at = if (config.enabled && type in REMINDER_TYPES) {
-                    nextReminderAt(config, deps.anchors.latestAnchor(type, child.id), now, deps.zone, night)
+                    nextReminderAt(config, anchor, now, deps.zone, night)
                 } else {
                     null
                 }
                 if (at == null) deps.scheduler.cancel(key) else deps.scheduler.schedule(key, at)
+
+                // The shade is part of the same recompute, and deliberately here rather than on the write path:
+                // this is the one function every write, rule change, launch and boot already goes through, so a
+                // posted notification cannot outlive the fact it was posted about.
+                if (shouldClearPostedNotification(config, notifications.postedAt(type, child.id), anchor)) {
+                    notifications.cancel(type, child.id)
+                }
             }
         }
     }

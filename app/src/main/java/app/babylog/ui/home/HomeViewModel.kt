@@ -29,6 +29,7 @@ import app.babylog.domain.ReminderChip
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.NightWindow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -68,6 +69,14 @@ data class HomeUiState(
      * or no children yet — and so nothing else reading `cards` inherits a display choice.
      */
     val hidden: Set<EventType> = emptySet(),
+    /**
+     * The amounts worth one tap on the Bottle feed card, in ml, in the order they were added.
+     *
+     * Canonical millilitres, like the settings that own them: the card labels them in whatever unit family
+     * the parent reads, and a preset re-read after a unit change must not have moved. Empty draws no pills
+     * at all rather than an empty row.
+     */
+    val bottlePresets: List<Int> = emptyList(),
 ) {
     /** The cards the Activity tab actually draws. */
     val shownCards: List<CardUi> get() = cards.filterNot { it.type in hidden }
@@ -152,7 +161,14 @@ class HomeViewModel(
     private val _editing = MutableStateFlow<BabyEvent?>(null)
     val editing: StateFlow<BabyEvent?> = _editing.asStateFlow()
 
-    val state: StateFlow<HomeUiState> = combine(
+    /**
+     * The state's five inputs, folded into one value first.
+     *
+     * Two `combine` calls rather than one, because Kotlin's typed `combine` overloads stop at five flows and
+     * the sixth would silently fall through to the `Array<Any>` vararg form — which is what a `List<Child>`
+     * becoming `Array<Any>` looks like at the call site. The inner combine keeps every type named.
+     */
+    private val selectionInputs: Flow<Quad> = combine(
         children.observeAll(),
         settings.selectedChild,
         settings.units,
@@ -162,7 +178,14 @@ class HomeViewModel(
         // screen has to tell "nothing to show because everything is hidden" apart from "no children yet",
         // and a pre-filtered list cannot answer that question.
         settings.hiddenActivities,
-    ) { kids, selection, units, foods, hidden -> Quad(kids, selection, units, foods, hidden) }
+    ) { kids, selection, units, foods, hidden -> Quad(kids, selection, units, foods, hidden, null) }
+
+    val state: StateFlow<HomeUiState> = combine(
+        selectionInputs,
+        // The one-tap amounts on the Bottle feed card. In the state rather than read by the card, so a
+        // preset added in Settings appears on the card without the card knowing Settings exists.
+        settings.bottlePresets,
+    ) { quad, presets -> quad.copy(presets = presets) }
         .flatMapLatest { combined ->
             val kids = combined.kids
             val units = combined.units
@@ -176,7 +199,9 @@ class HomeViewModel(
             val selection: ChildSelection = nullableSelection ?: ChildSelection.Both
             val ids = selection.resolve(kids.map { it.id })
             val names = combined.foods.associate { it.id to displayFoodName(it.name, it.localName) }
-            events.observeForChildren(ids).map { all -> build(kids, selection, ids, all, units, names, hidden) }
+            events.observeForChildren(ids).map { all ->
+                build(kids, selection, ids, all, units, names, hidden, combined.presets.orEmpty())
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
@@ -316,6 +341,7 @@ class HomeViewModel(
         units: app.babylog.domain.UnitPreferences,
         foodNames: Map<String, String>,
         hidden: Set<EventType>,
+        bottlePresets: List<Int>,
     ) = HomeUiState(
         children = kids,
         selection = selection,
@@ -324,6 +350,7 @@ class HomeViewModel(
         cards = buildCards(all, kids.map { it.id }),
         foodNames = foodNames,
         hidden = hidden,
+        bottlePresets = bottlePresets,
     )
 
     fun select(selection: ChildSelection) = viewModelScope.launch { settings.setSelectedChild(selection) }
@@ -334,6 +361,18 @@ class HomeViewModel(
             EventDraft(type = EventType.DIAPER, startedAt = System.currentTimeMillis(), diaperKind = kind),
             createdBy = CREATED_BY,
         )
+    }
+
+    /**
+     * One tap on a preset logs that feed, with no sheet.
+     *
+     * The same shape as [logDiaper], and for the same reason: the amount is the whole answer, so a parent
+     * who already knows it should not have to open a form to repeat it. A preset that is not a bottle is
+     * refused by [quickBottleDraft] rather than written.
+     */
+    fun logBottle(amountMl: Int) = viewModelScope.launch {
+        val draft = quickBottleDraft(amountMl, System.currentTimeMillis()) ?: return@launch
+        events.log(state.value.childIds, draft, createdBy = CREATED_BY)
     }
 
     fun startSleep() = viewModelScope.launch {
@@ -470,4 +509,6 @@ private data class Quad(
     val units: app.babylog.domain.UnitPreferences,
     val foods: List<app.babylog.data.local.FoodEntity>,
     val hidden: Set<EventType>,
+    /** Null only inside [HomeViewModel.selectionInputs], which fills it in as the second input. */
+    val presets: List<Int>?,
 )

@@ -71,6 +71,14 @@ fun ActivitySheet(
      * it and hunt for the row again to remove it. Null for a new record, where there is nothing to delete.
      */
     onDelete: (() -> Unit)? = null,
+    /**
+     * What the bottom destructive row says. Ignored when [onDelete] is null.
+     *
+     * A parameter because the reminder sheet's row removes a RULE, not a record, and a button reading
+     * "Delete this entry" in a sheet that never created an entry is a false label on the one control that
+     * cannot be undone.
+     */
+    deleteLabel: String = "Delete this entry",
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = BabyLogTheme.colors
@@ -162,7 +170,7 @@ fun ActivitySheet(
                 content()
                 if (onDelete != null) {
                     DangerButton(
-                        label = "Delete this entry",
+                        label = deleteLabel,
                         onClick = onDelete,
                         modifier = Modifier.padding(top = Spacing.sectionGap, bottom = Spacing.gutter),
                     )

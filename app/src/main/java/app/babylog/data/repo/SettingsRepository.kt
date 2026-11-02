@@ -280,25 +280,35 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
             .forEach { prefs.remove(stringPreferencesKey(it.name)) }
     }
 
-    private companion object {
-        val KEY_LENGTH = stringPreferencesKey("units.length")
-        val KEY_WEIGHT = stringPreferencesKey("units.weight")
-        val KEY_TEMPERATURE = stringPreferencesKey("units.temperature")
-        val KEY_TIME_FORMAT = stringPreferencesKey("time.format")
-        val KEY_VOLUME = stringPreferencesKey("units.volume")
-        val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
-        val KEY_THEME = stringPreferencesKey("ui.theme")
-        val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
-        val KEY_SYNC_SEEDED = booleanPreferencesKey("sync.seeded")
-        val KEY_FOOD_SEEDED = booleanPreferencesKey("foods.seeded")
-        val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
-        val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
-        val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
-        val KEY_MEDICATION_PRESETS = stringPreferencesKey("health.medicationPresets")
-        val KEY_HIDDEN_ACTIVITIES = stringPreferencesKey("activities.hidden")
+    companion object {
+        // The preferences keys are this class's own storage detail, so they stay private.
+        private val KEY_LENGTH = stringPreferencesKey("units.length")
+        private val KEY_WEIGHT = stringPreferencesKey("units.weight")
+        private val KEY_TEMPERATURE = stringPreferencesKey("units.temperature")
+        private val KEY_TIME_FORMAT = stringPreferencesKey("time.format")
+        private val KEY_VOLUME = stringPreferencesKey("units.volume")
+        private val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
+        private val KEY_THEME = stringPreferencesKey("ui.theme")
+        private val KEY_CHILD_SEEDED = booleanPreferencesKey("children.seeded")
+        private val KEY_SYNC_SEEDED = booleanPreferencesKey("sync.seeded")
+        private val KEY_FOOD_SEEDED = booleanPreferencesKey("foods.seeded")
+        private val KEY_NIGHT_START = intPreferencesKey("history.nightStartHour")
+        private val KEY_NIGHT_END = intPreferencesKey("history.nightEndHour")
+        private val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
+        private val KEY_MEDICATION_PRESETS = stringPreferencesKey("health.medicationPresets")
+        private val KEY_HIDDEN_ACTIVITIES = stringPreferencesKey("activities.hidden")
 
-        const val DEFAULT_NIGHT_START_HOUR = 18
-        const val DEFAULT_NIGHT_END_HOUR = 6
+        private const val DEFAULT_NIGHT_START_HOUR = 18
+        private const val DEFAULT_NIGHT_END_HOUR = 6
+
+        /**
+         * The largest amount a bottle preset may hold, in ml.
+         *
+         * A preset above this is a typo rather than a bottle, and it is the same number in two places by
+         * need: Settings refuses to store one, and the card refuses to quick-log one. Kept here, public, so
+         * those two gates cannot drift into disagreeing about what a bottle is.
+         */
+        const val MAX_BOTTLE_PRESET_ML = 1000
     }
 }
 

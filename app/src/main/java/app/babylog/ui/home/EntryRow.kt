@@ -23,8 +23,8 @@ import app.babylog.domain.clockTime
 import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
-import app.babylog.ui.theme.accentFor
 import app.babylog.ui.theme.Spacing
+import app.babylog.ui.theme.accentFor
 import java.time.ZoneId
 
 /**
@@ -51,7 +51,14 @@ import java.time.ZoneId
 internal fun EntryRow(
     event: BabyEvent,
     units: UnitPreferences,
-    initials: String?,
+    /**
+     * Whose row this is, in Both mode. Null when only one child is on screen, where every row is theirs.
+     *
+     * The NAME, not the initial it used to be: `K` and `L` above a list of amounts asked the parent to
+     * decode two letters, and the name is already in the state. Deliberately still one line with an
+     * ellipsis, and still not the row's loudest element.
+     */
+    childName: String?,
     showChild: Boolean,
     zone: ZoneId,
     onTap: () -> Unit,
@@ -101,9 +108,18 @@ internal fun EntryRow(
                 modifier = Modifier.size(14.dp),
             )
             // Which child, then how much. In Both mode two rows could otherwise read identically: the
-            // brand is the same on every bottle and says nothing.
+            // brand is the same on every bottle and says nothing. The name rather than the initial, since
+            // a column of `K`s is a code the parent has to hold in their head; weighted so a long name
+            // ellipsises rather than pushing the amount or the time off the card.
             if (showChild) {
-                ChildBadge(initials = initials ?: "?", size = Spacing.rowBadge)
+                Text(
+                    text = childName ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (onCard) colors.textOnCard else colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
             }
             Text(
                 text = recentRowLabel(event, units, foodNames),

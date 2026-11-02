@@ -53,8 +53,16 @@ import java.time.DayOfWeek
  * which one, and `For` is the first row.
  *
  * The rows are the owner's mockup minus what he dropped: `Time` (an interval, standardised so the -/+ buttons do
- * not move between `1h` and `1h 30m`), `Notify`, and the night window and day chips that were asked for earlier.
- * `Start`, `End` and `Snooze (10 min)` are gone.
+ * not move between `1h` and `1h 30m`), and the night window and day chips. `Start`, `End`, `Snooze (10 min)` and
+ * — since Phase 20 — `Notify` are gone.
+ *
+ * **There is no `Notify` toggle, and saving always leaves the rule ENABLED.** The toggle was a silent trap the
+ * phone caught: the sheet opened with it off, so `Set` wrote a rule that looked saved on the card and rang
+ * never, with nothing on screen to say why. A reminder the parent just set is a reminder they want to hear — a
+ * rule they do not want is removed, not stored switched off.
+ *
+ * **Removal lives at the bottom, not in the `⋮` menu alone**, through the same destructive row every other
+ * editing sheet offers, so the sheet that created a rule is the sheet that can undo it.
  *
  * Everything is local state until the Set button, like every other sheet in the app: a half-edited rule must
  * never be live.
@@ -82,6 +90,15 @@ fun ReminderSheet(
     onDismiss: () -> Unit,
     onSave: (childId: String, config: ReminderConfig) -> Unit,
     onAllowNotifications: () -> Unit = {},
+    /**
+     * Removes the rule being edited.
+     *
+     * Takes the child id because the sheet can change which child it is editing, and a removal that fell back
+     * to the child the switcher happened to show is a reminder removed for the wrong twin. The row itself is
+     * only drawn when the CHILD ON SCREEN has a rule: removing nothing is not an action, and a destructive
+     * button that would do nothing is worse than no button.
+     */
+    onRemove: ((childId: String) -> Unit)? = null,
 ) {
     val colors = BabyLogTheme.colors
     var childId by remember {
@@ -103,9 +120,13 @@ fun ReminderSheet(
         title = "Set reminder \u2014 ${type.displayName()}",
         subtitle = children.firstOrNull { it.id == childId }?.name,
         onDismiss = onDismiss,
-        onSave = { onSave(childId, config) },
+        // `enabled = true`, unconditionally: the sheet no longer asks whether to notify, so what it saves is
+        // always a live rule. A parent who wants it silent removes it.
+        onSave = { onSave(childId, sheetSaveConfig(config)) },
         saveLabel = if (editing) "Update" else "Set",
         saveEnabled = childId.isNotEmpty(),
+        onDelete = if (editing && onRemove != null) ({ onRemove.invoke(childId) }) else null,
+        deleteLabel = "Remove notification",
     ) {
         if (!notificationsEnabled) {
             // The rule can be perfect and still deliver nothing, so this is said at the point of setting it
@@ -213,13 +234,6 @@ fun ReminderSheet(
         }
 
         SwitchRow(
-            label = "Notify",
-            checked = config.enabled,
-            accent = accent,
-            onCheckedChange = { config = config.copy(enabled = it) },
-        )
-
-        SwitchRow(
             label = "Skip night",
             checked = config.skipNight,
             accent = accent,
@@ -324,6 +338,15 @@ private fun DayChips(days: Set<DayOfWeek>, accent: Color, onToggle: (DayOfWeek) 
         HorizontalDivider(color = colors.divider)
     }
 }
+
+/**
+ * What the Set button writes, whatever the stored rule said.
+ *
+ * The sheet has no `Notify` toggle, so `enabled` is not the parent's answer to give here: setting a reminder IS
+ * turning it on. Pure and extracted so the rule can be asserted without a composition — the version that shipped
+ * the silent-disabled-rule defect compiled perfectly and looked right on screen.
+ */
+internal fun sheetSaveConfig(config: ReminderConfig): ReminderConfig = config.copy(enabled = true)
 
 /**
  * One step along [ReminderConfig.INTERVAL_CHOICES].

@@ -67,6 +67,7 @@ import app.babylog.ui.home.InputValue
 import app.babylog.ui.home.SecondaryButton
 import app.babylog.ui.home.StepperRow
 import app.babylog.data.reminders.ReminderText
+import app.babylog.data.repo.SettingsRepository
 import app.babylog.ui.home.SwitchRow
 import app.babylog.ui.home.TextFieldRow
 import app.babylog.ui.home.volumeUnitLabel
@@ -80,9 +81,6 @@ import kotlin.math.roundToInt
 
 /** 20 weeks. Below this is not a viable gestational age, so the stepper stops. */
 private const val MIN_GESTATION_DAYS = 140
-
-/** A preset above this is a typo, not a bottle. */
-private const val MAX_PRESET_ML = 1000
 
 /**
  * Which of Phase 15's two resets a dialog is asking about.
@@ -375,7 +373,9 @@ fun SettingsScreen(
                                 onClick = {
                                     val ml = presetInput.trim().toDoubleOrNull()
                                         ?.let { toMillilitres(it, unit).roundToInt() }
-                                    if (ml != null && ml in 1..MAX_PRESET_ML) {
+                                    // The cap is the repository's, not a second copy of the number: the card
+                                    // refuses to quick-log anything it would refuse to store.
+                                    if (ml != null && ml in 1..SettingsRepository.MAX_BOTTLE_PRESET_ML) {
                                         onAddPreset(ml)
                                         presetInput = ""
                                     }

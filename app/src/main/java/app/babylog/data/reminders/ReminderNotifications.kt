@@ -32,9 +32,9 @@ import java.time.ZoneId
  * faint smudge in a 24dp status bar; the activity is carried by the notification's colour (`accentFor`) and by
  * the title instead.
  */
-class ReminderNotifications(private val context: Context) {
+class ReminderNotifications(private val context: Context) : ReminderNotifier {
 
-    fun ensureChannel() {
+    override fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
@@ -47,9 +47,9 @@ class ReminderNotifications(private val context: Context) {
     }
 
     /** True when the parent has allowed notifications; false is a state Settings explains rather than hides. */
-    fun enabled(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    override fun enabled(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-    fun post(
+    override fun post(
         type: EventType,
         childId: String,
         childName: String,
@@ -74,6 +74,34 @@ class ReminderNotifications(private val context: Context) {
             .setContentIntent(openSheet(context, type, childId))
             .build()
         runCatching { NotificationManagerCompat.from(context).notify(notificationId(type, childId), notification) }
+    }
+
+    /**
+     * Take this notification down.
+     *
+     * Safe to call for an id that was never posted, which is the common case: `refresh()` runs after every
+     * write and asks about every (activity, child), and most of those have nothing in the shade. Guarded with
+     * `runCatching` because a revoked permission makes the manager throw, and a reminder that cannot clear
+     * itself must never take a feed write down with it.
+     */
+    override fun cancel(type: EventType, childId: String) {
+        runCatching { NotificationManagerCompat.from(context).cancel(notificationId(type, childId)) }
+    }
+
+    /**
+     * When the live notification for this pair was posted, read back from the shade.
+     *
+     * The post time is the system's, not ours: a parent who swiped one away, or whose channel is silenced, has a
+     * shade this app did not write, and only the system knows what is actually there.
+     */
+    override fun postedAt(type: EventType, childId: String): Long? {
+        val id = notificationId(type, childId)
+        return runCatching {
+            NotificationManagerCompat.from(context)
+                .activeNotifications
+                .firstOrNull { it.id == id }
+                ?.postTime
+        }.getOrNull()
     }
 
     /**

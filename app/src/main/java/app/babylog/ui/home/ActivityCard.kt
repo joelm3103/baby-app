@@ -33,6 +33,7 @@ import app.babylog.domain.EventType
 import app.babylog.ui.common.glyphPainter
 import app.babylog.domain.markedBand
 import app.babylog.domain.UnitPreferences
+import app.babylog.domain.formatVolume
 import app.babylog.domain.clockTime
 import app.babylog.domain.elapsed
 import app.babylog.ui.common.RelativeTimeText
@@ -99,6 +100,16 @@ fun ActivityCard(
     /** The Health card's second form. A separate callback because the type alone cannot say which. */
     onOpenVaccine: () -> Unit,
     onQuickDiaper: (DiaperKind) -> Unit,
+    /**
+     * One tap on a preset logs a feed of that many ml, with no sheet.
+     *
+     * The same contract as [onQuickDiaper]: the tap IS the record, so it writes immediately. The amount is
+     * canonical millilitres and the label is composed here in the parent's display unit, so the same preset
+     * reads `4 oz` or `120 ml` without stored data moving.
+     */
+    onQuickBottle: (Int) -> Unit = {},
+    /** The amounts worth one tap, in ml, ascending. Empty draws no pill row at all. */
+    bottlePresets: List<Int> = emptyList(),
     onStartSleep: () -> Unit,
     onStop: () -> Unit,
     onSeeAll: () -> Unit,
@@ -200,10 +211,8 @@ fun ActivityCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                ChildBadge(
-                                    initials = childInitials[column.childId] ?: "?",
-                                    size = Spacing.rowBadge,
-                                )
+                                // No badge here: this column is already headed by the child's NAME, so an
+                                // initial beside it was the same fact twice at the cost of a row's width.
                                 // The card's own activity, small, so a column read on its own still says
                                 // what it is measuring. Drawn from the card's type rather than passed in,
                                 // so no caller can hand a Growth column a bottle.
@@ -313,14 +322,22 @@ fun ActivityCard(
                         Spacer(Modifier.weight(1f))
                         // In Both mode the newest event is ONE child's, and the card used to say which
                         // only by omission. Naming it (and dating it) removes the "combined is wrong"
-                        // reading without changing what the number means.
+                        // reading without changing what the number means. The NAME, not the initial: a
+                        // lone `K` beside a big number is a code to decode, and the name is already here.
+                        // One line, ellipsised, so a long name cannot push the time off the card.
                         if (showChildBadge) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.padding(bottom = 4.dp),
                             ) {
-                                ChildBadge(initials = childInitials[headline.childId] ?: "?", size = Spacing.rowBadge)
+                                Text(
+                                    text = childNames[headline.childId].orEmpty(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textOnCard,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                                 Text(
                                     text = clockTime(headline.startedAt, zone, LocalTimeFormat.current),
                                     style = MaterialTheme.typography.bodySmall,
@@ -385,13 +402,35 @@ fun ActivityCard(
                     fullWidth = true,
                 )
 
-                EventType.BOTTLE -> PillButton(
-                    label = "+ Log feed for $childLabel",
-                    fill = accent,
-                    textColor = colors.onAccent,
-                    onClick = { onOpenSheet(EventType.BOTTLE) },
-                    fullWidth = true,
-                )
+                EventType.BOTTLE -> Column {
+                    // The presets are the common case, so they come first and log on the tap; the full-width
+                    // button below stays for a custom amount, a brand, a note or a feed that happened earlier.
+                    // FlowRow, not Row: the settings screen lets a parent add as many sizes as they like, and
+                    // a fixed row would clip the fifth one off the card with no way to reach it.
+                    if (bottlePresets.isNotEmpty()) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            bottlePresets.forEach { millilitres ->
+                                PillButton(
+                                    label = formatVolume(millilitres.toDouble(), units.volume),
+                                    fill = colors.surface,
+                                    textColor = accent,
+                                    onClick = { onQuickBottle(millilitres) },
+                                )
+                            }
+                        }
+                    }
+                    PillButton(
+                        label = "+ Log feed for $childLabel",
+                        fill = accent,
+                        textColor = colors.onAccent,
+                        onClick = { onOpenSheet(EventType.BOTTLE) },
+                        fullWidth = true,
+                    )
+                }
 
                 EventType.SOLIDS -> PillButton(
                     label = "+ Log solids for $childLabel",
@@ -505,7 +544,7 @@ fun ActivityCard(
                     event = event,
                     units = units,
                     foodNames = foodNames,
-                    initials = childInitials[event.childId],
+                    childName = childNames[event.childId],
                     showChild = showChildBadge,
                     // The row says its band in a pill, so a flagged reading cannot be read past in a list.
                     band = markedBand(event.temperatureC),

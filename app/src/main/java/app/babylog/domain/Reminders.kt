@@ -321,3 +321,31 @@ fun reminderChipText(
             "Every ${intervalLabel(config.intervalMinutes)} (${if (due) "due now" else clockTime(at, zone, format)})"
     }
 }
+
+/**
+ * Whether a posted reminder notification has stopped being true, and should come down.
+ *
+ * The notification is a sentence written at the moment the alarm fired — `3h 5m since the last feed · 2:15 AM`
+ * — and it cannot update itself. So it is cleared by the two things that make it false:
+ *
+ *  - **the rule is gone or switched off**, because a notification the parent has turned off is worse than no
+ *    notification at all (the same rule `refresh()` already follows for the alarm);
+ *  - **the activity has been logged since it was posted**, because the reminder's job was to cause that write.
+ *
+ * [postedAt] null means nothing is in the shade, so there is nothing to decide. A log with no post time cannot
+ * clear anything either: [latestAnchorAt] is the child's newest row of that activity, and comparing it with a
+ * post that never happened would clear a notification posted for an older anchor.
+ *
+ * Pure, and in the domain rather than in the engine, because this is the part that can be wrong in a way no
+ * build catches: a reminder that clears itself on the wrong write, or never clears at all, looks identical
+ * until somebody wakes up to a shade full of them.
+ */
+fun shouldClearPostedNotification(
+    config: ReminderConfig,
+    postedAt: Long?,
+    latestAnchorAt: Long?,
+): Boolean {
+    if (postedAt == null) return false
+    if (!config.enabled) return true
+    return latestAnchorAt != null && latestAnchorAt > postedAt
+}

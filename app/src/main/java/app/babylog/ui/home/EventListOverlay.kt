@@ -57,7 +57,8 @@ fun EventListOverlay(
     entries: List<BabyEvent>,
     units: UnitPreferences,
     childLabel: String,
-    childInitials: Map<String, String>,
+    /** Names, for the Both-mode rows — the same rule the cards follow. */
+    childNames: Map<String, String>,
     showChildBadge: Boolean,
     zone: ZoneId,
     now: Long,
@@ -148,7 +149,7 @@ fun EventListOverlay(
                             event = event,
                             units = units,
                             foodNames = foodNames,
-                            initials = childInitials[event.childId],
+                            childName = childNames[event.childId],
                             showChild = showChildBadge,
                             // Same marker as the card: the list and the card must flag the same readings.
                             band = markedBand(event.temperatureC),
