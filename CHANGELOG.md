@@ -142,7 +142,21 @@ Every check below was read off the screen; **nothing was written to the log**. T
 reach the states under test and both were restored: the app's Time format (12 → 24 → 12-hour) and the system
 font scale (1.0 → 1.3 → 1.0).
 
+The release-signed APK is installed, not the debug one: `adb install -r app-debug.apk` answers
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` because `1.0.0` onward is release-signed, and uninstalling to make the
+debug build fit would discard the log.
+
+**On the version the phone reported, recorded because the ordering was not clean.** The fourteen rows below
+were driven on this phase's source *before* its rung was set, so while they ran the phone reported
+`versionCode 30 versionName 1.3.0` — the source was identical and only the two version fields differed. After
+the rung was set, the built APK was re-installed on the same phone and the pass re-checked against it: the
+package reports `versionCode=31 versionName=1.4.0`, the installed `base.apk` is byte-identical to the build
+(SHA-256 `bfa8cb20…23eb`), `firstInstallTime` is still 2026-10-29, the dialog opens on the dial, the switch
+cycles `Switch to wheels` → `Switch to keyboard` → `Switch to clock face`, and the crash buffer is **0**.
+The rows themselves are the behaviour, which the version fields do not change.
+
 | # | Check | Result |
+| 0 | Install, and the version the phone reports | the pinned debug install is refused (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`); the release APK installs over `1.3.0` and the package then reports `versionCode=31 versionName=1.4.0` with `firstInstallTime` unchanged at 2026-10-29 ✅ |
 |---|---|---|
 | 1 | The dialog opens on the clock face | first screen after tapping a Time row is the dial, and the switch offers `Switch to wheels` ✅ |
 | 2 | The switch names where it leads | the same button reads `Switch to wheels`, then `Switch to keyboard`, then `Switch to clock face` — the destination, never the current state ✅ |
