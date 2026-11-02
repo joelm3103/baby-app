@@ -211,6 +211,19 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   the field survives a colour-blind parent. Its seven silhouettes (`res/drawable/ic_stool_*`, mapped by
   `DiaperConsistency.stoolRes()`) are FILLED, unlike the stroke line-art of the activity glyphs: at 16dp
   inside a chip a 1.7dp outline muddies, and what these have to show is a form (pebbles are pebbles).
+- **One time dialog, three inputs, one switch** (Phase 21). `TimeOfDayDialog` in `ui/home/SheetControls.kt` is the
+  only place a time is edited — every logging sheet arrives through `TimeRow` and the reminder sheet arrives for a
+  fixed-time rule — so a change there moves the whole app. The dial is Material3's `TimePicker`; the wheels are
+  ours (`WheelTimePicker`), because Material3 ships no wheel and hosting the platform `android.widget.TimePicker`
+  would have put the OS's chrome inside a BabyLog sheet; the two-field keyboard stays as the third, since it is the
+  only input that can type an exact minute without scrolling. The switch is IN THE DIALOG rather than a Settings
+  row (the owner's choice) and nothing is persisted, so it opens on the dial every time. Its button names where the
+  tap LEADS (`Switch to wheels`), never where it is. **One pair of numbers, two objects**: the dialog's
+  `hour`/`minute` are the wheel's value and the hand-off; `TimePickerState` is the Material modes' value, and the
+  pair keys it — because `TimePickerState.hour` has no public setter and re-creating the state is the supported way
+  to move it. A wheel column reports only a move it was NOT built with: its first emission is the position it was
+  created at, and that can arrive before the list has measured. The AM/PM column reports the HALF OF THE DAY, not
+  an hour.
 - **Bottle presets are one-tap log pills on the card, and the full-width button stays** (Phase 20). The tap IS
   the record — `HomeViewModel.logBottle` borrows the Diaper path exactly, so Both mode writes one row per child
   with an identical timestamp — and the button underneath remains the route to a custom amount, a brand, a note
@@ -426,7 +439,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-635 unit tests through Phase 20 (`1.3.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+645 unit tests through Phase 21 (`1.4.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -464,7 +477,9 @@ only, and `1.0.0` is the first release.
 | | | 18 published food catalogue | `1.2.0` |
 | | | 19 settings submenus | `1.2.1` |
 | | | 20 tracking changes | `1.3.0` |
-| | | 21 Ship | uses delivered release |
+| | | 21 time picker | `1.4.0` |
+| | | 22 Filled Soft redesign | pending |
+| | | 23 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -485,7 +500,9 @@ only, and `1.0.0` is the first release.
 a batch of five `todo.txt` items on `1.1.0`**, **Phase 18 is the published food catalogue on `1.2.0`**,
 **Phase 19 is the Settings submenus on `1.2.1`** — a PATCH, because it moved where every setting is reached
 and changed none of them — **Phase 20 is the four tracking changes on `1.3.0`**, a MINOR because a preset that
-logs a feed in one tap is a capability the app did not have, and **Phase 21 is Ship**. Ship has no commits and
+logs a feed in one tap is a capability the app did not have — **Phase 21 is the time picker on `1.4.0`**, a
+MINOR because the dial and the wheels are two input modes the app did not have — **Phase 22 is the Filled
+Soft redesign**, which holds no commits and no rung yet — and **Phase 23 is Ship**. Ship has no commits and
 moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`

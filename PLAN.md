@@ -55,7 +55,9 @@ everything after it is additive.**
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
 | 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
 | 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **635 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
-| 21 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.3.0` over the air, verify both phones, then use it for a week before more code. Was 20, then 21 |
+| 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice) and nothing is persisted, so it opens on the dial every time. The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
+| 22 — Filled Soft redesign | not started — the visual reference applied across every screen: nine filled illustrations, gradient card fills, and `PatternPaletteTest` rewritten against measured contrast. Was 21 |
+| 23 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.4.0` over the air, verify both phones, then use it for a week before more code. Was 20, then 21, then 22 |
 
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -123,6 +125,13 @@ capabilities rather than one new subsystem.
 Phase 18 — Ship had no commits. The owner-published food catalogue is the next landed capability, so it
 uses **Phase 18** and Ship moves freely to **Phase 19**. Phase 17 and its `1.1.0` rung are unchanged.
 
+### Renumbering, 2026-11-02 — the time picker lands next, and Ship moves again
+
+The owner asked for the time input to become switchable before the Filled Soft redesign started, so that work
+took **21** and the redesign — which had held 21 with no commits — moved to **22**, with Ship following to
+**23**. Nothing that had landed was renumbered: Phase 20 stayed 20 and its `1.3.0` rung is untouched. The rung
+is `1.4.0` / code 31, a MINOR because two input modes the app did not have are more than a fix.
+
 ### Renumbering, 2026-11-02 — two phases land before Ship
 
 The Settings redo took **19** and the tracking changes took **20**, both on 2026-11-02, and Ship moved from 20
@@ -145,12 +154,13 @@ Test counts in the table are the suite size **when that phase landed**, so they 
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified (current state, 2026-11-02): `:app:testDebugUnitTest`, `:app:assembleDebug` and
-`:app:assembleRelease` succeeded. The release APK is `1.3.0` / versionCode 30, signed `CN=BabyLog`, SHA-1
-`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.2.1`. The suite is
-**635/635**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(64 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
+`:app:assembleRelease` succeeded. The release APK is `1.4.0` / versionCode 31, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.3.0`. The suite is
+**645/645**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(65 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
 Phase 20 — five `PostedNotificationTest`, four `ReminderNotificationIdTest`, three `BottleQuickLogTest`, three
-`ReminderSaveTest` — and the eleven before them from Phase 19's `SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
+`ReminderSaveTest` — the ten of Phase 21's `WheelTimePickerTest`, and the eleven before them from Phase 19's
+`SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
 `0.19.0`: two `GrowthDatasetManifestTest`, five `GrowthDatasetRepositoryTest` withdrawal and message cases,
 two net in `ReminderTextTest` — one test replaced by three — and two in `TrendChartAxisTest`; the XML file count
 rose 54 → 55 for the one new class. That rung's withdrawal is **device-verified** — see its own section);
@@ -2351,8 +2361,74 @@ declined to make because a test feed is a record that never happened in this log
 clearing, which needs an alarm to have actually fired. Both work. The clearing decision is pinned by
 `PostedNotificationTest` as well, and the posting path is unchanged.
 
-## Phase 21 — Ship
-Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.3.0` release
+## Phase 21 — Time picker — DONE, device-verified (`1.4.0`)
+
+One branch, `feat/phase21-time-picker`; version `1.4.0` / versionCode 31. The owner asked for it before the
+redesign started, and it changed one composable and everything that reaches it.
+
+### As built
+
+- **`TimeOfDayDialog` is the only place a time is edited** — every logging sheet arrives through `TimeRow`, and the
+  reminder sheet arrives for a fixed-time rule — so the switch reached the whole app through one change.
+- **Three inputs, one control.** The dial is Material3's `TimePicker`; the wheels are `WheelTimePicker`, written
+  here because Material3 has no wheel and the alternative was hosting the platform `android.widget.TimePicker`,
+  which would have been the one control in a sheet wearing the OS's chrome rather than the app's. The two-field
+  keyboard stays as the third, because it is the only input that can type an exact minute without scrolling.
+- **The switch is in the dialog, not in Settings** (the owner's choice): one button cycling dial → wheel →
+  keyboard, its `contentDescription` naming where the tap LEADS rather than where it is. Nothing is persisted, so
+  the dialog opens on the dial every time rather than on last week's habit.
+- **One pair of numbers, two objects.** The dialog's `hour`/`minute` are the wheel's value and the hand-off between
+  modes; the `TimePickerState` is the Material modes' value. Leaving a Material mode copies its numbers into the
+  pair, and the pair keys the state — so cycling never loses an edit, and `TimePickerState.hour` never needs a
+  setter it does not have.
+- **The wheel is three snapping `LazyColumn`s**, with the selection read from the first visible index and the
+  vertical padding placing that row on the band. Two fixes came from using it rather than only writing it: a
+  column reported the position it was CREATED at before the list had measured — which can say `00` to a wheel
+  showing midday, leaving the dialog holding a number nobody chose — so a column now reports only a move it was
+  not built with; and the AM/PM column routed the hour back through an index the parent may already have moved, so
+  it now reports the half of the day and the dialog does the shift on the number that owns it.
+- **The test caught its own author.** The first version of the AM/PM test asserted that switching halves and back
+  was identity. It is not — flipping the half is the entire point of the control — so the test was rewritten to
+  pin what is true instead: the half flips, the hand never moves, and each shift is idempotent.
+- **The one width worry in the code was measured rather than inherited.** The comment above `TimeRow` said the dial
+  had been avoided because "the dial does not fit a phone dialog at small widths". It fits, at 1.0 and at 1.3, and
+  the comment now says so.
+
+### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), `1.4.0`
+
+Read-only apart from two stored values used to reach the states under test, both restored: the app's Time format
+(12 → 24 → 12-hour) and the system font scale (1.0 → 1.3 → 1.0). **Nothing was written to the log.**
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Opens on the clock face | the switch offers `Switch to wheels` on the first frame ✅ |
+| 2 | The switch names its destination | `Switch to wheels` → `Switch to keyboard` → `Switch to clock face` ✅ |
+| 3 | The dial is complete, not clipped | twelve hour labels, x 244–922 of 1080 ✅ |
+| 4 | The dial survives a large font | at **1.3**× all twelve still render, x 241–903, fields and buttons intact ✅ |
+| 5 | Three columns, no overlap | row pitch 124 px against 67 px of text at 1.3× ✅ |
+| 6 | The wheel opens on the dial's value | dial 12:13 PM → band `12 : 13 : PM` ✅ |
+| 7 | Scrolling changes the value | one row up → minute band `14`, column `13, 14, 15` ✅ |
+| 8 | The value survives a mode change | wheel `12:14` → keyboard fields `12` and `14` ✅ |
+| 9 | The half-day column leaves the hand alone | swiping AM/PM moved the band `PM` → `AM` with the hour column still on `12` ✅ |
+| 10 | 12-hour shows AM/PM and the inner ring | `Select AM or PM` on the dial; three wheel columns ✅ |
+| 11 | 24-hour drops both | the dial lists **0–23 hours** with no AM/PM field; the wheel drops to two columns showing `11, 12, 13` ✅ |
+| 12 | The keyboard is unchanged | two fields and the AM/PM toggle ✅ |
+| 13 | Dismissing writes nothing | Cancel and back left the sheet and the log untouched ✅ |
+| 14 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across both font scales, both clock formats and ~20 mode switches ✅ |
+
+## Phase 22 — Filled Soft redesign
+
+The owner's "Filled Soft" reference, applied across every screen: one large soft-filled illustration plus
+scattered low-opacity filled silhouettes and hearts per activity card, replacing the tiled repeating stroke
+glyph; subtle gradient card fills; and nine filled drawables — bottle, pacifier, baby face, diaper, bowl and
+spoon, giraffe, heart, thermometer, moon — so all six activities including Health and Sleep are covered.
+Measured from the reference PNG: fills Bottle `#614C2A`, Diaper `#1C5745`, Solids `#623639`, Growth `#3E3969`,
+the reminders card `#292D3A`, the page ~`#161A26`; the buttons are the raw accents, which the contract already
+requires. Both themes and all screens, with every text/fill pairing verified numerically and `PatternPaletteTest`
+rewritten rather than deleted. This file's steps 9-15 describe it, unchanged — only the phase number has moved.
+
+## Phase 23 — Ship
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.4.0` release
 APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
 use the delivered build for **a week before writing another line of code**.
 

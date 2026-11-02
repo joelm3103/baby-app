@@ -25,11 +25,13 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Four tracking changes landed: one-tap bottle presets on the card, the child's name instead of an initial on Both-mode cards and rows, a reminder sheet that sets and removes without asking whether to notify, and posted reminders cleared when the feed is logged or the rule goes off.**
 - **The Phase 19 pass found two defects in its own new rows, both fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
 - **The Phase 20 pass wrote nothing to the log, so the one-tap feed was left to the owner — who tested it and confirmed it works.** The pass could not make that write itself: a test feed is a record that never happened in the children's health log.
+- **The one dialog a time is edited in can now switch between the clock face, the wheels and the keyboard** — a control in the dialog rather than a setting, so every logging sheet and the reminder sheet moved together.
 
 ### Versions
 
 - `1.2.1` / versionCode 29 — **Phase 19, Settings submenus**. A PATCH rung: no capability and no stored data changed, only the way every setting is reached. Ship moves to Phase 20.
 - `1.3.0` / versionCode 30 — **Phase 20, the tracking changes**. A MINOR rung: a preset that logs a feed in one tap is a capability the app did not have. Ship moves to Phase 21.
+- `1.4.0` / versionCode 31 — **Phase 21, the time picker**. A MINOR rung: two input modes the app did not have, and a control that reaches them. Ship moves to Phase 23, because the Filled Soft redesign holds Phase 22.
 
 ### Added
 
@@ -43,6 +45,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Bottle presets are one-tap quick-log pills on the Bottle feed card**, the path the Diaper pills already use: a tap writes `EventDraft(BOTTLE, now, amountMl)` for the current selection, so Both mode writes one row per child with an identical timestamp. The full-width `+ Log feed for X` button stays for a custom amount, a brand, a note or a feed that happened earlier. An empty preset list draws no pills at all.
   - Labeled in the display volume unit but stored canonically in ml, so the same preset reads `4 oz` or `120 ml` without the stored value moving.
   - `FlowRow`, because Settings lets a parent add as many sizes as they like and a fixed row would clip the fifth one off the card.
+- **A third time input, and a switch that reaches all three.** `TimeOfDayDialog` gains the clock dial (Material3's `TimePicker`) and a rolling wheel built here in Compose, beside the two-field keyboard it already had.
+  - `Why:` Material3 ships no wheel. The alternative was hosting `android.widget.TimePicker` in spinner mode, which matches the reference exactly and would have been the one control in a sheet wearing the OS's chrome instead of the app's.
+  - The wheel is three snapping `LazyColumn`s — hours, minutes, and AM/PM in 12-hour mode — so it follows the app's tokens, both themes and the reading format.
+  - The switch is IN THE DIALOG, not a Settings preference: the owner's choice, and nothing is persisted, so the dialog opens on the dial every time rather than on last week's habit.
 - **The pure rule for when a posted reminder has stopped being true** (`shouldClearPostedNotification`) and **a `ReminderNotifier` seam** with `cancel`/`postedAt` beside the existing `ReminderStore`/`ReminderAnchors`, so the decision is testable with no device and no notification shade.
 
 ### Changed
@@ -61,6 +67,10 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **The reminder sheet removes rules itself**, through the same bottom destructive row every other editing sheet offers, drawn only when the child on screen actually has one and labelled `Remove notification` rather than `Delete this entry`.
 - **`ActivitySheet` takes a `deleteLabel`**, because a button reading `Delete this entry` in a sheet that never created an entry is a false label on the one control that cannot be undone.
 - **`Reminders.refresh()` clears the shade as well as the alarms**, which is the one path every write, rule change, launch and boot already goes through.
+- **The dialog's one button names where it LEADS**, not where it is: its content description reads `Switch to wheels`, `Switch to keyboard` or `Switch to clock face`, so a tap is an instruction rather than a state.
+- **Three authored marks** — `ic_time_mode_dial`, `ic_time_mode_wheel`, `ic_time_mode_text` — because `material-icons-core` carries no dial, wheel or keyboard glyph, and a mode hidden behind a generic chevron is a mode nobody finds.
+- **The AM/PM column reports the half of the day, not an hour**, and the dialog does the shift on the number that owns it. The column first routed back through `unWheelHour(hourIndex, ...)`, which made two columns each compute a value from the other's possibly-stale half.
+- **A wheel column reports only a move it was not created with** (`drop(1)`). The first emission is the position the column was built at, which the parent already knows — and on the hour column it could arrive before the list had measured, so it said `00` to a wheel showing midday and the dialog rebuilt its state from a number nobody chose.
 
 ### Fixed
 
@@ -126,9 +136,37 @@ that write, because a test feed is a record that never happened in this log, and
 needs an alarm to have actually fired; its decision is pinned by `PostedNotificationTest` meanwhile, and the
 posting path is unchanged.
 
+### Verified on the phone — `<handset>` (SM-S918U1), `1.4.0`, 2026-11-02
+
+Every check below was read off the screen; **nothing was written to the log**. Two stored values were changed to
+reach the states under test and both were restored: the app's Time format (12 → 24 → 12-hour) and the system
+font scale (1.0 → 1.3 → 1.0).
+
+| # | Check | Result |
+|---|---|---|
+| 1 | The dialog opens on the clock face | first screen after tapping a Time row is the dial, and the switch offers `Switch to wheels` ✅ |
+| 2 | The switch names where it leads | the same button reads `Switch to wheels`, then `Switch to keyboard`, then `Switch to clock face` — the destination, never the current state ✅ |
+| 3 | The dial is COMPLETE, not clipped | all twelve hour labels present and inside the dialog, x 244–922 of a 1080-wide screen — the recorded worry that "the dial does not fit a phone dialog at small widths" is not borne out at this width ✅ |
+| 4 | The dial survives a large font | at font scale **1.3** all twelve labels still render, x 241–903, with the hour/minute/AM-PM fields and both buttons intact ✅ |
+| 5 | The wheels render as three columns | hours (11, 12), minutes (12, 13, 14) and AM/PM, each a snapping column, pitch 124 px against 67 px of text at 1.3 — no overlap, no clipping ✅ |
+| 6 | The wheel opens on the dial's value | dial 12:13 PM → wheel band on hour `12`, minute `13`, half `PM` ✅ |
+| 7 | Scrolling the wheel changes the value | one row up the minute column → band `14`, column `13, 14, 15` ✅ |
+| 8 | The value survives a mode change | wheel `12:14` → keyboard fields `12` and `14` — the hand-off is exact, both directions ✅ |
+| 9 | The half-day column does not move the hand | swiping AM/PM moved the band from `PM` to `AM` while the hour column stayed on `12` ✅ |
+| 10 | 12-hour shows the AM/PM column and the inner ring | dial has `Select AM or PM`; wheel has three columns ✅ |
+| 11 | 24-hour drops both | dial lists **0–23 hours** and has no AM/PM field; wheel drops to two columns and shows `11, 12, 13` ✅ |
+| 12 | The keyboard is still the original picker | the two fields and the AM/PM toggle, unchanged ✅ |
+| 13 | Dismissing writes nothing | Cancel and system back left the sheet and the log untouched; the sheet's Time row still read the event's own time ✅ |
+| 14 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across both font scales, both clock formats and roughly twenty mode switches ✅ |
+
+**Found and fixed before the phone saw it:** the test written for the AM/PM shift failed on its own first
+assertion, which claimed switching halves and back was identity. It is not — that is the point of the control —
+and the test now pins what is actually true instead: the half flips, the hand does not move, and each shift is
+idempotent.
+
 ### Tests
 
-- **611 → 635: twenty-four cases in six new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `ReminderNotificationIdTest` (4), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
+- **611 → 645: thirty-four cases in seven new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `ReminderNotificationIdTest` (4), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
 - `SettingsNavTest` (5) pins what a build cannot see: that the menu is the root and its back answer is null,
   that every submenu's back lands on the menu, that opening from a submenu replaces rather than nests, and that
   the eleven menu entries exist in their order with unique non-blank names.
@@ -145,6 +183,10 @@ posting path is unchanged.
   — and that a nought, a negative and an over-cap amount are refused rather than written.
 - `ReminderSaveTest` (3) pins that saving brings a stored disabled rule back on without resetting the interval
   the parent chose, which is the defect this phase fixes.
+- `WheelTimePickerTest` (10) pins the wheel's arithmetic and the mode cycle. A twelve-hour wheel shows `12`
+  twice — midnight and noon — so every conversion is checked in both directions at exactly the two hours that
+  break naive arithmetic, plus the invariants that make the AM/PM column safe: flipping the half changes the
+  half and never moves the hand, and doing it twice is doing it once.
 - `ReminderNotificationIdTest` (4) pins that the id under which a notification is posted, replaced and cancelled
   is unique per (activity, child). It was `type.ordinal * 31 + childId.hashCode()`, which gave two children whose
   ids share a `String.hashCode()` (`Aa` / `BB`) exactly the same id — harmless while an id only decided which
