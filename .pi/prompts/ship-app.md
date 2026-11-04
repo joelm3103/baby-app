@@ -20,6 +20,9 @@ is the source of truth and wins wherever these disagree. Do all of this in order
      including growth that came from a later, unrelated change;
    - `AGENTS.md`'s Tests section ("N unit tests, all on the JVM") — also current state, also moves;
    - the per-phase status rows — **historical: leave them alone.** A phase keeps the count it landed with.
+     One exception, ruled 2026-11-03: a row that points at the live suite ("the suite is 611 today — see
+     *Verified*) carries a claim about now, so that pointer moves with the total while the landed count in the
+     same row stays as written. A frozen row quoting a stale "today" is the defect this step exists to catch.
 
 4. **Device pass** — a green build is not evidence of layout or of system back. Drive the real phone:
    `"$ADB" install -r app/build/outputs/apk/debug/app-debug.apk`, then check the foreground *before*

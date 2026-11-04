@@ -114,3 +114,86 @@ chose.
   reference data; a mistaken entry is corrected in the console.
 - The bundled asset and published document are both retained. The first supplies offline fallback and
   baseline coverage; the second lets the owner correct names without another signed release.
+
+---
+
+## ADR-0001 amendment, 2026-11-04 — delivery moves to GitHub Releases
+
+**Date:** 2026-11-04 · **Phase:** 23 · **Status:** accepted, and this reverses the delivery channel above
+
+### Decision
+
+Builds reach the phones from **GitHub Releases** on `github.com/joelm3103/baby-app`, not from Firebase App
+Distribution. The release key, its custody, the manual build and the `versionCode` contract are unchanged:
+this amends *how an APK travels*, not *what identifies the app*.
+
+### Why
+
+The owner chose it on 2026-11-04, after the ladder reached `1.4.1`: App Distribution needs a Google account
+invited per device and a console trip per build, while a release is a page both parents can already reach, on
+any device, with the artifact's digest beside it. The 2026-10-29 amendment had already made the release page a
+first-class host for "a channel that cannot serve"; in practice it was the channel that always worked.
+
+### What changes, precisely
+
+- **A release is now the delivery**, so its APK must be the signed artifact — the same key, recorded digest.
+  Uploading a rebuild signed by the same key is still a different file and a different digest.
+- **`versionCode` still only rises**, and a landed rung is still never renumbered: it remains the number two
+  phones compare when deciding which build is newer, even though nothing now automates that comparison.
+- **ADR-0003 supplies the missing half.** With no console to notify anyone, the app had no way to learn a
+  newer build exists; that is what Phase 23 added, and it is why this amendment and that record landed
+  together.
+- **The GitHub release is no longer a copy of a console upload** — it is the delivery itself, so the rule
+  "ship the next build starts in App Distribution" is retired. `docs/release-signing.md` is the runbook that
+  needs the corresponding edit.
+
+### Consequences
+
+- A clone with no console credentials can still deliver a build; a clone with no key still cannot sign one.
+- There is no tester list and no "newer version" fanfare from a server, so a parent learns about an update
+  only from the app's own check or from the releases page. A phone that never checks never learns — accepted.
+- Two hosts become one. The digest recorded in each release is the only thing that distinguishes the artifact
+  a phone installed from the one on the page.
+
+---
+
+## ADR-0003 — The app asks GitHub for its newest release, once a day, when it opens
+
+**Date:** 2026-11-04 · **Phase:** 23 · **Status:** accepted
+
+### Decision
+
+On launch the app may make exactly one unauthenticated `GET` to
+`https://api.github.com/repos/joelm3103/baby-app/releases/latest`, at most once every 24 hours, and store the
+answer (`UpdateOutcome` + the offered version) in DataStore. Settings → About shows it, carries the switch, and
+offers the manual check. Nothing is ever downloaded or installed by the app.
+
+### Why
+
+ADR-0001's amendment moves delivery to GitHub, and a sideloaded app has no store to announce a newer build.
+Without this, the family would only learn about an update by remembering to look. The alternatives were
+rejected for stated reasons: a daily `WorkManager` job plus a notification would add a dependency, a channel
+and a battery cost to answer a question the parent is already looking at when they open Settings; and
+download-and-install needs `REQUEST_INSTALL_PACKAGES`, an APK on disk and a signing check to save one tap that
+Android requires anyway.
+
+### What is promised, in exchange
+
+- **No identifiers.** The request carries a `User-Agent` naming the app and nothing else — no account, no id,
+  no version, nothing about the babies. That is what keeps "no analytics, no trackers, no ads" true, and the
+  About screen now says what the one extra request is rather than implying the phone talks only to Firebase.
+- **Off means no request at all.** The guard lives in `UpdateChecker`, not in the row: a switched-off check is
+  not merely hidden.
+- **A failed check is never alarming.** Unreachable, no release published and "not checked yet" are three
+  different sentences, and none of them suggests the log is at risk.
+- **A clock that went backwards does not make it ask forever.** A negative age fails the interval; the
+  alternative is a phone hammering GitHub until the clock catches up.
+
+### Consequences
+
+- The About row is the only surface that changes; nothing about logging, syncing or the reminder engine reads
+  `UpdateStatus`.
+- The check is a *discovery* mechanism, not an update mechanism: it can name a newer version and open the
+  release page, and the install remains a parent's tap on the system installer.
+- An unreadable tag is treated as up to date rather than as an available update, because a version this app
+  cannot parse is not evidence of a newer build.

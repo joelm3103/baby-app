@@ -17,6 +17,47 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-04]
+
+**In short:**
+
+- **`1.5.0` — the app now asks GitHub whether a newer BabyLog exists**, when it opens and at most once a day, and Settings → About states the answer and how old it is. A MINOR rung: a build delivered by hand had no store to announce a newer one.
+- **Delivery moves from Firebase App Distribution to GitHub Releases.** The key, the manual build and the `versionCode` contract are unchanged; the channel is not (ADR-0001's second amendment, and ADR-0003 for the check itself).
+- **The About promise was rewritten rather than left to become false.** "No analytics, no trackers, no ads" still holds, and the sentence now names the one other request the phone makes instead of implying it talks only to Firebase.
+- **The device pass did not run** — no phone was attached when the build was made — so the About row has not been seen on a handset. What that pass must show is recorded in `PLAN.md`.
+
+### Versions
+
+- `1.5.0` / versionCode 33 — **Phase 23, the update check**. A MINOR rung, because the app gained a capability it did not have, and code 33 so it installs in place over the delivered `1.4.1`. **Ship becomes Phase 24** and delivers this build; it has no commits, so it moves for free under the standing rule.
+- Nothing is tagged. A tag is still cut only on a delivered build, and this one is not delivered yet.
+
+### Added
+
+- **`data/update/UpdateCheck.kt` and `UpdateChecker.kt`** — versions compare by their numeric run (`1.10.0` is newer than `1.4.1`, which a string compare gets backwards; `1.5` equals `1.5.0`; a `-beta` suffix ends the numeric run), the API endpoint is derived from the one repository link the About screen already carried, and `UpdateChecker` is the only caller of the source: `checkIfDue()` honours the switch and the 24-hour interval, `checkNow()` honours the switch and skips the interval.
+- **`releases/latest` read over `HttpURLConnection`** with two 5-second timeouts — no OkHttp, no WorkManager, no new dependency. A **404 is `NoRelease`, not a failure**, which is the honest state of this repository today; a body without both a tag and a page is unreachable, not "up to date".
+- **Settings → About: a switch, a status line and one button.** `Check GitHub for a newer version` is checked by default (owner's choice) and turning it off means no request is ever made; the line reads one of `Not checked yet.` / `No release published yet.` / `BabyLog 1.5.0 is available.` / `Up to date — checked 3h ago.` / `Could not reach GitHub. Your log is unaffected.` / `Off — nothing is sent to GitHub.`
+- **Four DataStore keys** — `update.check.enabled`, `update.lastCheckAt`, `update.lastOutcome`, `update.lastVersion` — written in one `edit`, so a reader can never see a time beside the previous check's answer. The result is persisted because the check runs at launch and About may be opened days later.
+
+### Changed
+
+- **Delivery is a GitHub Release** (ADR-0001 amendment, 2026-11-04). The download remains a parent's tap on the system installer: automatic *install* is impossible on sideloaded Android, and ADR-0003 records why download-and-hand-off was rejected as well.
+- **`AGENTS.md`'s Phase 16 delivery bullets were rewritten**, not merely appended: "a build that was not uploaded through the console has not been delivered" is retired, and the APK on a release page must be the built artifact rather than a rebuild, because a second build signed by the same key is still a different file.
+- **`PLAN.md`** gains Phase 23 and renumbers Ship to 24, with rung `1.5.0` in the ladder.
+
+### Fixed
+
+- **A Robolectric class without `@Config(sdk = [34])` dies before its first test on this machine** — `Failed to interact with raw FileDescriptor internals`, thrown out of `ApplicationSharedMemory`. Every other Robolectric class in the repo pins 34; the new one did not, and pinned it after the failure. `AGENTS.md` now states the rule where the check lives.
+
+### Tests
+
+- **658 → 676: eighteen cases in three new classes** — nine in `UpdateCheckTest` (a version is its numeric run, an unreadable one is never "newer", the switch off means no request at all, a day is the interval, a clock that went backwards does not ask forever, the endpoint is derived from one link, one lookup becomes one outcome), two in `GitHubReleaseParseTest` (a release is a tag *and* a page), and seven in `UpdateCopyTest` (off is not a failure, a fresh install says so, an available version is named without its `v`, an age is friendly and bounded).
+- 66 → 69 XML files in `app/build/test-results/testDebugUnitTest`, summed as **676 tests, 0 failures, 0 errors, 0 skipped**.
+
+### Verification
+
+- `:app:testDebugUnitTest` and `:app:assembleRelease` succeed on this tree; the release APK is `1.5.0` / versionCode 33, signed `CN=BabyLog` with the unchanged SHA-1.
+- **Not verified on a phone.** `adb devices` reported no device at 2026-11-04 10:0x, so nothing about the About row is claimed from a handset — including the one thing a unit test cannot prove, that the real API answers 404 for a repository with no releases and the row therefore reads `No release published yet.`
+
 ## [2026-11-03]
 
 **In short:**

@@ -133,14 +133,28 @@ Rules learned the hard way:
 - **The certificate's SHA-1 must be registered on the Firebase Android app entry**, or Google Sign-In
   refuses every release build. Email/password is unaffected, which is why it stays the primary route. The
   debug SHA-1 stays registered too.
-- **Delivery is a manual Firebase App Distribution upload** — no Gradle plugin, no service-account key, no
-  `firebase-tools` (ADR-0001 in `docs/DECISIONS.md`). A build that was not uploaded through the console has
-  not been delivered, whatever the build log says.
-- **The GitHub release for a tag carries the same signed APK as a copy, not as a second process.** It is there
-  for a channel that cannot serve — a replacement phone, a tester never invited — so the digest is checked
-  before installing from it, and "ship the next build" still starts in App Distribution.
-- **`versionCode` is a contract now**, because App Distribution compares it to decide what is newer: it only
-  rises, and a landed rung is never renumbered.
+- **Delivery is a GitHub Release, and this reverses the console upload** (ADR-0001's 2026-11-04 amendment).
+  A tag with the signed APK attached *is* the delivery — no Gradle plugin, no `firebase-tools`, no console
+  trip. App Distribution is no longer the channel, so "a build that was not uploaded through the console has
+  not been delivered" is retired with it: a release page with the artifact and its digest is the delivery.
+- **The APK on the page must be the built artifact, not a rebuild.** Same key, and the recorded digest is what
+  a phone's copy is compared against; a second build signed by the same certificate is still a different file.
+- **`versionCode` is still a contract**: it only rises, and a landed rung is never renumbered. Nothing
+  automates the comparison any more, which is exactly why the number must not be handled loosely.
+- **The app asks GitHub for its newest release when it opens, once a day, and it is the only request that is
+  not Firebase or a food catalogue read** (ADR-0003). One unauthenticated `GET`, `User-Agent: BabyLog`, no
+  account, no id, nothing about the babies — which is what keeps the About screen's "no analytics, no
+  trackers, no ads" true, and the About text now states this one request instead of implying the phone talks
+  only to Firebase.
+  - **Off means no request at all**, decided in `UpdateChecker` and not in the row; **a day is the interval**,
+    so a parent who reopens the app twelve times before lunch is not twelve requests at GitHub.
+  - **Nothing is downloaded or installed.** The check can name a newer version and open the release page; the
+    install stays a tap on the system installer, because sideloading cannot do better.
+  - **A failed check is never alarming**: unreachable, no release published and "not checked yet" are three
+    sentences, and none of them claims the log is at risk. An unreadable tag counts as up to date.
+  - **A Robolectric class in this repo must pin `@Config(sdk = [34])`.** Without it the sandbox dies in
+    `ApplicationSharedMemory` with "Failed to interact with raw FileDescriptor internals" before a test body
+    runs, on this machine's JDK.
 - **A tag is cut only on a delivered build**, after a phone reports the version, never when a phase ends.
 
 ## Design contract — measured, not taste
@@ -486,7 +500,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-658 unit tests through Phase 22 (`1.4.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+676 unit tests through Phase 23 (`1.5.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -526,7 +540,8 @@ only, and `1.0.0` is the first release.
 | | | 20 tracking changes | `1.3.0` |
 | | | 21 time picker | `1.4.0` |
 | | | 22 Filled Soft redesign | `1.4.1` |
-| | | 23 Ship | uses delivered release |
+| | | 23 update check | `1.5.0` |
+| | | 24 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -550,7 +565,8 @@ and changed none of them — **Phase 20 is the four tracking changes on `1.3.0`*
 logs a feed in one tap is a capability the app did not have — **Phase 21 is the time picker on `1.4.0`**, a
 MINOR because the dial and the wheels are two input modes the app did not have — **Phase 22 is the Filled
 Soft redesign on `1.4.1`**, a PATCH because the card surface changed and no capability, control, copy or
-stored byte did — and **Phase 23 is Ship**. Ship has no commits and
+stored byte did — **Phase 23 is the update check on `1.5.0`**, a MINOR because a build delivered by hand had
+no way to say a newer one existed — and **Phase 24 is Ship**, which delivers `1.5.0`. Ship has no commits and
 moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
