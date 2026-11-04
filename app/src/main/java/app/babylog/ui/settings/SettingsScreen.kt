@@ -43,6 +43,10 @@ import app.babylog.BuildConfig
 import app.babylog.domain.ABOUT_CREDITS
 import app.babylog.domain.Child
 import app.babylog.domain.SOURCE_REPOSITORY_URL
+import app.babylog.data.update.UpdateOutcome
+import app.babylog.data.update.UpdateStatus
+import app.babylog.data.update.releasesPageFor
+import app.babylog.domain.updateStatusLine
 import app.babylog.domain.aboutVersionLine
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.EVENT_DISPLAY_ORDER
@@ -164,6 +168,10 @@ fun SettingsScreen(
     growthReference: String? = null,
     growthUpdateMessage: String? = null,
     onCheckGrowthUpdates: () -> Unit = {},
+    /** The last GitHub check and whether it may run. About is the only place either is shown. */
+    updateStatus: UpdateStatus = UpdateStatus(),
+    onSetUpdateCheck: (Boolean) -> Unit = {},
+    onCheckUpdatesNow: () -> Unit = {},
     /** Signed-in state of the shared log. NotConfigured on a build with no Firebase values. */
     syncState: SyncState = SyncState.NotConfigured,
     /** What the last sign-in or drain did, in one sentence. */
@@ -554,7 +562,11 @@ fun SettingsScreen(
                             }
                         }
 
-                        SettingsSection.ABOUT -> AboutContent()
+                        SettingsSection.ABOUT -> AboutContent(
+                            status = updateStatus,
+                            onSetCheck = onSetUpdateCheck,
+                            onCheckNow = onCheckUpdatesNow,
+                        )
                     }
                 }
             }
@@ -994,14 +1006,58 @@ private fun ChildEditor(
  * is the difference between a credit and a treasure hunt.
  */
 @Composable
-private fun AboutContent() {
+private fun AboutContent(
+    status: UpdateStatus,
+    onSetCheck: (Boolean) -> Unit,
+    onCheckNow: () -> Unit,
+) {
     val colors = BabyLogTheme.colors
     val context = LocalContext.current
+    // The row is honest about its own age, so this has to be read at composition rather than captured once:
+    // "checked 3h ago" must not still say that after a night in the background.
+    val now = remember(status.lastCheckAtMillis) { System.currentTimeMillis() }
     Text(
         text = aboutVersionLine(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE, BuildConfig.DEBUG),
         style = MaterialTheme.typography.bodyMedium,
         color = colors.textPrimary,
     )
+    // Phase 23. A build delivered by hand has no store to announce a newer one, so this row is the only way
+    // a parent can learn. It is a SWITCH plus a line plus one button: the switch is the promise (off means no
+    // request at all), the line is the last answer with its age, and the button asks again now.
+    SwitchRow(
+        // Named for what it does, not "Check for updates": the Growth reference submenu has a button with
+        // that exact label for a different check (the WHO dataset), and two rows promising the same thing in
+        // one Settings screen is how a parent comes to switch off the wrong one.
+        label = "Check GitHub for a newer version",
+        checked = status.enabled,
+        accent = colors.navActive,
+        onCheckedChange = onSetCheck,
+    )
+    Text(
+        text = updateStatusLine(status, now),
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.textSecondary,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+    if (status.enabled) {
+        SecondaryButton(
+            label = if (status.outcome == UpdateOutcome.AVAILABLE) "Open the release" else "Check now",
+            onClick = {
+                if (status.outcome == UpdateOutcome.AVAILABLE) {
+                    // A phone with no browser gets nothing rather than a crash, the same rule the repository
+                    // button follows.
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(releasesPageFor(SOURCE_REPOSITORY_URL))),
+                        )
+                    }
+                } else {
+                    onCheckNow()
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        )
+    }
     Text(
         text = ABOUT_CREDITS,
         style = MaterialTheme.typography.bodySmall,
@@ -1027,7 +1083,9 @@ private fun AboutContent() {
     )
     Text(
         text = "No analytics, no trackers, no ads. The log lives on this phone, and with sync on it " +
-            "also lives in your own Firebase project.",
+            "also lives in your own Firebase project. The only other thing this phone asks the internet " +
+            "is whether a newer BabyLog has been released — with no account, no id and nothing about " +
+            "your babies in the request.",
         style = MaterialTheme.typography.bodySmall,
         color = colors.textSecondary,
         modifier = Modifier.padding(top = 6.dp),

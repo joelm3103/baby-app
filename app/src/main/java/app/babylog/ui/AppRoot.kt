@@ -32,6 +32,11 @@ fun AppRoot(container: AppContainer) {
         // A phone that was already sharing the log must keep sharing it after a restart: this restores
         // the drain and the inbound listener without a trip to Settings. Inert when signed out.
         container.sync.start()
+        // Phase 23: one question a day to GitHub, so a build delivered by hand can say a newer one exists.
+        // `runCatching` because nothing in the log may depend on the internet: a launch that failed here
+        // would be a tracker's reliability, not a baby tracker's. The switch and the interval are decided
+        // inside `UpdateChecker`, so this line cannot be the place someone re-enables it by accident.
+        runCatching { container.updates.checkIfDue() }
     }
 
     BabyLogTheme(darkTheme = dark) {

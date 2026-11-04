@@ -7,6 +7,8 @@ import app.babylog.data.repo.MaintenanceRepository
 import app.babylog.data.growth.GrowthDatasetRepository
 import app.babylog.data.growth.message
 import app.babylog.data.repo.SettingsRepository
+import app.babylog.data.update.UpdateChecker
+import app.babylog.data.update.UpdateStatus
 import kotlinx.coroutines.flow.map
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.EventType
@@ -52,6 +54,12 @@ class SettingsViewModel(
      * the container and a ViewModel that grabbed it would make the reset untestable.
      */
     private val refreshReminders: () -> Unit = {},
+    /**
+     * The GitHub check's two entry points. Injected and nullable so a test can build the screen's state
+     * without a network, and so a container that has no checker still shows the row honestly ("not checked
+     * yet") rather than crashing on it.
+     */
+    private val updates: UpdateChecker? = null,
 ) : ViewModel() {
 
     val childrenList: StateFlow<List<Child>> = children.observeAll()
@@ -59,6 +67,10 @@ class SettingsViewModel(
 
     val units: StateFlow<UnitPreferences> = settings.units
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnitPreferences())
+
+    /** What the last check concluded. Defaulted to the fresh-install state, so About never shows a blank. */
+    val updateStatus: StateFlow<UpdateStatus> = settings.updateStatus
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UpdateStatus())
 
     val theme: StateFlow<ThemeMode> = settings.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
@@ -333,4 +345,17 @@ class SettingsViewModel(
     fun showMessage(text: String) {
         _message.value = text
     }
+    /**
+     * Switching the check off takes effect immediately and cancels nothing else: the stored answer is left
+     * alone, so switching it back on shows the last real result rather than an empty row.
+     */
+    fun setUpdateCheckEnabled(enabled: Boolean) {
+        viewModelScope.launch { settings.setUpdateCheckEnabled(enabled) }
+    }
+
+    /** The About row's button. Ignores the day's interval, honours the switch. */
+    fun checkForUpdatesNow() {
+        viewModelScope.launch { updates?.checkNow() }
+    }
+
 }

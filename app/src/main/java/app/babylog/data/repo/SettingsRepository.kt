@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.LengthUnit
@@ -24,6 +25,8 @@ import app.babylog.domain.decodeReminder
 import app.babylog.domain.encodeReminder
 import app.babylog.domain.encodeChildSelection
 import app.babylog.domain.enumOrDefault
+import app.babylog.data.update.UpdateOutcome
+import app.babylog.data.update.UpdateStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -206,6 +209,35 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setTheme(mode: ThemeMode) = dataStore.edit { it[KEY_THEME] = mode.name }
 
     /**
+     * Whether the app may ask GitHub for its newest release when it opens, and what the last ask concluded.
+     *
+     * ON by default, because a build delivered by hand has no store to tell anyone an update exists, and a
+     * parent who never opens About would never learn. Off means no request is ever made — the guard is in
+     * `UpdateChecker`, not in the screen, so switching it off is not merely a hidden row.
+     *
+     * The result is stored rather than remembered in a ViewModel: the check runs at app start, About is opened
+     * minutes or days later, and a process death in between must not turn a real answer into "never checked".
+     */
+    val updateStatus: Flow<UpdateStatus> = dataStore.data.map { prefs ->
+        UpdateStatus(
+            enabled = prefs[KEY_UPDATE_CHECK_ENABLED] ?: true,
+            lastCheckAtMillis = prefs[KEY_UPDATE_CHECKED_AT] ?: 0L,
+            outcome = enumOrDefault(prefs[KEY_UPDATE_OUTCOME], UpdateOutcome.NEVER_CHECKED),
+            version = prefs[KEY_UPDATE_VERSION].orEmpty(),
+        )
+    }
+
+    suspend fun setUpdateCheckEnabled(enabled: Boolean) =
+        dataStore.edit { it[KEY_UPDATE_CHECK_ENABLED] = enabled }
+
+    /** One row written together, so a reader can never see a time with the previous check's answer. */
+    suspend fun recordUpdateCheck(atMillis: Long, outcome: UpdateOutcome, version: String) = dataStore.edit {
+        it[KEY_UPDATE_CHECKED_AT] = atMillis
+        it[KEY_UPDATE_OUTCOME] = outcome.name
+        it[KEY_UPDATE_VERSION] = version
+    }
+
+    /**
      * The activity cards the Activity tab is told to leave out. Empty means every activity shows.
      *
      * A DISPLAY choice only: it hides a card, and nothing else about that activity changes. Because a
@@ -297,6 +329,10 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         private val KEY_BOTTLE_PRESETS = stringPreferencesKey("bottle.presets")
         private val KEY_MEDICATION_PRESETS = stringPreferencesKey("health.medicationPresets")
         private val KEY_HIDDEN_ACTIVITIES = stringPreferencesKey("activities.hidden")
+        private val KEY_UPDATE_CHECK_ENABLED = booleanPreferencesKey("update.check.enabled")
+        private val KEY_UPDATE_CHECKED_AT = longPreferencesKey("update.lastCheckAt")
+        private val KEY_UPDATE_OUTCOME = stringPreferencesKey("update.lastOutcome")
+        private val KEY_UPDATE_VERSION = stringPreferencesKey("update.lastVersion")
 
         private const val DEFAULT_NIGHT_START_HOUR = 18
         private const val DEFAULT_NIGHT_END_HOUR = 6

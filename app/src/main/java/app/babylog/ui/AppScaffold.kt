@@ -211,12 +211,14 @@ fun AppScaffold(container: AppContainer) {
                     // The reminder engine lives in the container; the reset clears rules and then asks it
                     // to cancel the alarms they owned, which is the same pass that keeps a disabled rule silent.
                     refreshReminders = { container.refreshReminders() },
+                    updates = container.updates,
                 )
             }
         }
     }
     val settingsVm: SettingsViewModel = viewModel(factory = settingsFactory)
     val settingsChildren by settingsVm.childrenList.collectAsState()
+    val updateStatus by settingsVm.updateStatus.collectAsState()
     val remindersUi by home.remindersUi.collectAsState()
     val reminderConfigs by home.reminderConfigs.collectAsState()
     val notificationsEnabled by home.notificationsEnabled.collectAsState()
@@ -558,6 +560,9 @@ fun AppScaffold(container: AppContainer) {
                     growthReference = growthIdentity,
                     growthUpdateMessage = growthUpdateMessage,
                     onCheckGrowthUpdates = settingsVm::checkGrowthUpdates,
+                    updateStatus = updateStatus,
+                    onSetUpdateCheck = settingsVm::setUpdateCheckEnabled,
+                    onCheckUpdatesNow = settingsVm::checkForUpdatesNow,
                     onTheme = settingsVm::setTheme,
                     onUnitSystem = settingsVm::setUnitSystem,
                     onLengthUnit = settingsVm::setLengthUnit,

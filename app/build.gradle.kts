@@ -106,8 +106,11 @@ android {
         // large filled illustration plus scattered silhouettes and hearts per activity card, over a vertical
         // gradient card fill. Polish only — no new capability, no control, no copy and no stored byte moves,
         // so a PATCH rung, and code 32 so the pass installs in place over the delivered 1.4.0.
-        versionCode = 32
-        versionName = "1.4.1"
+        // 1.5.0 is Phase 23, the update check: the app asks GitHub for its newest release when it opens, once
+        // a day, so a build delivered by hand can say a newer one exists. That is a capability the app did not
+        // have, so a MINOR rung, and code 33 so it installs in place over the delivered 1.4.1.
+        versionCode = 33
+        versionName = "1.5.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

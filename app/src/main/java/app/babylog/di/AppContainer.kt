@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import app.babylog.BuildConfig
 import app.babylog.data.local.AppDatabase
 import app.babylog.data.local.toDomain
 import app.babylog.data.local.FoodCatalogueParser
@@ -20,6 +21,7 @@ import app.babylog.data.reminders.ReminderScheduler
 import app.babylog.data.reminders.ReminderStore
 import app.babylog.data.reminders.Reminders
 import app.babylog.data.repo.SettingsRepository
+import app.babylog.data.update.UpdateChecker
 import app.babylog.data.growth.GrowthReference
 import app.babylog.data.growth.GrowthReferenceParser
 import app.babylog.data.growth.GrowthDatasetRepository
@@ -83,6 +85,15 @@ class AppContainer(private val context: Context) {
     }
 
     val settings: SettingsRepository by lazy { SettingsRepository(dataStore) }
+
+    /**
+     * The GitHub check. Built with `BuildConfig.VERSION_NAME` rather than a literal, so the version the app
+     * compares against is the one the APK reports in Settings - a second copy would be a number that can be
+     * forgotten on the next rung.
+     */
+    val updates: UpdateChecker by lazy {
+        UpdateChecker(settings = settings, currentVersion = BuildConfig.VERSION_NAME)
+    }
 
     /** Whole-database operations: backup, restore, archive and permanent delete. */
     val maintenance: MaintenanceRepository by lazy {
