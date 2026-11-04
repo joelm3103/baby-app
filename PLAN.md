@@ -1924,9 +1924,13 @@ mistake as the stale `uiautomator` tree recorded under Phase 9.
 - **The CSV export covers 9–18 Oct only**; 19–28 Oct were transcribed from four screenshots by hand, which
   is why the converter accepts repeated `--kai` / `--levi` files in the same shape.
 - **A bottle with no volume** (second twin, 21 Oct 06:00) stays volumeless: the app must not invent one.
-- **The second phone has still never been attached**, so the imported log has only been *inferred* to be
-  there from an outbox that drained to 0. It is the one open item on this work; closing it needs that device
+- **The second phone had never been attached** (true of every pass until 2026-11-03 — closed below), so the
+  imported log was only *inferred* to be there from an outbox that drained to 0. Closing it needed that device
   connected, not another code change.
+  > **CLOSED 2026-11-03 — by the owner, by hand.** They attached the second phone and verified it themselves.
+  > No agent-side pass backs this: no dump, screenshot or sign-in trace was captured, so the evidence is
+  > testimony rather than measurement, and a future reader should treat it as such. What it does not claim: the
+  > tombstones written during the 2026-11-03 pass were never checked on that device.
 
 ## Dataset withdrawal, reminder wording and the Trends axis — 2026-10-29 (`0.19.0`) — DONE, device-verified
 
@@ -2063,7 +2067,7 @@ signature change from the debug key forces.
 | 7 | The app shows the restored history | Activity screen for Kai: Bottle `1d ago` 6 oz, Diaper `1d ago` Wet, Solids `10d ago` Carrot, Pumpkin, Chicken, Broccoli ✅ |
 | 8 | No crash | `logcat -b crash -d` → **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
 | 9 | Google Sign-In on a release build | **Verified by the owner at close-out**: signed out of Sync, tapped `Sign in with Google` and was signed back in — so the registered release SHA-1 is accepted on a `CN=BabyLog` build ✅ |
-| 10 | The second phone | Not attached, as in every pass since the import ⚠️ |
+| 10 | The second phone | Not attached during this pass, as in every pass since the import ⚠️ (verified by the owner 2026-11-03) |
 | 11 | System back, checked at close-out | Back from Settings returned to Activity with the app still foreground — `topResumedActivity=app.babylog/.MainActivity`, and the screen behind it was `Today` with the three cards ✅ |
 | 12 | A logging sheet, opened and dismissed without saving | `+ Log feed for Kai` opened the Bottle feed sheet (`Bottle feed`, `for Kai`, date `29 Oct 2026`, time `1:42 PM`, the amount presets, `Save`); back dismissed it, `Save` was gone and Activity was still foreground ✅ |
 
@@ -2170,7 +2174,8 @@ what the Phase 16 rule requires now that a debug APK can no longer install over 
   close the sheet. Also pre-existing.
 - **A disabled rule is indistinguishable from no rule.** The `⋮` still reads `Set reminder`, which is what
   concealed the first finding for three attempts.
-- **The second phone is still not attached**, as in every pass since the import. (Haptics WERE judged by the
+- **The second phone was still not attached during this pass**, as in every pass since the import — the owner
+  verified it by hand on 2026-11-03 (see the closed note in the import section). (Haptics WERE judged by the
   owner — see row 13 — and the tab bar was added because of it.)
 
 ## Phase 18 — Published food catalogue — DONE, device-verified (`1.2.0`)
@@ -2208,7 +2213,9 @@ all taps below came from the current `uiautomator dump`. No food or log entry wa
 | 5 | System back | Back dismissed the rename dialog and picker/sheet layers; the app remained foreground on Activity ✅ |
 | 6 | Crash buffer | `logcat -b crash -d`: **0** `FATAL EXCEPTION` ✅ |
 
-**Not verified on-device in this pass:** live Firestore rules deployment and a second phone's read. An existing
+**Not verified on-device in this pass:** live Firestore rules deployment and a second phone's read. (The second
+phone was verified by the owner by hand on 2026-11-03 — see the closed note in the import section — so what
+remains here is the console rules deployment, which no pass has exercised.) An existing
 capture, `logs/phone-food-picker.png`, shows `Console Test Food` in the picker, but it does not establish a fresh
 server read in this pass or verify the other phone. Cross-device Firestore behavior remains a Phase 20 acceptance
 check. The rename dialog was dismissed without changing data.
@@ -2357,6 +2364,7 @@ up, and every other way the comparison can hold involves an actual log of that a
 therefore the pre-Phase-20 behaviour — a stale notification the parent swipes — never a wrong clear. Fixing it
 properly needs a monotonic write sequence rather than a timestamp, which is a storage change this phase's scope
 excludes, and the app orders events by wall clock everywhere else (relative times, day grouping, totals).
+**Accepted as a limitation on 2026-11-03**, so it is not to be fixed without being asked.
 
 **Left to the owner, and confirmed by them the same day:** the one-tap feed — the write itself, which the pass
 declined to make because a test feed is a record that never happened in this log — and the notification
@@ -2605,7 +2613,7 @@ artwork from counting its exact colour in a `screencap`, with that colour derive
 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across both installs and every screen they were driven through |
 | What was NOT re-measured | Tone, contrast and the gradient's steps: no token changed on 2026-11-03, and `PatternPaletteTest` pins all of them |
 
-**Knowingly open, and not fixed by request:**
+**Knowingly open when this pass ended, and closed by decision on 2026-11-03 rather than by a fix:**
 
 - **A card with nothing logged draws its illustration underneath its first control** (the band that fixed it is
   above). The shape of a fix costing no height is stated there.
@@ -2613,12 +2621,32 @@ artwork from counting its exact colour in a `screencap`, with that colour derive
   offset is computed from the PREFERRED `sticker.sizeDp` while the drawn side is the clamped
   `stickerSideDp` value, so a card that clamps to 86.6dp measured a right margin of 47.4dp instead of 10 — the
   object is not drifting off the card, it is adrift from its own documented anchor. Found while measuring this
-  pass; out of scope here because the owner asked for no further change to the cards.
+  pass, and **accepted as a limitation on 2026-11-03**: nothing is cropped and nothing leaves the card, so a few
+  dp of inset on the one card that clamps is not worth touching the cards again.
+
+## Closed by decision, 2026-11-03 — two open items retired, four limitations accepted
+
+The open-item list was reviewed at the owner's request and six entries left it. Nothing in `app/src` changed, so
+this is a record rather than a phase and it takes no version rung.
+
+| Item | Was recorded as | Closed as | Why this is the right close |
+|---|---|---|---|
+| The second phone had never been attached | open in every pass since the 2026-10-28 import | **verified by the owner, by hand** | the gap was a missing device, not a missing change; see the note in the import section for what the evidence is and is not |
+| `todo.txt`'s Settings redo ("all settings in submenus") | a note predating Phase 19 | **already delivered** | `SettingsSection.kt` defines all eleven groups and `SettingsNav.back()` returns up one level; the note is deleted rather than restated |
+| A reminder for a never-logged activity re-arms a minute after every app start | known, unfixed since 2026-10-29 | **accepted limitation** | the rule has no log to anchor on, so any fix invents one; the failure is a repeated reminder while the parent is in the app, which is where reminders are not needed |
+| Notification clearing compares wall-clock values | known, unfixed since Phase 20 | **accepted limitation** | a correct fix is a monotonic write sequence, i.e. a storage change, and the failure is a stale notification the parent swipes — never a wrong clear |
+| An empty card draws its illustration under its log button | knowingly open since 2026-11-03 | **accepted limitation** | the 48dp band was rejected on sight for height, and the owner prefers the compact cards; the no-height route changes card geometry for decoration alone |
+| A clamped sticker's right margin measures 47.4dp, not its 10dp | knowingly open since 2026-11-03 | **accepted limitation** | nothing is cropped or off the card |
+
+**What "accepted" means:** the defect stays where it is, its cause and the shape of a fix stay written down
+beside it, and it is not to be scheduled without being asked. The purpose of recording the fix shapes is that a
+later decision is a decision rather than a rediscovery.
 
 ## Phase 23 — Ship
 Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.4.1` release
 APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
-use the delivered build for **a week before writing another line of code**.
+use the delivered build for **a week before writing another line of code**. Both phones exist and are known
+good as of 2026-11-03, so this is about `1.4.1` arriving on the second one, not about first contact.
 
 ---
 

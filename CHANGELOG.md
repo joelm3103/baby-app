@@ -24,11 +24,20 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Phase 22 lands: the Filled Soft card surface**, described in full under 2026-11-02 — a per-activity gradient fill, one filled illustration per activity, and scattered silhouettes and hearts behind everything on every tinted card. Nothing in `app/src` differs from what 2026-11-02's entries describe: today's only code change, a 48dp band, was added and reverted inside the same session.
 - **The empty-card decoration was measured, a fix was built and installed, and the owner rejected it on sight** — the illustration therefore stays hidden under the log button on a card with nothing logged, knowingly, and the plan records the numbers and the shape of a fix that would cost no height.
 - **The device pass the previous day's USB drop left open was completed**, on the final build, in both themes.
+- **Six open items left the list** — the second phone verified by the owner, a stale note about Settings retired as already built, and four known defects accepted as limitations rather than fixed. No code changed for any of them.
 
 ### Versions
 
 - `1.4.1` / versionCode 32 — **Phase 22, the Filled Soft redesign**. A PATCH rung: the card surface changed and no capability, control, copy or stored byte did. Ship moves to Phase 23, which now delivers this build.
   - Listed here rather than under 2026-11-02, where the entry's work is described: that section recorded the work as it was done, and this is the day the build landed. The other lines of the entry are unchanged.
+
+### Changed
+
+- **The open-item list was reviewed and six entries left it, none of them by a code change.** Recorded in `PLAN.md` under *Closed by decision, 2026-11-03*, with the cause of each and the shape of the fix that was declined, so a later decision is a decision and not a rediscovery.
+  - **The second phone is verified — by the owner, by hand.** No agent-side dump, screenshot or sign-in trace backs it, and the record says so; the gap had been open in every pass since the 2026-10-28 import.
+  - **`todo.txt`'s Settings redo is dropped as already built.** It asked for every setting to live in a submenu under its own name, which is what Phase 19 shipped: eleven groups in `SettingsSection.kt` with `SettingsNav.back()` returning up one level.
+  - **Four defects are accepted, not fixed.** A reminder for an activity a child has never had re-arms a minute after every app start; notification clearing compares wall-clock values, so a log written after a manual backwards clock change does not clear the shade; an empty card draws its illustration underneath its log button; and a height-clamped sticker measures a 47.4dp right margin against the 10dp its anchor promises.
+- **`AGENTS.md` labels each of the three standing claims the same way** — "accepted, not to be fixed (2026-11-03)" — so the next agent does not read them as work waiting to be picked up.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `1.4.1`, 2026-11-03
 
@@ -46,6 +55,7 @@ The pass the previous day's USB drop interrupted, run on the final build: `adb i
 
 - **658 tests, 0 failures, 0 errors and 0 skipped across 66 XML files**, summed from `app/build/test-results/testDebugUnitTest/*.xml` on the final tree. This is the 2026-11-02 count: the day's one addition, a case for the 48dp band, went out with the band and no other case moved.
 - `CardArtworkTest` is 10 cases in the file and 10 in its XML, matching the entry above; `PatternPaletteTest` is 8.
+- **658 before and after the closures above**, because accepting a limitation changes a document and not a line of `app/src`. Nothing about the suite moved, so nothing was re-run to prove that it had.
 
 ## [2026-11-02]
 

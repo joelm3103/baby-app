@@ -201,9 +201,10 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
     46dp anchor — so the sticker is drawn and invisible (measured 2026-11-03: 12dp of it visible on Solids and
     Health, 4dp on Sleep and Growth). A 48dp band reserved above the first control fixed it, was installed and
     measured on the phone, and the owner **rejected it on sight in favour of the previous, more compact cards**,
-    so it must not be re-added. The fix that costs no height is the sticker's `topDp` and its clamp following
-    the card's FIRST CONTROL instead of the card's top edge and height; it is written down in `PLAN.md` and was
-    not built.
+    so it must not be re-added. The fix that costs no height — the sticker's `topDp` and its clamp following the
+    card's FIRST CONTROL instead of the card's top edge and height — was written down in `PLAN.md` and **accepted
+    as a limitation on 2026-11-03** rather than built: the owner prefers the compact cards, and a decoration that
+    only shows until an activity's first log is not worth changing a card's geometry for.
   - **The scatter covers the whole card.** Each shape's `xFraction`/`yFraction` are fractions of the card,
     not dp offsets, because one list serves a ~110dp callout and a ~400dp feed card: dp offsets that graced
     the tall card fell off the short one, and the first build's 76dp "safe band" left the decoration in the
@@ -375,7 +376,10 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   morning, each still saying `3h 5m since the last feed`. Two facts make one false — the rule is gone or
   switched off, or the activity has been logged since it was posted — and both are decided by the pure
   `shouldClearPostedNotification`, comparing the notification's own `postTime` (read back from the shade, never
-  remembered in preferences) with the child's newest row of that activity. The shade is read through
+  remembered in preferences) with the child's newest row of that activity. That comparison is wall-clock, so a log
+  written after a manual BACKWARDS clock change does not clear it; **accepted as a limitation on 2026-11-03**,
+  because a correct fix needs a monotonic write sequence — a storage change — for a failure that leaves a stale
+  notification rather than ever clearing a live one. The shade is read through
   `ReminderNotifier`, the third interface of the `ReminderDeps` family, so the decision is testable with no
   device. Clearing is in `refresh()` and nowhere else, for the same reason re-arming is.
 - **A reminder is set from its activity's card, per child — never from Settings, never for "Both".** The `⋮` menu
@@ -391,8 +395,10 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   instruct. It used to read `Time to log ${displayName().lowercase()}`, which printed `Time to log diaper` —
   `displayName` where `noun()` was the right word. It claims no interval, because there is no log to measure
   from, and a future anchor (only reachable through a clock change) says `Logged for 1:00 PM` rather than
-  inventing one. **Known, unfixed:** such a rule re-arms a minute after every app start, because its `anchorAt`
-  never moves and `refresh()` reads it as overdue — recorded in `PLAN.md`, 2026-10-29.
+  inventing one. **Accepted, not to be fixed (2026-11-03):** such a rule re-arms a minute after every app start,
+  because its `anchorAt` never moves and `refresh()` reads it as overdue — recorded in `PLAN.md`, 2026-10-29, and
+  closed by decision rather than by a fix. Do not schedule one without being asked: the failure is a reminder that
+  repeats while the parent is already looking at the app, never a missed one.
 - **Anything that opens a reminder must carry the child it is about.** A chip and an Upcoming row both name a child;
   an action that carries only the activity falls back to the first child, which is a reminder edited for the wrong
   twin. Both had that bug before it was seen on the phone.
