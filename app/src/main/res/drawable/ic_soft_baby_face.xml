@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Baby face, FILLED (Phase 22). A head with one curl — the reference's third scattered motif beside the
+  silhouettes and the hearts.
+
+  No facial features: at 16dp they would be a smudge each, and the shape plus the curl already says "baby"
+  beside a bottle or a nappy. Sheet title bars are where it is most often seen, at 20-28dp. No colour of
+  its own; tinted at runtime.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- head -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5.7,13.9 a6.3,6.3 0 1 1 12.6,0 a6.3,6.3 0 1 1 -12.6,0 z" />
+    <!-- curl: a crescent, outer disc with a second disc removed from its upper right (opposite winding) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9,6.4 a3.4,3.4 0 1 1 6.8,0 a3.4,3.4 0 1 1 -6.8,0 z M10.9,5.2 a2.7,2.7 0 1 0 5.4,0 a2.7,2.7 0 1 0 -5.4,0 z" />
+</vector>

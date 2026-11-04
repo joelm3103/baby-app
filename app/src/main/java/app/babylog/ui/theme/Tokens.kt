@@ -2,6 +2,7 @@ package app.babylog.ui.theme
 
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -47,6 +48,12 @@ data class BabyLogColors(
      * `#DCDEE7`, which is 4.5:1 on the worst tile and 5.9:1 on the plain tint. Light moved barely at
      * all, `#41506B` to `#404E69` (4.5:1 on the worst tile, 5.5:1 on the plain tint), because a
      * deepened accent tile does not lift a near-white card much. Pinned by `PatternPaletteTest`.
+     *
+     * The card is a gradient with FILLED artwork over it since Phase 22, and this token did not move:
+     * [artFor] is the furthest point on the card from the fill, so it is still the worst case, and the
+     * gradient's lower stop sits between the two. Measured now, per theme and accent, the worst pairing
+     * is 4.50:1 — the dark Bottle card's artwork, the same value that was already pinned — and the
+     * gradient's own stop is no worse than 5.05:1 dark / 5.06:1 light.
      */
     val textOnCard: Color,
     /**
@@ -166,27 +173,68 @@ val LocalBabyLogColors = staticCompositionLocalOf { DarkColors }
  * own tint) nor `textSecondary` is legible on it. So the label uses [labelFor] - the accent lifted
  * toward white - and meta text uses `textOnCard`. That is the trade: a tinted section means the label
  * is a lighter cousin of the accent, not the accent itself.
+ *
+ * Since Phase 22 this is the card gradient's TOP stop rather than the whole fill, and every pairing
+ * measured against it still holds: the gradient's lower stop is this colour moved a small step toward
+ * the same accent, so it is between this and [artFor], the two ends the test pins.
  */
 fun BabyLogColors.cardFor(accent: Color): Color = blend(surface, accent, 0.26f)
 
 /**
- * How far the card's glyph pattern sits from the card fill: the fill moved this fraction further toward
- * its own accent. Tone-on-tone, never white.
+ * How far the card gradient moves from its top stop toward the bottom one: the accent blended into the
+ * card fill this fraction further. One vertical direction, and deliberately small.
+ *
+ * 0.06 is measured. The two bars are the gradient actually reading as a gradient, and the artwork
+ * staying visible where it crosses the lower half of the card:
+ *
+ *  - at 0.04 the shift is dE 2.1 on the worst card (Sleep on dark, Diaper on light) — a band nobody
+ *    sees, and the phase is called Filled Soft, not "unchanged";
+ *  - at 0.06 the shift is dE 3.2-4.8, which reads as a soft fall-off, and [artFor] is still dE 4.2-6.2
+ *    from the lower stop, so a silhouette that runs off the bottom of a card softens rather than
+ *    disappearing;
+ *  - at 0.08 and above the shift is stronger but the artwork against the lower stop falls to dE 3.1
+ *    and keeps going — by 0.14 the artwork is exactly the lower stop's colour and vanishes there.
+ *
+ * Text is safe at any step up to [ART_STEP], because text contrast falls monotonically as the fill
+ * moves toward its accent, and [artFor] — the furthest point — is already pinned at 4.5:1. Measured
+ * across six accents and both themes, the worst text pairing on the lower stop is 5.05:1 (dark) and
+ * 5.06:1 (light), against 4.50:1 on the artwork itself.
+ */
+const val GRADIENT_STEP = 0.06f
+
+/** The card's two gradient stops: the flat tint at the top, and the fill pushed toward its accent below. */
+fun BabyLogColors.cardStopsFor(accent: Color): List<Color> =
+    listOf(cardFor(accent), blend(cardFor(accent), accent, GRADIENT_STEP))
+
+/**
+ * The card's fill as a brush. One vertical direction, so every card in the app falls the same way and
+ * a section is recognisable by its shape as well as its hue.
+ */
+fun BabyLogColors.cardGradientFor(accent: Color): Brush = Brush.verticalGradient(cardStopsFor(accent))
+
+/**
+ * How far a card's artwork sits from the card fill: the fill moved this fraction toward its own accent.
+ * Tone-on-tone, never white — see the derivation below.
  *
  * Why not white, which is what the reference infographic uses: measured across the six accents and both
- * themes, a WHITE pattern over our 26% tint fails in both directions. On dark it costs legibility the
+ * themes, a WHITE silhouette over our 26% tint fails in both directions. On dark it costs legibility the
  * moment it is visible — at alpha 0.10 it measures dE 7.8 but drops `textOnCard` to 3.6:1, and at the
  * alpha needed to match the reference's strength (0.16, dE 12.5) it is 3.1:1. On light it is barely
  * there at all: white over a near-white tint is dE 1-4 at every one of those alphas.
  *
- * 0.14 is the measured compromise. Across the six accents it is dE 7-11 on dark and 7-10 on light, so
- * the texture is actually visible in both themes, and the one cost is [textOnCard], which was lifted to
- * keep meta text at 4.5:1 on a tile.
+ * 0.14 is the measured compromise, and it survived the redesign unchanged. Across the six accents it is
+ * dE 7.4-10.9 on dark and 7.5-10.4 on light against the fill the artwork sits on, so the texture is
+ * visible in both themes, and the one cost is `textOnCard`, which was lifted to keep meta text at
+ * 4.5:1 on a silhouette.
+ *
+ * Drawn OPAQUE in this colour rather than translucent in the raw accent: compositing an accent at 0.14
+ * over an opaque fill gives exactly this colour, and an opaque value makes the card's text guarantee a
+ * single number instead of an alpha stack. The softness comes from the step and the shape sizes.
  */
-const val PATTERN_ALPHA = 0.14f
+const val ART_STEP = 0.14f
 
-/** The colour a card's glyph pattern is drawn in: its own hue, one step stronger than the fill. */
-fun BabyLogColors.patternFor(accent: Color): Color = blend(cardFor(accent), accent, PATTERN_ALPHA)
+/** The colour a card's artwork is drawn in: its own hue, one measured step stronger than the fill. */
+fun BabyLogColors.artFor(accent: Color): Color = blend(cardFor(accent), accent, ART_STEP)
 
 /**
  * The activity label colour ON a tinted card. The raw accent is NOT legible there (3.4-4.3:1), so it

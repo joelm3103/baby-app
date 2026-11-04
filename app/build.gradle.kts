@@ -102,8 +102,12 @@ android {
         // reminder sheet stops asking whether to notify and can remove a rule, and a posted reminder is
         // cleared when its activity is logged or its rule goes off. One new capability, so a MINOR rung:
         // code 30.
-        versionCode = 31
-        versionName = "1.4.0"
+        // 1.4.1 is Phase 22, the Filled Soft redesign: the tiled stroke-glyph watermark is replaced by one
+        // large filled illustration plus scattered silhouettes and hearts per activity card, over a vertical
+        // gradient card fill. Polish only — no new capability, no control, no copy and no stored byte moves,
+        // so a PATCH rung, and code 32 so the pass installs in place over the delivered 1.4.0.
+        versionCode = 32
+        versionName = "1.4.1"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

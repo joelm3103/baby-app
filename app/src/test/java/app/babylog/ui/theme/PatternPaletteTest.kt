@@ -2,6 +2,7 @@ package app.babylog.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import app.babylog.domain.EVENT_DISPLAY_ORDER
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.max
@@ -10,19 +11,30 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * The card glyph pattern is drawn BEHIND every word on the card, so it is a colour decision that can
- * quietly break accessibility. These assertions are the numbers the pattern was derived from, counted
- * rather than eyeballed — the same reason `Tokens.kt` records its fractions in comments.
+ * The card's artwork and its gradient are drawn BEHIND every word on the card, so both are colour
+ * decisions that can quietly break accessibility. These assertions are the numbers `Tokens.kt` records
+ * in its comments, counted rather than eyeballed — the same reason the fractions are written down there.
  *
- * Three things must stay true, in both themes, for all six activities:
+ * It was rewritten for Phase 22 rather than deleted: the tiled glyph pattern became a filled
+ * illustration over a gradient, and the old pattern assertions would have kept passing while guarding
+ * nothing. The bars below are unchanged where they still apply, and the two new ones cover the numbers
+ * the phase actually introduced.
  *
- *  1. the pattern is **visible** against the card fill (dE >= 7 — below that it is a smudge, which is
- *     what the earlier 0.10 attempt measured at on the sleep and growth cards);
- *  2. every text token on the card still clears **AA (4.5:1) on the pattern**, not just on the tint;
- *  3. the chip's glyph clears the **3:1 non-text bar** when off, and against `onAccent` when on.
+ * Four things must stay true, in both themes, for all six activities:
  *
- * If someone retunes the accents, lowers the tint, or pulls `PATTERN_ALPHA` down to "make it subtler",
- * these fail rather than shipping a card that is pretty and unreadable.
+ *  1. the artwork is **visible** against the fill it sits on (dE >= 7 — below that it is a smudge, which
+ *     is what an earlier 0.10 attempt measured);
+ *  2. the artwork does **not vanish** where it crosses the gradient's lower stop (dE >= 4, above the
+ *     ~2.3 CIE76 just-noticeable difference with margin, so a shape running off the bottom of a card
+ *     softens rather than disappearing);
+ *  3. the gradient is **perceptible** at all (dE >= 3 between its two stops);
+ *  4. every text token on the card still clears **AA (4.5:1)** on the artwork *and* on both stops — not
+ *     just on the flat tint — and the chip's glyph keeps its **3:1** non-text bar.
+ *
+ * Measured at this commit, the minima are: 7.4 (1), 4.2 (2), 3.2 (3), 4.50:1 for `textOnCard` on the
+ * dark Bottle card's artwork and 5.05:1 on any lower stop. If someone retunes the accents, widens the
+ * tint, raises the gradient step or lifts the alpha "to make it softer", these fail rather than shipping
+ * a card that is pretty and unreadable.
  */
 class PatternPaletteTest {
 
@@ -31,12 +43,12 @@ class PatternPaletteTest {
     private fun accents(colors: BabyLogColors): List<Color> = EVENT_DISPLAY_ORDER.map(colors::accentFor)
 
     @Test
-    fun thePatternIsVisibleOnEveryCard() {
+    fun theArtworkIsVisibleOnEveryCard() {
         themes.forEach { (name, colors) ->
             accents(colors).forEach { accent ->
-                val d = deltaE(colors.cardFor(accent), colors.patternFor(accent))
+                val d = deltaE(colors.cardFor(accent), colors.artFor(accent))
                 assertTrue(
-                    "$name: the pattern is only dE ${round(d)} from the card fill, so it is a smudge",
+                    "$name: the artwork is only dE ${round(d)} from the card fill, so it is a smudge",
                     d >= 7.0,
                 )
             }
@@ -44,43 +56,76 @@ class PatternPaletteTest {
     }
 
     @Test
-    fun metaTextClearsAaOnThePatternAndOnThePlainTint() {
+    fun theArtworkSurvivesTheGradient() {
         themes.forEach { (name, colors) ->
             accents(colors).forEach { accent ->
-                val onPattern = contrast(colors.textOnCard, colors.patternFor(accent))
-                val onTint = contrast(colors.textOnCard, colors.cardFor(accent))
+                val lower = colors.cardStopsFor(accent).last()
+                val d = deltaE(colors.artFor(accent), lower)
                 assertTrue(
-                    "$name: textOnCard is ${round(onPattern)}:1 on the pattern, below AA",
-                    onPattern >= 4.5,
-                )
-                assertTrue(
-                    "$name: textOnCard is ${round(onTint)}:1 on the tint, below AA",
-                    onTint >= 4.5,
+                    "$name: the artwork is dE ${round(d)} from the gradient's lower stop, so it vanishes there",
+                    d >= 4.0,
                 )
             }
         }
     }
 
     @Test
-    fun theLabelClearsAaOnThePatternAndOnThePlainTint() {
+    fun theGradientIsPerceptible() {
+        themes.forEach { (name, colors) ->
+            accents(colors).forEach { accent ->
+                val stops = colors.cardStopsFor(accent)
+                val d = deltaE(stops.first(), stops.last())
+                assertTrue("$name: the gradient is only dE ${round(d)}, which is not a gradient", d >= 3.0)
+            }
+        }
+    }
+
+    /** The anchor cannot drift: the gradient's top stop is the 26% tint every other number was taken against. */
+    @Test
+    fun theTopStopIsTheMeasuredTint() {
+        themes.forEach { (name, colors) ->
+            accents(colors).forEach { accent ->
+                val stops = colors.cardStopsFor(accent)
+                assertEquals("$name: the gradient must have exactly two stops", 2, stops.size)
+                assertEquals("$name: the gradient's top stop moved off the measured tint", colors.cardFor(accent), stops.first())
+            }
+        }
+    }
+
+    @Test
+    fun metaTextClearsAaOnTheArtworkAndBothStops() {
+        themes.forEach { (name, colors) ->
+            accents(colors).forEach { accent ->
+                surfacesOnACard(colors, accent).forEach { (where, fill) ->
+                    val c = contrast(colors.textOnCard, fill)
+                    assertTrue("$name: textOnCard is ${round(c)}:1 $where, below AA", c >= 4.5)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun theLabelClearsAaOnTheArtworkAndBothStops() {
         themes.forEach { (name, colors) ->
             accents(colors).forEach { accent ->
                 val label = colors.labelFor(accent)
-                val onPattern = contrast(label, colors.patternFor(accent))
-                val onTint = contrast(label, colors.cardFor(accent))
-                assertTrue("$name: the label is ${round(onPattern)}:1 on the pattern", onPattern >= 4.5)
-                assertTrue("$name: the label is ${round(onTint)}:1 on the tint", onTint >= 4.5)
+                surfacesOnACard(colors, accent).forEach { (where, fill) ->
+                    val c = contrast(label, fill)
+                    assertTrue("$name: the label is ${round(c)}:1 $where, below AA", c >= 4.5)
+                }
             }
         }
     }
 
-    /** The big number uses `textPrimary`, which must survive the pattern too — it is the loudest text. */
+    /** The big number uses `textPrimary`, which must survive the artwork too — it is the loudest text. */
     @Test
-    fun thePrimaryValueClearsAaOnThePattern() {
+    fun thePrimaryValueClearsAaOnTheArtworkAndBothStops() {
         themes.forEach { (name, colors) ->
             accents(colors).forEach { accent ->
-                val c = contrast(colors.textPrimary, colors.patternFor(accent))
-                assertTrue("$name: textPrimary is ${round(c)}:1 on the pattern", c >= 4.5)
+                surfacesOnACard(colors, accent).forEach { (where, fill) ->
+                    val c = contrast(colors.textPrimary, fill)
+                    assertTrue("$name: textPrimary is ${round(c)}:1 $where, below AA", c >= 4.5)
+                }
             }
         }
     }
@@ -94,12 +139,19 @@ class PatternPaletteTest {
         themes.forEach { (name, colors) ->
             accents(colors).forEach { accent ->
                 val off = contrast(accent, colors.surfaceRaised)
-                val on = contrast(colors.onAccent, accent)
+                val on = contrast(accent, colors.onAccent)
                 assertTrue("$name: the unselected chip glyph measures ${round(off)}:1", off >= 3.0)
                 assertTrue("$name: the selected chip glyph measures ${round(on)}:1", on >= 3.0)
             }
         }
     }
+
+    /** Everything a word on a card can be sitting on: the artwork, and each of the gradient's stops. */
+    private fun surfacesOnACard(colors: BabyLogColors, accent: Color): List<Pair<String, Color>> =
+        listOf("on the artwork" to colors.artFor(accent)) +
+            colors.cardStopsFor(accent).mapIndexed { index, stop ->
+                "on gradient stop $index" to stop
+            }
 
     private fun round(v: Double) = (v * 100).toInt() / 100.0
 

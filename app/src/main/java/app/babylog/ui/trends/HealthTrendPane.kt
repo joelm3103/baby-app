@@ -24,17 +24,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.EventType
 import app.babylog.domain.FEVER_C
 import app.babylog.domain.MILD_FEVER_MIN_C
 import app.babylog.domain.FeverReading
 import app.babylog.domain.HealthTrend
 import app.babylog.domain.TrendRange
 import app.babylog.domain.formatTemperature
+import app.babylog.ui.common.cardArtwork
 import app.babylog.ui.home.TemperatureBadge
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 import java.time.Instant
 import java.time.ZoneId
@@ -84,7 +86,9 @@ fun HealthTrendPane(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(Radius.card))
-                    .background(colors.cardFor(accent))
+                    .background(colors.cardGradientFor(accent))
+                    // Health's own artwork: the thermometer, once, however many readings are listed.
+                    .cardArtwork(EventType.HEALTH, accent)
                     .padding(Spacing.cardPadding),
             ) {
                 Text(

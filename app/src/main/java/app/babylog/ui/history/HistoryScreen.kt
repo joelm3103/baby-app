@@ -35,13 +35,13 @@ import app.babylog.domain.TemperatureBand
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.home.ScreenHeader
 import app.babylog.ui.home.TemperatureBadge
-import app.babylog.ui.common.activityPattern
+import app.babylog.ui.common.cardArtwork
 import app.babylog.ui.common.glyphPainter
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 import java.time.LocalDate
 import java.time.ZoneId
@@ -212,7 +212,8 @@ private fun NoActivitiesCard() {
 }
 
 /**
- * One activity's totals. Tinted with its OWN accent via `cardFor`, exactly like the dashboard, and the
+ * One activity's totals. Tinted with its OWN accent — the same gradient the dashboard card uses, via
+ * `cardGradientFor`, and the same Filled Soft artwork — and the
  * label is `labelFor(accent)` because the raw accent is not legible on its own tint. Supporting rows use
  * `textOnCard`, never `textSecondary`.
  */
@@ -225,10 +226,10 @@ private fun TotalCard(total: ActivityTotal, showPerChild: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(colors.cardFor(accent))
-            // The same glyph pattern as the dashboard card it totals, so the Summary card and the
-            // home card are recognisably the same activity.
-            .activityPattern(total.type, accent)
+            .background(colors.cardGradientFor(accent))
+            // The same artwork as the dashboard card it totals, so the Summary card and the home card
+            // are recognisably the same activity.
+            .cardArtwork(total.type, accent)
             .padding(Spacing.cardPadding),
     ) {
         Text(

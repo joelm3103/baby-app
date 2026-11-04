@@ -36,7 +36,7 @@ import app.babylog.domain.groupByDay
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
 
@@ -84,7 +84,7 @@ fun EventListOverlay(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.cardFor(accent)),
+                    .background(colors.cardGradientFor(accent)),
             ) {
                 Row(
                     modifier = Modifier

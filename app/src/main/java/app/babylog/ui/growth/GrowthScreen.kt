@@ -24,12 +24,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.EventType
 import app.babylog.domain.percentileLabel
+import app.babylog.ui.common.cardArtwork
 import app.babylog.ui.common.iconPainter
 import app.babylog.ui.home.ChoiceChip
 import app.babylog.ui.home.SecondaryButton
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 
 /**
@@ -199,7 +200,9 @@ private fun Callout(marker: GrowthMarker, unit: ChartUnit, accent: Color) {
             .fillMaxWidth()
             .padding(top = 16.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(colors.cardFor(accent))
+            .background(colors.cardGradientFor(accent))
+            // Growth's callout carries the giraffe, the same picture the dashboard card uses.
+            .cardArtwork(EventType.GROWTH, accent)
             .padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

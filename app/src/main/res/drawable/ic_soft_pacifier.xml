@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pacifier, FILLED (Phase 22). One of the nine soft-filled illustrations; scattered on the Bottle feed
+  card and drawn small on the Growth card.
+
+  Three parts: a teat dome, a shield disc, and a handle ring. The ring is a HOLE, so its inner subpath is
+  wound the other way (sweep 0 against the outer sweep 1) and the default nonZero fillType punches it out.
+  No colour of its own; the tint arrives at runtime.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- teat -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10,8.6 v-1.2 a2,2 0 0 1 4,0 v1.2 z" />
+    <!-- shield -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5.9,13 a6.1,5 0 1 1 12.2,0 a6.1,5 0 1 1 -12.2,0 z" />
+    <!-- handle ring: outer clockwise, inner counter-clockwise -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.3,18.4 a2.7,2.7 0 1 1 5.4,0 a2.7,2.7 0 1 1 -5.4,0 z M10.7,18.4 a1.3,1.3 0 1 0 2.6,0 a1.3,1.3 0 1 0 -2.6,0 z" />
+</vector>

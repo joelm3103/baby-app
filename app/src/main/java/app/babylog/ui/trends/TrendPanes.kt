@@ -39,10 +39,11 @@ import app.babylog.domain.trendAxisUnit
 import app.babylog.domain.trendHeadline
 import app.babylog.domain.trendHeadlineUnit
 import app.babylog.ui.home.ChoiceChip
+import app.babylog.ui.common.cardArtwork
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
 
@@ -215,7 +216,9 @@ private fun TrendSummaryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(colors.cardFor(accent))
+            .background(colors.cardGradientFor(accent))
+            // The activity's own artwork, the same picture the dashboard card carries.
+            .cardArtwork(series.type, accent)
             .padding(Spacing.cardPadding),
     ) {
         Text(

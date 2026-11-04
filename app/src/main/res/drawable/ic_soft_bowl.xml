@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Solids — a bowl with a spoon, FILLED (Phase 22). The soft-filled sibling of ic_glyph_solids.
+
+  The bowl is a half-dome with a foot, and the spoon is a disc plus a thick tapered handle, so the two
+  objects read as one meal at 16dp as well as at card size. No colour of its own; tinted at runtime.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- spoon head -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17.7,5.6 a1.9,1.9 0 1 1 3.8,0 a1.9,1.9 0 1 1 -3.8,0 z" />
+    <!-- spoon handle, up to the head and down into the bowl -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12.6,13.2 L18.4,6.2 a1.1,1.1 0 0 1 1.7,1.4 L14.3,14.6 z" />
+    <!-- bowl -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3.8,12.2 h16.4 a8.2,8.2 0 0 1 -16.4,0 z" />
+    <!-- foot -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.8,20 h2.4 a1,1 0 0 1 1,1 v0.4 a1,1 0 0 1 -1,1 h-2.4 a1,1 0 0 1 -1,-1 v-0.4 a1,1 0 0 1 1,-1 z" />
+</vector>

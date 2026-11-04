@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Health — a thermometer, FILLED (Phase 22). The soft-filled counterpart of ic_glyph_health: a bulb and a
+  stem, nothing else, because the reading is the card's number and this is only the object beside it.
+
+  No colour of its own; tinted at runtime like every other soft illustration.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- stem: narrow, so the bulb below reads as a bulb -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2.4 a1.2,1.2 0 0 1 1.2,1.2 v10.8 h-2.4 v-10.8 a1.2,1.2 0 0 1 1.2,-1.2 z" />
+    <!-- bulb -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8.1,16.9 a3.9,3.9 0 1 1 7.8,0 a3.9,3.9 0 1 1 -7.8,0 z" />
+</vector>

@@ -37,13 +37,13 @@ import app.babylog.domain.formatVolume
 import app.babylog.domain.clockTime
 import app.babylog.domain.elapsed
 import app.babylog.ui.common.RelativeTimeText
-import app.babylog.ui.common.activityPattern
+import app.babylog.ui.common.cardArtwork
 import app.babylog.ui.common.rememberHaptics
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
-import app.babylog.ui.theme.cardFor
+import app.babylog.ui.theme.cardGradientFor
 import app.babylog.ui.theme.labelFor
 import java.time.ZoneId
 import androidx.compose.foundation.layout.Box
@@ -142,12 +142,11 @@ fun ActivityCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Radius.card))
-            .background(colors.cardFor(accent))
-            // The activity's own glyph, tiled tone-on-tone behind everything below. Identity by shape
-            // as well as hue: the six tints are 12.5 dE apart, which identifies a section at a glance
-            // but not at arm's length in the dark. Drawn after the fill and before the padding, so it
-            // sits UNDER every label, value and row.
-            .activityPattern(card.type, accent)
+            .background(colors.cardGradientFor(accent))
+            // The activity's own Filled Soft artwork: one large illustration in the upper area, then a
+            // handful of scattered shapes and hearts, all in one tone-on-tone colour behind every word.
+            // Identity by shape as well as hue, on the surfaces where the tiled glyph used to sit.
+            .cardArtwork(card.type, accent)
             .padding(Spacing.cardPadding),
     ) {
         // 1. header: accent label, relative time of the last event

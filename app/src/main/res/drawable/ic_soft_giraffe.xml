@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Growth — a giraffe, FILLED (Phase 22). The mascot the reference uses for the growth card: the long neck
+  over a small body is what says "giraffe" at 16dp, so the proportions are the design, not the detail.
+
+  Five additive parts: body, neck, head, two legs, two ossicones. No holes, no colour of its own; tinted at
+  runtime like every other soft illustration.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- ossicones -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M14.8,4.2 a0.8,0.8 0 1 1 0,1.6 a0.8,0.8 0 1 1 0,-1.6 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17.2,4.6 a0.8,0.8 0 1 1 0,1.6 a0.8,0.8 0 1 1 0,-1.6 z" />
+    <!-- neck, tapering up to the head -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.6,15.4 L13.4,5.6 h2.7 L14.6,15.8 z" />
+    <!-- head -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.4,5.6 h3.1 a1.5,1.5 0 0 1 1.5,1.5 v1.5 a1.2,1.2 0 0 1 -1.2,1.2 h-3.4 z" />
+    <!-- legs -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9,16.8 h1.9 a0.8,0.8 0 0 1 0.8,0.8 v3.4 a0.9,0.9 0 0 1 -0.9,0.9 h-1.7 a0.9,0.9 0 0 1 -0.9,-0.9 v-3.4 a0.8,0.8 0 0 1 0.8,-0.8 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.3,16.8 h1.9 a0.8,0.8 0 0 1 0.8,0.8 v3.4 a0.9,0.9 0 0 1 -0.9,0.9 h-1.7 a0.9,0.9 0 0 1 -0.9,-0.9 v-3.4 a0.8,0.8 0 0 1 0.8,-0.8 z" />
+    <!-- body -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.9,16.1 a5.2,3.3 0 1 1 10.4,0 a5.2,3.3 0 1 1 -10.4,0 z" />
+</vector>
