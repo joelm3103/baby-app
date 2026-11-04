@@ -68,7 +68,9 @@ fun parseVersion(raw: String): List<Int>? {
     for (chunk in trimmed.split('.')) {
         val digits = chunk.takeWhile { it.isDigit() }
         if (digits.isEmpty()) break
-        parts += digits.toIntOrNull() ?: break
+        // A segment too large for an Int makes the whole tag unreadable rather than being cut short: dropping
+        // it would compare `1.5.0.99999999999999999999` as `1.5.0` and call a newer release equal to this one.
+        parts += digits.toIntOrNull() ?: return null
         if (digits.length != chunk.length) break
     }
     return parts.ifEmpty { null }
@@ -109,7 +111,13 @@ fun shouldCheckForUpdates(
     lastCheckAtMillis: Long,
     nowMillis: Long,
     intervalMs: Long = UPDATE_CHECK_INTERVAL_MS,
-): Boolean = enabled && (lastCheckAtMillis <= 0L || nowMillis - lastCheckAtMillis >= intervalMs)
+): Boolean {
+    if (!enabled) return false
+    if (lastCheckAtMillis <= 0L) return true
+    if (lastCheckAtMillis > nowMillis) return false
+    // Both values are positive and ordered by the two guards above, so this subtraction cannot overflow.
+    return nowMillis - lastCheckAtMillis >= intervalMs
+}
 
 /**
  * The API endpoint for a `https://github.com/owner/repo` link.

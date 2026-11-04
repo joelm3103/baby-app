@@ -28,6 +28,14 @@ class UpdateCheckTest {
     }
 
     @Test
+    fun aSegmentTooLargeForAnIntMakesTheTagUnreadable() {
+        // Cutting the segment short would compare `1.5.0.99999999999999999999` as `1.5.0` — the newer release
+        // would read as equal to the installed one, and the About row would say it was up to date.
+        assertNull(parseVersion("1.5.0.99999999999999999999"))
+        assertFalse(isNewerRelease("1.5.0", "1.5.0.99999999999999999999"))
+    }
+
+    @Test
     fun aVersionWithNoNumberIsUnreadable() {
         assertNull(parseVersion(""))
         assertNull(parseVersion("beta"))
@@ -71,6 +79,9 @@ class UpdateCheckTest {
         assertFalse(shouldCheckForUpdates(true, now - hour, now))
         assertFalse(shouldCheckForUpdates(true, now - 23 * hour, now))
         assertTrue(shouldCheckForUpdates(true, now - 25 * hour, now))
+        // Exactly a day is due rather than a minute short of one: the boundary is inclusive, and a test that
+        // only brackets it (23 and 25) would pass with either comparison in place.
+        assertTrue(shouldCheckForUpdates(true, now - 24 * hour, now))
     }
 
     @Test

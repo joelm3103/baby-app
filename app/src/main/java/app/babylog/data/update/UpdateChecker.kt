@@ -2,6 +2,8 @@ package app.babylog.data.update
 
 import app.babylog.data.repo.SettingsRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The one place that decides whether the app asks GitHub anything, and what it then stores.
