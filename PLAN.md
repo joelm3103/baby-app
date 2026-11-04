@@ -49,15 +49,15 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 611 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 658 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
 | 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
 | 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **635 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
 | 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice) and nothing is persisted, so it opens on the dial every time. The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
-| 22 — Filled Soft redesign | not started — the visual reference applied across every screen: nine filled illustrations, gradient card fills, and `PatternPaletteTest` rewritten against measured contrast. Was 21 |
-| 23 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.4.0` over the air, verify both phones, then use it for a week before more code. Was 20, then 21, then 22 |
+| 22 — Filled Soft redesign | **DONE, device-verified** — `1.4.1` / versionCode 32; the tiled stroke-glyph watermark is gone, replaced by a per-activity vertical gradient card fill and a two-layer decoration: the activity's illustration as a whole sticker, with scattered silhouettes and hearts spread across the entire card behind it (nine new `ic_soft_*` drawables); **658 tests green**. Two decoration-placement defects were found by measuring the phone's own pixels rather than by looking (a pacifier drawn inside the illustration's silhouette, a heart behind the opaque pill row), and the owner then corrected the design itself on 2026-11-02: the scatter must cover the whole card, not a 76dp band, and the sticker must read as a whole object. The revision was verified on the phone on 2026-11-03 in both themes — every card's geometry read from a `uiautomator` dump and its artwork counted by colour in a `screencap`. **One defect is knowingly open:** on a card with nothing logged the illustration is drawn underneath its first control, because the 48dp band that fixed it was rejected in favour of the previous, more compact cards. See the Phase 22 section |
+| 23 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.4.1` over the air, verify both phones, then use it for a week before more code. Was 20, then 21, then 22 |
 
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -154,10 +154,12 @@ Test counts in the table are the suite size **when that phase landed**, so they 
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified (current state, 2026-11-02): `:app:testDebugUnitTest`, `:app:assembleDebug` and
-`:app:assembleRelease` succeeded. The release APK is `1.4.0` / versionCode 31, signed `CN=BabyLog`, SHA-1
-`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.3.0`. The suite is
-**645/645**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(65 files). The previous close-out was `1.2.0` / versionCode 28 at 611/611; the last nine of these came from
+`:app:assembleRelease` succeeded. The release APK is `1.4.1` / versionCode 32, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>` over `1.4.0`. The suite is
+**658/658**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(66 files). The last thirteen came from Phase 22: eight `CardArtworkTest` and five more in the rewritten
+`PatternPaletteTest`. On 2026-11-03 a 48dp artwork band took the suite to 659 and was reverted the same day at
+the owner's request, so 658 is the rung's count again. The previous close-out was `1.4.0` / versionCode 31 at 645/645; the last nine of those came from
 Phase 20 — five `PostedNotificationTest`, four `ReminderNotificationIdTest`, three `BottleQuickLogTest`, three
 `ReminderSaveTest` — the ten of Phase 21's `WheelTimePickerTest`, and the eleven before them from Phase 19's
 `SettingsNavTest` and `SettingsSummaryTest`. The ladder behind that number: 554 at the Phase-15/Huckleberry close, +11 in
@@ -2433,19 +2435,188 @@ The rows themselves are the behaviour, which the version fields do not change.
 | 13 | Dismissing writes nothing | Cancel and back left the sheet and the log untouched ✅ |
 | 14 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across both font scales, both clock formats and ~20 mode switches ✅ |
 
-## Phase 22 — Filled Soft redesign
+## Phase 22 — Filled Soft redesign — DONE, device-verified (`1.4.1`)
 
-The owner's "Filled Soft" reference, applied across every screen: one large soft-filled illustration plus
-scattered low-opacity filled silhouettes and hearts per activity card, replacing the tiled repeating stroke
-glyph; subtle gradient card fills; and nine filled drawables — bottle, pacifier, baby face, diaper, bowl and
-spoon, giraffe, heart, thermometer, moon — so all six activities including Health and Sleep are covered.
-Measured from the reference PNG: fills Bottle `#614C2A`, Diaper `#1C5745`, Solids `#623639`, Growth `#3E3969`,
-the reminders card `#292D3A`, the page ~`#161A26`; the buttons are the raw accents, which the contract already
-requires. Both themes and all screens, with every text/fill pairing verified numerically and `PatternPaletteTest`
-rewritten rather than deleted. This file's steps 9-15 describe it, unchanged — only the phase number has moved.
+One branch, `feat/phase22-filled-soft`; version `1.4.1` / versionCode 32 — a PATCH, because the card surface
+changed and no capability, control, copy or stored byte did. The owner's "Filled Soft" reference is applied
+across every tinted card: the tiled stroke-glyph watermark is retired in favour of a vertical gradient fill,
+one large filled illustration per activity, and scattered filled silhouettes and hearts. Measured from the
+reference PNG: it draws Bottle `#614C2A`, Diaper `#1C5745`, Solids `#623639`, Growth `#3E3969` — around
+today's 26% tints, so the tint stayed the anchor and the work was the gradient plus the artwork, not a
+repaint.
+
+### As built — 2026-11-02. Read this before the numbers.
+
+**The tokens.** `cardFor(accent)` (the 26% tint) is unchanged and is now the gradient's TOP stop.
+`cardStopsFor`/`cardGradientFor` add a bottom stop pushed `GRADIENT_STEP` **0.06** toward the same accent,
+and `artFor(accent)` is the fill pushed `ART_STEP` **0.14** toward it — the same direction and the same 0.14
+the tiled pattern used, so the old measurements carried over. Both numbers were chosen by measurement rather
+than taste: at 0.04 the gradient is dE 2.1 on the worst card (invisible), at 0.06 it is dE 3.2-4.8 while the
+artwork is still dE 4.2-6.2 from the lower stop, and by 0.14 the artwork's colour IS the lower stop's colour
+and vanishes there. Text holds at any step up to 0.14, because contrast falls monotonically toward the accent
+and the furthest point is already pinned at 4.5:1. `PatternPaletteTest` was REWRITTEN, never deleted, and is
+now eight tests: artwork visibility against the fill (dE >= 7), against the gradient's lower stop (dE >= 4),
+the gradient's own perceptibility (dE >= 3), the top stop pinned equal to `cardFor`, every text token at
+4.5:1 on the artwork and on BOTH stops, and the unchanged chip-glyph 3:1 bar. Measured minima: 7.4, 4.2, 3.2
+and 4.50:1 (the dark Bottle card's artwork, the same value that was already pinned).
+
+**The nine drawables.** `ic_soft_bottle`, `ic_soft_bowl`, `ic_soft_diaper`, `ic_soft_giraffe`,
+`ic_soft_thermometer`, `ic_soft_moon`, `ic_soft_heart`, `ic_soft_pacifier`, `ic_soft_baby_face` — filled
+(`#FFFFFFFF` fills, tinted at runtime), the same construction the seven consistency silhouettes use and the
+opposite of the stroke line-art the chips keep. Before any of them was wired in, all nine were rendered
+through headless Chrome at 150/48/24/16dp and read back: the moon is a crescent (not a disc), the pacifier's
+handle ring has its hole, the giraffe is recognisable, the baby face has a curl, and at 16dp the giraffe,
+nappy, pacifier and head merge into featureless blobs while the heart, bowl, crescent and thermometer still
+read. That check fixed three of them — a self-intersecting curl that rendered as a hole, a thermometer bulb
+barely fatter than its stem, and a pacifier teat that was a 2px stub.
+
+**The reach.** The gradient lands on all seven `cardFor` call sites. The artwork lands on the five card
+surfaces that carry an activity and a value: the six dashboard cards, Summary's total cards, Trends' summary
+card, Health's fever-days card and Growth's callout. The two ~56dp title bars (the logging sheet and the
+entry-list overlay) take the gradient only, because a large illustration cannot fit a title strip.
+
+**The chip glyphs are untouched.** `glyphRes()`/`glyphPainter()` and the six `ic_glyph_*` stroke drawables
+remain for the controls — Summary's filter row, Trends' tabs, the sheet title bars, the entry rows — and
+`Modifier.activityPattern`, its tile machinery (`buildTile`, the 64dp pitch, the 26dp glyph) and
+`patternFor`/`PATTERN_ALPHA` are gone. `grep -rn "activityPattern\|patternFor\|PATTERN_ALPHA" app/src/main`
+returns nothing, and `grep -rn "cardFor(" app/src/main` returns only `Tokens.kt`.
+
+**Tests: 645 -> 658.** Ten `CardArtworkTest` cases (one illustration per activity and never shared, the card
+artwork never being the chip glyph, a deterministic decoration, a sticker that is a whole object inside the card
+and below the title row, a sticker that SHRINKS on a short card rather than being cropped, at least six scattered
+shapes with one in each third of the card's height, at most two of them inside the sticker's footprint, no two
+overlapping, a measured size floor per kind, and every shape staying on the card) and three more in the rewritten
+`PatternPaletteTest` (5 -> 8).
+
+### Two defects the phone found, and how they were found
+
+**Half the decoration on the Bottle card was drawn and invisible, and no screenshot would have caught it.**
+Measuring the phone's own pixels — connected components of the exact artwork colour in a `screencap` — showed
+three shapes where the list declared five. The pacifier was drawn *inside* the large bottle's silhouette: two
+shapes in the same tone are one shape. One heart was drawn *under* the opaque quick-log pill row. The same
+method showed the Diaper card's baby face behind its Wet/Dirty pills. Both were placement bugs, and the first
+build's answer was to keep every scattered shape above the band where a card fills with opaque controls —
+`CARD_ART_CONTROL_BAND_DP`, 76dp, the tightest of the six cards (the Diaper value is followed by its Wet/Dirty
+pills at ~80dp, while the Bottle pills do not begin until 137dp).
+
+The fix also removed a silent-skip API: the painter lookup was a map with an `if (containsKey)` guard whose
+`?:` turned a missing entry into an undrawn shape instead of a crash. It is now an index-parallel list with
+nothing to skip.
+
+### The owner's correction, 2026-11-02 — across the whole card, sticker in front
+
+**The 76dp band was the wrong fix, and the owner said so on the phone: "the rendered shapes only apply to the
+title area and not the entire activity card… the image should look more like [the reference] with a sticker
+like render first and then random shapes at the back, gives the app more life."** Both halves of that were
+acted on, and it changed the shape of the feature rather than a number in it:
+
+- **The scatter now covers the whole card.** `CardScatter` positions each shape by `xFraction`/`yFraction` of
+the card instead of a dp offset from the top. That is the only way one placement list can serve a ~110dp
+Summary total and a ~400dp feed card: a dp offset that graced the tall card fell off the short one, and the
+band rule had confined the decoration to the top quarter of every card. `CardArtworkTest` now asserts at
+least six shapes with one in each third of the card's height, which is the property the owner was asking for
+stated as a test.
+- **The sticker is a whole object.** It is anchored to the card's right edge with a 10dp margin, so it stays
+inside on every screen width — the first build anchored it as a fraction of the width and let it run off the
+card, which reads as a cropped watermark. It starts at 46dp, below the title row, so its tone never sits
+behind the activity label or the relative time. And `stickerSideDp` clamps it to the card's height: a ~110dp
+Summary card carries a smaller WHOLE sticker (56dp) rather than the top half of a 124dp one.
+- **The tone did not change, and the reason is measured.** The ceiling is the same for both layers, because
+the scatter is now everywhere, so the big value and a FEVER number can sit on a scattered shape as easily as
+on the sticker. The largest step that keeps every card token at 4.5:1 is **0.14 on both themes**, and the
+binding pair is the Health card's fever number (4.59:1) — not the meta text, which would have allowed 0.28 if
+`textOnCard` were lifted to pure white. Raising the tone for a punchier sticker would weaken the one cue that
+marks a fever, so the hierarchy between the two layers is **size and order, never tone**: one sticker at
+124dp in front, eight shapes at 22-30dp behind it.
+- **What replaced the band rule.** A scattered shape may now be covered by the card's content — that is what
+"at the back" means, and the set is spread so no single opaque control can hide the effect. The one rule kept
+from the device pass is that **at most two shapes may fall inside the sticker's footprint**, because a shape
+drawn under the opaque sticker is drawn and invisible.
+
+The revision was measured the same way as the first build (component analysis of the phone's own pixels) and
+was **device-verified on 2026-11-03**, in both themes: see the pass at the end of this section.
+
+### The empty-card defect: a 48dp band was built, installed and rejected on sight, 2026-11-03
+
+The owner reported from the phone that the decoration showed on Bottle feed and Diaper only — the other four
+cards stayed bare until something was logged. **Cause, measured from the pass's own `uiautomator` dump and
+its own pixels:** the sticker is anchored at `STICKER_TOP_DP` 46 and clamped by the card's HEIGHT, so nothing
+in the placement knows where the card's first opaque control begins. On a card with nothing logged the only
+content is the full-width log button at ~50-58dp, i.e. above the sticker's top edge, so the illustration was
+drawn entirely underneath it: 12dp visible on Solids and Health, 4dp on Sleep and Growth, and 0dp of the
+sticker's own body on Sleep once measured by colour rather than by eye. A Bottle card, whose pills start at
+154dp, showed 108dp.
+
+**A band was then built and it did what it said:** `CARD_ART_BAND_DP` 48dp reserved above the first control
+(`cardArtBandDp`, `stickerClearDp`, one new `CardArtworkTest` case, 659 tests), installed on `<handset>`,
+and measured there at 199.7dp/50.4dp visible on the empty Health card and 140.6dp/38.0dp on the empty Sleep
+card, with artwork pixels present in both themes. **The owner saw it and preferred the previous, more compact
+cards, and asked for the change to be reverted** — so it is gone from the working tree: the constant, the two
+helpers, the spacer, the test case and the doc entries were removed and the rung is unchanged.
+
+**The defect therefore stands, knowingly.** A card with nothing logged draws its illustration under the log
+button. If it is ever revisited, the shape of the fix is that the sticker's TOP and CLAMP follow the card's
+first control rather than the card's top edge and height — which needs no extra height, and is what the
+rejected band bought with 48dp. Nothing was written toward it.
+
+### Device pass, 2026-11-02 — `<handset>` (SM-S918U1), `1.4.1`, release-signed install in place
+
+`adb install -r` over the delivered `1.4.0` (`versionCode=32 versionName=1.4.1` read back from
+`dumpsys package`), with the foreground checked before every input and every tap coordinate taken from a
+`uiautomator dump`. The pixel tools live in `logs/phase22-device/` (gitignored): `pixels.js` reports the
+dominant colour per band and counts target colours, `components.js` finds connected components of one
+colour so a shape's exact box can be compared with the placement maths. This table describes the **first
+build** — the one-tone tile replacement with the scatter in the top band; the revised two-layer decoration
+was installed and looked at afterwards, and is described in the note below.
+
+| Check | What the phone showed |
+|---|---|
+| The gradient is a gradient, not a band | The Bottle card's bands step `#5b4f3d` → `#63553f` down the card (the two token stops), and the entry-list overlay's title bar steps the same way |
+| Every declared shape is drawn where the maths says | Component boxes matched the computed placement boxes within anti-aliasing, on the dashboard cards for Bottle/Diaper/Solids/Growth, on Summary's Bottle and Diaper totals, on Trends' summary card, on the Health fever-days card and on the Growth callout (1 large + 4 scattered on each) |
+| The artwork is visible in BOTH themes | Light theme: the Bottle card's artwork (`#DACAA3` on `#E5D9BD`) is present with the same 1 large + 4 scattered components: the theme the measurement said was most at risk |
+| Text stays legible | Read off the screenshots: every label, number and button legible on all six tinted cards in both themes, with the gold button and the raw-accent pills unchanged |
+| The log is untouched | The visible entry times are byte-identical to the dump taken before the first install (`5:39 AM` x2) — the phase's own claim is "no stored-data change", and this is what checking it looks like |
+| `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, ~10 screens, both themes, scrolling and a tab switch |
+| The owner's settings were left as found | The theme was switched to Light for the pass and returned to `System`, and `Settings -> About` reads `1.4.1` |
+
+**Left open:** whether the scatter is now *enough* texture at the size the phone renders it, and whether the
+light theme carries it — genuinely the owner's eye, and now a question about coverage rather than about tone,
+which the measurement above closes.
+
+**Was left open, now run.** The revision's own phone pass began on 2026-11-02 and the device then dropped off
+USB mid-pass — first no serial (`(no serial number) device`), then `offline`, which is a device-side state
+(re-plug, or accept the USB debugging prompt) that no host command fixes. It was completed on 2026-11-03 on the
+final build; nothing in the revised layout now rests on a browser preview.
+
+### Device pass, 2026-11-03 — the revised decoration, both themes
+
+Same device, same method, on the final build. `adb devices` reported `unauthorized` until the prompt on the
+handset was accepted, which is what had blocked this pass. Geometry comes from a `uiautomator dump` and the
+artwork from counting its exact colour in a `screencap`, with that colour derived from `artFor(accent)` in
+`Tokens.kt` rather than sampled by eye. The captures and dumps are in `logs/phase22-band/` (gitignored).
+
+| Check | What the phone showed |
+|---|---|
+| The install and the app | `adb install -r` → `Success`; `dumpsys package` reads `versionCode=32 versionName=1.4.1`; the foreground was `app.babylog/.MainActivity` before every input, and every coordinate came from a dump |
+| The decoration is there on a card that has a log | The Growth card, 183.4dp tall, carries **9897** artwork-coloured pixels above its first control in dark and **9910** in light |
+| A card with nothing logged | Health 154.7dp and Sleep 95.6dp, with **1973/2031** and **1127/1109** artwork pixels above the button — the thin scatter strip only. The sticker itself is drawn underneath: this is the knowingly-open defect below, measured rather than assumed |
+| The band, before it was reverted | The same two cards at 199.7dp and 140.6dp, with **8982** and **11040** artwork pixels above the button, so the revert gives back about 45dp and takes 78% of Health's and 90% of Sleep's visible artwork |
+| Both themes | Every measurement repeated with the system night mode toggled through `cmd uimode night` and then restored to dark. The layout did not move a single dp between themes, as expected: nothing in the placement reads the theme |
+| `logcat -b crash -d` | **0** `FATAL EXCEPTION` across both installs and every screen they were driven through |
+| What was NOT re-measured | Tone, contrast and the gradient's steps: no token changed on 2026-11-03, and `PatternPaletteTest` pins all of them |
+
+**Knowingly open, and not fixed by request:**
+
+- **A card with nothing logged draws its illustration underneath its first control** (the band that fixed it is
+  above). The shape of a fix costing no height is stated there.
+- **On a short card the clamped sticker is inset from the right edge further than its 10dp margin.** The draw
+  offset is computed from the PREFERRED `sticker.sizeDp` while the drawn side is the clamped
+  `stickerSideDp` value, so a card that clamps to 86.6dp measured a right margin of 47.4dp instead of 10 — the
+  object is not drifting off the card, it is adrift from its own documented anchor. Found while measuring this
+  pass; out of scope here because the owner asked for no further change to the cards.
 
 ## Phase 23 — Ship
-Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.4.0` release
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.4.1` release
 APK to both phones through App Distribution, verify the shared catalogue and pending-food flow on both, then
 use the delivered build for **a week before writing another line of code**.
 

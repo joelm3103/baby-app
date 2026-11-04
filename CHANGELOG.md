@@ -17,10 +17,42 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-03]
+
+**In short:**
+
+- **Phase 22 lands: the Filled Soft card surface**, described in full under 2026-11-02 — a per-activity gradient fill, one filled illustration per activity, and scattered silhouettes and hearts behind everything on every tinted card. Nothing in `app/src` differs from what 2026-11-02's entries describe: today's only code change, a 48dp band, was added and reverted inside the same session.
+- **The empty-card decoration was measured, a fix was built and installed, and the owner rejected it on sight** — the illustration therefore stays hidden under the log button on a card with nothing logged, knowingly, and the plan records the numbers and the shape of a fix that would cost no height.
+- **The device pass the previous day's USB drop left open was completed**, on the final build, in both themes.
+
+### Versions
+
+- `1.4.1` / versionCode 32 — **Phase 22, the Filled Soft redesign**. A PATCH rung: the card surface changed and no capability, control, copy or stored byte did. Ship moves to Phase 23, which now delivers this build.
+  - Listed here rather than under 2026-11-02, where the entry's work is described: that section recorded the work as it was done, and this is the day the build landed. The other lines of the entry are unchanged.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `1.4.1`, 2026-11-03
+
+The pass the previous day's USB drop interrupted, run on the final build: `adb install -r` over the band build, `versionCode=32 versionName=1.4.1` read back from `dumpsys package`, the foreground checked before every input, and every coordinate taken from a `uiautomator dump`.
+
+| Check | What the phone showed |
+|---|---|
+| The revised decoration is there on a card that has a log | The Growth card, 183.4dp tall, carries **9897** artwork-coloured pixels above its first control in dark and **9910** in light |
+| What a card with nothing logged shows | Health 154.7dp, Sleep 95.6dp — **1973** and **1127** artwork pixels above the button, which is the thin scatter strip, not the illustration: the sticker itself is drawn underneath it |
+| What the rejected band did | The same two cards at 199.7dp and 140.6dp, with **8982** and **11040** artwork pixels above the button in the same measurement — so the revert gives back about 45dp and takes 78% of the artwork pixels above Health's button and 90% of those above Sleep's |
+| Two themes, no crash | Both measurements repeated in light and dark; `logcat -b crash -d` holds **0** `FATAL EXCEPTION` across today's two installs and every screen they were driven through |
+| The phone was left as found | The system night mode was returned to dark, and `Settings -> About` reads `1.4.1` |
+
+### Tests
+
+- **658 tests, 0 failures, 0 errors and 0 skipped across 66 XML files**, summed from `app/build/test-results/testDebugUnitTest/*.xml` on the final tree. This is the 2026-11-02 count: the day's one addition, a case for the 48dp band, went out with the band and no other case moved.
+- `CardArtworkTest` is 10 cases in the file and 10 in its XML, matching the entry above; `PatternPaletteTest` is 8.
+
 ## [2026-11-02]
 
 **In short:**
 
+- **The card surface is now Filled Soft: a per-activity vertical gradient, one large filled illustration and scattered silhouettes and hearts, in place of the tiled stroke-glyph watermark** — nine new drawables, a measured gradient derivation, and `PatternPaletteTest` rewritten rather than deleted.
+- **Two decoration-placement defects were found by counting the phone's own pixels and fixed:** half of the Bottle card's scattered shapes were drawn inside the large illustration's silhouette or behind the opaque quick-log pill row — drawn, and invisible.
 - **Settings became a category menu with a submenu per group, and back means "up one level" before it means "leave Settings"** — a tested value (`SettingsNav.back()`), not an `if` in the handler. No setting moved between groups and no control changed, only how they are reached.
 - **Four tracking changes landed: one-tap bottle presets on the card, the child's name instead of an initial on Both-mode cards and rows, a reminder sheet that sets and removes without asking whether to notify, and posted reminders cleared when the feed is logged or the rule goes off.**
 - **The Phase 19 pass found two defects in its own new rows, both fixed and re-verified on the phone:** the Children row said `2 childs`, and the growth-reference value wrapped to two lines and made its row taller than every other row in the menu.
@@ -35,6 +67,17 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Added
 
+- **Nine filled `ic_soft_*` drawables and a card-artwork modifier: the "Filled Soft" card decoration**, replacing the tiled stroke glyph. `Modifier.cardArtwork(type, accent)` draws two layers: the activity's own illustration as a whole sticker on the card's right, and eight scattered silhouettes and hearts spread across the whole card behind it — all of it behind the card's content, because the log's numbers are the data.
+  - `EventType.artRes()` maps bottle, bowl and spoon, diaper, giraffe, thermometer and moon; heart, pacifier and baby face are the shared motifs, so Health and Sleep are covered as well as the four reminder activities.
+  - `Why:` the tiled glyph was texture. The reference draws the same idea as a picture, which reads as the activity at a glance without putting a pattern behind every word.
+  - Authored on the 24dp viewport with solid `#FFFFFFFF` fills, tinted at runtime — the construction the seven consistency silhouettes already use, and the opposite of the stroke line-art the chips keep.
+  - All nine were rendered through headless Chrome at 150/48/24/16dp and read back before being wired in. That check changed three of them: a self-intersecting curl that rendered with a hole, a thermometer bulb barely fatter than its stem, and a pacifier teat that was a 2px stub.
+- **`cardGradientFor(accent)` and `cardStopsFor(accent)` in `Tokens.kt`**: the 26% tint stays the TOP stop, and the bottom stop is that fill pushed `GRADIENT_STEP` **0.06** further toward the same accent.
+  - The step is measured, not taste: at 0.04 the fall-off is dE 2.1 on the worst card (invisible), at 0.06 it is dE 3.2-4.8 while the artwork is still dE 4.2-6.2 from the lower stop, and by 0.14 the artwork's colour IS the lower stop's colour and vanishes there.
+  - Text is safe at any step up to `ART_STEP`, because contrast falls monotonically as the fill moves toward its accent and the furthest point is pinned at 4.5:1 — the worst lower-stop pairing measured is 5.05:1 dark / 5.06:1 light.
+- **`artFor(accent)` — the artwork's tone, and `ART_STEP` 0.14**, unchanged from the retired `PATTERN_ALPHA` so the old measurements carried over: dE 7.4-10.9 dark and 7.5-10.4 light against the fill it sits on.
+  - Drawn OPAQUE rather than as a translucent accent, because compositing the accent at that alpha over an opaque fill gives exactly this colour, and an opaque value keeps the card's text guarantee a single number instead of an alpha stack.
+- **`CardArtworkTest` (8 cases)** and five new `PatternPaletteTest` cases, described under Tests below.
 - **`SettingsSection`** names each of the eleven settings groups once, and its declaration order is the menu order.
   - A group's `title` is the menu row, the submenu heading and what the back arrow returns to. A second label beside it is how the two come to disagree.
   - `Why:` the shape it replaces was one long list of eleven section cards, where reaching bottle presets meant scrolling past six unrelated groups.
@@ -53,6 +96,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Changed
 
+- **Every tinted card is a gradient with Filled Soft artwork on it.** The gradient lands on all seven `cardFor` call sites; the illustration lands on the five surfaces that carry an activity and a value — the six dashboard cards, Summary's total cards, Trends' summary card, Health's fever-days card and Growth's callout. The two ~56dp title bars (the logging sheet and the entry-list overlay) take the gradient only, because a large illustration cannot fit a title strip.
+  - The chip glyphs are untouched: `glyphRes()`, `glyphPainter()` and the six `ic_glyph_*` drawables remain for Summary's filter row, Trends' tabs, the sheet title bars and the entry rows.
+  - `Modifier.activityPattern`, its tile machinery (the 26dp glyph, the 64dp pitch, `buildTile`) and `patternFor`/`PATTERN_ALPHA` are gone. `grep -rn "activityPattern\|patternFor\|PATTERN_ALPHA" app/src/main` returns nothing, and `grep -rn "cardFor(" app/src/main` returns only `Tokens.kt`.
+- **`PatternPaletteTest` was rewritten, never deleted** — the class name stays, because `AGENTS.md` and `PLAN.md` both name it as the guard on the card palette. It is now eight assertions: artwork visible against the fill, artwork still separable from the gradient's lower stop (dE >= 4), the gradient perceptible (dE >= 3), the top stop pinned equal to `cardFor`, every text token at 4.5:1 on the artwork and on BOTH stops, and the unchanged chip-glyph 3:1 bar.
+  - `Why:` the old pattern assertions would have kept passing while guarding nothing, which is worse than no test.
 - **Settings renders one view at a time** — the menu, or one group under a back arrow.
   - Every control, validation, confirmation, gating rule and destructive dialog is the original code, moved rather than rewritten. Nothing was dropped and nothing moved between groups.
   - The old alternating `surfaceRaised` shading is gone: it existed to separate consecutive cards down one long scroll, and one card per view has no boundary for a shade to fall between.
@@ -180,9 +228,41 @@ assertion, which claimed switching halves and back was identity. It is not — t
 and the test now pins what is actually true instead: the half flips, the hand does not move, and each shift is
 idempotent.
 
+### Verified on the phone — `<handset>` (SM-S918U1), `1.4.1`, 2026-11-02
+
+Release-signed `adb install -r` over the delivered `1.4.0` (`versionCode=32 versionName=1.4.1` read back from
+`dumpsys package`), with the foreground checked before every input and every tap coordinate taken from a
+`uiautomator dump`.
+
+| Check | What the phone showed |
+|---|---|
+| The gradient is a gradient | The Bottle card's bands step `#5b4f3d` to `#63553f` down the card, and the entry-list overlay's title bar steps the same way ✅ |
+| Every declared shape is drawn where the maths says | Connected-component analysis of the artwork's exact colour found 1 large + 4 scattered shapes on the dashboard's Bottle, Diaper, Solids and Growth cards, on Summary's Bottle and Diaper totals, on Trends' summary card, on Health's fever-days card and on the Growth callout, each box matching the placement arithmetic within anti-aliasing ✅ (the layout in this table is the **first** build's; the owner's correction below replaced it) |
+| The light theme is not a wash-out | Switched to Light in Settings and repeated the measurement on the Bottle card: the artwork (`#DACAA3` on `#E5D9BD`) is present with the same 1 large + 4 scattered components, and every label, number and button reads ✅ |
+| The scatter reaches the whole card | The first build's revision was measured the same way: eight shapes on the Bottle card, their boxes at card-relative y 0.05 to 0.92, one behind the opaque accent button ⚠ the phone dropped off USB before the rest of the revision's pass, so this is the only revision row with device evidence |
+| The log is untouched | The visible entry times are identical to the dump taken before the first install (`5:39 AM` twice), which is what "no stored-data change" has to mean in practice ✅ |
+| `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two installs, both themes, ~10 screens, scrolling and a tab switch ✅ |
+| The owner's settings were left as found | The theme was returned to `System`, and `Settings -> About` reads `1.4.1` ✅ |
+
+**Two defects this pass found, and how:** the Bottle card showed three shapes where five were declared. Counting
+connected components of the artwork colour in a screenshot located the missing two exactly — the pacifier was
+drawn inside the large bottle's silhouette (two shapes in one tone are one shape), and a heart was drawn under
+the opaque quick-log pill row. The Diaper card's baby face was behind its Wet/Dirty pills for the same reason.
+Both are now impossible by assertion: a scattered shape must end left of the large illustration's footprint,
+and must finish above `CARD_ART_CONTROL_BAND_DP` (76dp), because the band where a card fills with opaque
+controls starts at different heights per card — the Bottle pills begin at 137dp and the Diaper pills at ~80dp —
+while one placement list serves every card.
+
+The fix also removed a silent-skip API: the painter lookup was a map with an `if (containsKey)` guard whose `?:`
+turned a missing entry into an undrawn shape instead of a crash. It is now an index-parallel list with nothing
+to skip.
+
 ### Tests
 
-- **611 → 645: thirty-four cases in seven new classes, none of them about layout.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `ReminderNotificationIdTest` (4), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3).
+- **611 → 658: forty-seven cases in eight new classes.** Phase 19 added `SettingsNavTest` (5) and `SettingsSummaryTest` (4); Phase 20 added `PostedNotificationTest` (5), `ReminderNotificationIdTest` (4), `BottleQuickLogTest` (3) and `ReminderSaveTest` (3); Phase 21 added `WheelTimePickerTest` (10); Phase 22 added `CardArtworkTest` (10) and three net cases in the rewritten `PatternPaletteTest` (5 → 8).
+- **`CardArtworkTest` (10) pins the artwork's mapping and its geometry**: one illustration per activity and never shared, the card artwork never being the chip glyph, a decoration that is deterministic, a sticker that is a whole object inside the card and below the title row, a sticker that SHRINKS on a short card instead of being cropped (`stickerSideDp`), at least six scattered shapes with one in each third of the card's height, at most two of them inside the sticker's footprint, no two overlapping, a measured size floor, and every shape staying on the card.
+  - `Why:` the correction of 2026-11-02 is the reason two of those exist — the first build's scatter sat in a 76dp band because that is where it could not be covered, and the owner's answer was that a card decorated only in its title area has no life in it.
+  - `Why:` every one of those is a way the first build was wrong or could be wrong without a compile error — and two of them (drawn inside the illustration, drawn under a pill) had already shipped into a device pass.
 - `SettingsNavTest` (5) pins what a build cannot see: that the menu is the root and its back answer is null,
   that every submenu's back lands on the menu, that opening from a submenu replaces rather than nests, and that
   the eleven menu entries exist in their order with unique non-blank names.

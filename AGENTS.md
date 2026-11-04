@@ -170,10 +170,53 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   `feverOnCard` exists for tinted surfaces (fill and outline both 5.71:1 on the Health card, 4.80:1 worst
   of the six; 10.39:1 for the word on the fill). A tinted number was measured legible at 5.20:1 and was
   still invisible on the phone, which is why the marker has a shape and the word inside it.
-- **Each card is watermarked with its activity's OWN GLYPH, tiled tone-on-tone.** Six stroke drawables
-  (`res/drawable/ic_glyph_*`) go through `EventType.glyphRes()`; `Modifier.activityPattern()` fills the card
-  with the glyph repeated at 26dp on a 64dp pitch, alternate rows offset half a pitch, and the same glyphs
-  sit solid at 14dp inside the activity chips.
+- **A card is FILLED SOFT: a vertical gradient fill, the activity's illustration as a sticker, and
+  scattered shapes behind it across the whole card (Phase 22, 2026-11-02).** Nine filled drawables
+  (`res/drawable/ic_soft_*`) go through `EventType.artRes()` — bottle, bowl and spoon, diaper, giraffe,
+  thermometer, moon, plus the shared motifs heart, pacifier and baby face — and `Modifier.cardArtwork(type,
+  accent)` draws two layers: the **sticker** in front of the decoration, the **scatter** behind it, both
+  behind the card's content.
+  - The fill is `cardGradientFor(accent)`: the top stop is the 26% tint `cardFor(accent)` unchanged, and
+    the bottom stop is that fill pushed **`GRADIENT_STEP` 0.06** further toward the same accent (dE 3.2-4.8,
+    so it reads as a fall-off rather than a band). Text is safe at any step up to `ART_STEP`, because text
+    contrast falls monotonically as the fill moves toward its accent and the furthest point is already
+    pinned at 4.5:1.
+  - Both layers are drawn OPAQUE in the ONE tone `artFor(accent)` — `ART_STEP` **0.14** toward the accent,
+    the measured direction the tiled pattern used (dE 7.4-10.9 dark, 7.5-10.4 light) — NEVER white: white
+    over a 26% tint measures dE 3 and 4.2:1 at alpha 0.04 and is invisible in the light theme.
+  - **The one tone is not laziness, and the reason is measured.** The ceiling is the same for both layers,
+    because the scatter covers the whole card, so the big value and a FEVER number can sit on a scattered
+    shape exactly as they can on the sticker. The largest step keeping every card token at 4.5:1 is 0.14 on
+    BOTH themes, and the binding pair is the Health card's fever number (4.59:1), not the meta text — so a
+    stronger "sticker" would weaken the one cue that marks a fever. **The hierarchy between the two layers
+    is therefore SIZE AND ORDER, never tone.**
+  - **The sticker is a whole object, not a cropped watermark.** It is anchored to the card's RIGHT edge with
+    a margin (`CardSticker.rightMarginDp`) so it stays inside on every screen width, starts below the title
+    row (`topDp` 46) so it never puts its tone behind the activity label or the relative time, and is clamped
+    to the card's height by `stickerSideDp` — a ~110dp Summary total card carries a smaller WHOLE sticker
+    rather than the top half of a big one. The first build anchored it as a fraction of the width and let it
+    run off the card edge; the owner rejected that as lifeless on 2026-11-02.
+  - **A card with nothing logged draws that illustration UNDERNEATH its first control, knowingly.** On an
+    empty card the only content is the full-width log button, which starts at ~50-58dp — above the sticker's
+    46dp anchor — so the sticker is drawn and invisible (measured 2026-11-03: 12dp of it visible on Solids and
+    Health, 4dp on Sleep and Growth). A 48dp band reserved above the first control fixed it, was installed and
+    measured on the phone, and the owner **rejected it on sight in favour of the previous, more compact cards**,
+    so it must not be re-added. The fix that costs no height is the sticker's `topDp` and its clamp following
+    the card's FIRST CONTROL instead of the card's top edge and height; it is written down in `PLAN.md` and was
+    not built.
+  - **The scatter covers the whole card.** Each shape's `xFraction`/`yFraction` are fractions of the card,
+    not dp offsets, because one list serves a ~110dp callout and a ~400dp feed card: dp offsets that graced
+    the tall card fell off the short one, and the first build's 76dp "safe band" left the decoration in the
+    title area only — the defect the owner found on 2026-11-02. `CardArtworkTest` now asserts at least six
+    shapes with one in each third of the card's height.
+  - **A scattered shape may be covered by the card's content, and that is what "at the back" means.** The
+    set is spread rather than clustered, so no single opaque control can hide the effect; the one rule kept
+    from the first build's device pass is that at most two shapes may fall inside the sticker's footprint,
+    because a shape drawn under the opaque sticker is drawn and invisible.
+  - Because the artwork sits behind every word, `textOnCard` (`#DCDEE7` / `#404E69`) stays where it was
+    lifted to; `PatternPaletteTest` asserts the artwork's visibility, the gradient's perceptibility, and
+    every text pairing for six accents × both themes. Raising `ART_STEP`, retuning an accent, widening the
+    tint or moving a placement goes through those tests.
 - **Three kinds of chip carry three different pictures (Phase 14, 2026-10-25).** *Activity* chips carry the
   activity's glyph. *Growth metric* chips carry their OWN mark — `GrowthMetric.iconRes()`: a scale for
   Weight, an up arrow off a floor for Length, a head with a curl for Head — because the activity glyph would
@@ -183,12 +226,10 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   evidence of that all along. Each short label carries a `spoken` form as its `contentDescription`; `2W` read
   aloud is not an instruction. The owner asked for the full glyph reach on 2026-10-25 (sheet title bars,
   entry rows, Both-mode column heads), so do not "restore" the old rule that the glyph belongs on cards and
-  activity chips only. The pattern colour is `patternFor(accent)` — the card fill
-  pushed **0.14** toward its own accent (dE 7–11 dark, 7–10 light), NEVER white: white over a 26% tint
-  measures dE 3 and 4.2:1 at alpha 0.04, and is invisible in the light theme. Because the pattern sits
-  behind every word, `textOnCard` was lifted (`#DCDEE7` / `#404E69`) so meta text still clears 4.5:1 on a
-  tile; `PatternPaletteTest` asserts all of it for six accents × both themes. Raising the alpha, retuning an
-  accent, or lowering the tint goes through that test.
+  activity chips only. The stroke glyphs are the CONTROL family and never the card's decoration: since
+  Phase 22 a card is decorated by the filled illustrations and the gradient above, and
+  `ActivityGlyphTest`/`CardArtworkTest` pin that a chip's glyph and a card's artwork can never be the same
+  asset. Raising an alpha, retuning an accent or lowering the tint goes through `PatternPaletteTest`.
 - **A nappy's colour is a LITERAL colour, not an activity accent.** Yellow, Brown, Black, Green, Red and
   White are what the parent SAW (`DiaperSwatch` in `Tokens.kt`), so the one-hue-per-activity rule does not
   reach them — a brown stool is not "BabyLog's anything" — and `danger` (a destructive action) and
@@ -439,7 +480,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-645 unit tests through Phase 21 (`1.4.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+658 unit tests through Phase 22 (`1.4.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -478,7 +519,7 @@ only, and `1.0.0` is the first release.
 | | | 19 settings submenus | `1.2.1` |
 | | | 20 tracking changes | `1.3.0` |
 | | | 21 time picker | `1.4.0` |
-| | | 22 Filled Soft redesign | pending |
+| | | 22 Filled Soft redesign | `1.4.1` |
 | | | 23 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
@@ -502,7 +543,8 @@ a batch of five `todo.txt` items on `1.1.0`**, **Phase 18 is the published food 
 and changed none of them — **Phase 20 is the four tracking changes on `1.3.0`**, a MINOR because a preset that
 logs a feed in one tap is a capability the app did not have — **Phase 21 is the time picker on `1.4.0`**, a
 MINOR because the dial and the wheels are two input modes the app did not have — **Phase 22 is the Filled
-Soft redesign**, which holds no commits and no rung yet — and **Phase 23 is Ship**. Ship has no commits and
+Soft redesign on `1.4.1`**, a PATCH because the card surface changed and no capability, control, copy or
+stored byte did — and **Phase 23 is Ship**. Ship has no commits and
 moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
