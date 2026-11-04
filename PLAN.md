@@ -57,7 +57,7 @@ everything after it is additive.**
 | 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **635 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
 | 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice) and nothing is persisted, so it opens on the dial every time. The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
 | 22 — Filled Soft redesign | **DONE, device-verified** — `1.4.1` / versionCode 32; the tiled stroke-glyph watermark is gone, replaced by a per-activity vertical gradient card fill and a two-layer decoration: the activity's illustration as a whole sticker, with scattered silhouettes and hearts spread across the entire card behind it (nine new `ic_soft_*` drawables); **658 tests green**. Two decoration-placement defects were found by measuring the phone's own pixels rather than by looking (a pacifier drawn inside the illustration's silhouette, a heart behind the opaque pill row), and the owner then corrected the design itself on 2026-11-02: the scatter must cover the whole card, not a 76dp band, and the sticker must read as a whole object. The revision was verified on the phone on 2026-11-03 in both themes — every card's geometry read from a `uiautomator` dump and its artwork counted by colour in a `screencap`. **One defect is knowingly open:** on a card with nothing logged the illustration is drawn underneath its first control, because the 48dp band that fixed it was rejected in favour of the previous, more compact cards. See the Phase 22 section |
-| 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **676 tests green** (18 new: 9 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
+| 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **677 tests green** (19 new: 10 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
 | 24 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.5.0` as a GitHub Release to both phones, verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23 |
 
 
@@ -158,9 +158,9 @@ below — Phase 11 landed at 308, for instance. They are evidence at the time, n
 Verified (current state, 2026-11-04): `:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
 Phase 23 tree. The release APK is `1.5.0` / versionCode 33, signed `CN=BabyLog`, SHA-1
 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`, where About was driven in both
-themes and the live GitHub 404 was read back as `No release published yet.`. The suite is **676/676**, 0
+themes and the live GitHub 404 was read back as `No release published yet.`. The suite is **677/677**, 0
 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (69 files). The
-last eighteen came from Phase 23: nine in `UpdateCheckTest`, two in `GitHubReleaseParseTest` and seven in
+last nineteen came from Phase 23: ten in `UpdateCheckTest`, two in `GitHubReleaseParseTest` and seven in
 `UpdateCopyTest`. The previous close-out was `1.4.1` / versionCode 32 at
 658/658 (`<handset>`, over `1.4.0`), and the last thirteen of those came from Phase 22: ten
 `CardArtworkTest` and three more in the rewritten `PatternPaletteTest`; before that `1.4.0` / versionCode 31 at 645/645, whose last nine came from
@@ -2702,6 +2702,24 @@ The first attempt found **no device**: `adb devices` was empty at 10:0x, which i
 | Turning it back on | Tapping again restored `No release published yet.` and the button — the switch is read back from DataStore, not remembered in the composition |
 | Both themes | Every row identical with `cmd uimode night no`, including the amended privacy sentence; the system night mode was then returned to dark |
 | Crash buffer | `logcat -b crash -d` → **0** `FATAL EXCEPTION` across the install, both switches and both themes |
+
+### The review, 2026-11-04 — four fixes before the merge
+
+A read-only reviewer over the diff found no critical defect and five warnings. Four were real enough to fix:
+two checks could run concurrently and store their answers in completion order; the switch read only *before*
+the request, so turning it off mid-flight still wrote a fresh result; a version segment too large for an `Int`
+was cut short, so `1.5.0.99999999999999999999` compared equal to `1.5.0` and a newer release would have read as
+up to date; and the interval subtracted timestamps in a way that could overflow on a corrupt stored value.
+`UpdateChecker` gained one `Mutex` gate with the due decision re-read inside it, `run()` re-reads the switch
+after the answer, `parseVersion` returns null rather than truncating, and `shouldCheckForUpdates` guards before
+subtracting. Declined: a size limit on the response body — a truncated read would report a real release as
+`Could not reach GitHub`, a worse lie than an unbounded read from a trusted endpoint with a five-second timeout.
+
+**The fixed build is not on the phone.** The pass above measured the tree as it stood before these four fixes;
+the APK carrying them was built and tested afterwards (`1.5.0` / versionCode 33, same rung) but the handset came
+back detached, so `adb install -r` never ran against it. Nothing the pass observed changes — the fixes are
+internal and the layout is untouched — but the phone holds the earlier build of the same versionCode, and Phase
+24's delivery is what puts the merged APK on both.
 
 **What this pass does not claim:** that switching off stops the request at the network. The button vanishing and
 the stored preference are observed; the guard that makes "off means no request at all" true is

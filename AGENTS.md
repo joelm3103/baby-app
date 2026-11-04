@@ -500,7 +500,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-676 unit tests through Phase 23 (`1.5.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+677 unit tests through Phase 23 (`1.5.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /

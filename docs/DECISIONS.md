@@ -188,6 +188,12 @@ Android requires anyway.
   different sentences, and none of them suggests the log is at risk.
 - **A clock that went backwards does not make it ask forever.** A negative age fails the interval; the
   alternative is a phone hammering GitHub until the clock catches up.
+- **Two checks never race, and one tap does not become two.** The checker holds a single gate and re-reads the
+  stored timestamp inside it, so a launch that arrives while a manual check is in flight finds that check just
+  ran and asks nothing. Two taps are two questions asked in turn, not two requests at once — concurrent asks
+  stored their answers in completion order, which let an older answer overwrite a newer one.
+- **Switching it off mid-request drops that request's answer.** The switch is read again after GitHub replies,
+  so a parent who said stop while the phone was already asking does not find a fresh timestamp written anyway.
 
 ### Consequences
 
@@ -196,4 +202,10 @@ Android requires anyway.
 - The check is a *discovery* mechanism, not an update mechanism: it can name a newer version and open the
   release page, and the install remains a parent's tap on the system installer.
 - An unreadable tag is treated as up to date rather than as an available update, because a version this app
-  cannot parse is not evidence of a newer build.
+  cannot parse is not evidence of a newer build. A numeric segment too large to hold is *unreadable* rather than
+  truncated, because truncating compared `1.5.0.99999999999999999999` as `1.5.0` and called a newer release
+  equal.
+- The response body has no size limit. A truncating cap would report a genuine release as
+  `Could not reach GitHub`, which is a worse statement than an unbounded read from a trusted endpoint behind a
+  five-second timeout; if the endpoint ever changes, the cap belongs here as a decision rather than as a
+  silent guard.
