@@ -24,7 +24,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **`1.5.0` — the app now asks GitHub whether a newer BabyLog exists**, when it opens and at most once a day, and Settings → About states the answer and how old it is. A MINOR rung: a build delivered by hand had no store to announce a newer one.
 - **Delivery moves from Firebase App Distribution to GitHub Releases.** The key, the manual build and the `versionCode` contract are unchanged; the channel is not (ADR-0001's second amendment, and ADR-0003 for the check itself).
 - **The About promise was rewritten rather than left to become false.** "No analytics, no trackers, no ads" still holds, and the sentence now names the one other request the phone makes instead of implying it talks only to Firebase.
-- **The device pass did not run** — no phone was attached when the build was made — so the About row has not been seen on a handset. What that pass must show is recorded in `PLAN.md`.
+- **The device pass ran on `<handset>`**, after a first attempt that found no phone attached. The About row was driven in both themes, the switch was turned off and back on, and the live API answered for a repository with no releases: `No release published yet.`
 
 ### Versions
 
@@ -56,7 +56,8 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 ### Verification
 
 - `:app:testDebugUnitTest` and `:app:assembleRelease` succeed on this tree; the release APK is `1.5.0` / versionCode 33, signed `CN=BabyLog` with the unchanged SHA-1.
-- **Not verified on a phone.** `adb devices` reported no device at 2026-11-04 10:0x, so nothing about the About row is claimed from a handset — including the one thing a unit test cannot prove, that the real API answers 404 for a repository with no releases and the row therefore reads `No release published yet.`
+- **Verified on `<handset>`** — installed over the delivered `1.4.1` and driven with every coordinate taken from a `uiautomator` dump. About read `Version 1.5.0 (build 33) · release build`; the switch came up checked; the status line read **`No release published yet.`**, which is the real API's answer for a repository with no releases and the one branch a fake cannot prove. Switching it off produced `Off — nothing is sent to GitHub.`, removed the button and moved the row below it up 145px; switching it back on restored both, so the value round-trips through DataStore. Every row was identical in `cmd uimode night no`, the system night mode was returned to dark, and `logcat -b crash -d` held **0** `FATAL EXCEPTION`.
+- **Not claimed:** that switching off stops the request at the wire. The guard is `shouldCheckForUpdates`, asserted in `UpdateCheckTest` and not observed on a network — the dump proves the row and the stored preference, not the absence of packets.
 
 ## [2026-11-03]
 
