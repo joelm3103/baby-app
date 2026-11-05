@@ -21,9 +21,10 @@ import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
 import app.babylog.domain.UnitPreferences
 import app.babylog.domain.VolumeUnit
+import app.babylog.domain.amountMlFor
 import app.babylog.domain.dateOn
 import app.babylog.domain.formatVolume
-import app.babylog.domain.toMillilitres
+import app.babylog.domain.resolvedAmountText
 import app.babylog.ui.theme.BabyLogTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -36,9 +37,9 @@ private const val MAX_BOTTLE_ML = 1000
 /**
  * Bottle feed: date, time, amount, formula brand, notes.
  *
- * The amount is FREE TEXT in the display unit, with chips for the stored presets. A stepper was the
- * wrong control here: it cannot express 135 ml, and it put a common number twelve taps away. The value
- * is converted to canonical millilitres once on save, so the unit preference never rewrites storage.
+ * The amount is entered on the sheet's own calculator pad (Phase 24) and shown in [CalculatorField] above it.
+ * Chips for the stored presets sit alongside, because a common number should stay one tap away. The value is
+ * converted to canonical millilitres once on save, so the unit preference never rewrites storage.
  *
  * [initial] is set when a row is being EDITED rather than a new feed logged: the sheet then opens on
  * that row's values and saves back onto it (see `EventDraft.applyTo`).
@@ -67,6 +68,9 @@ fun BottleSheet(
     val seedAmountMl = initial?.amountMl ?: initialAmountMl
     val initialText = seedAmountMl?.let { editableAmount(it, units.volume) } ?: ""
     var amount by remember { mutableStateOf(initialText) }
+    // `=` asks "what does this come to?". When it cannot answer, the text stays and the sheet says why — a
+    // half-typed sum is the parent's to finish, not the app's to erase. Any further key clears the message.
+    var resolveFailed by remember { mutableStateOf(false) }
 
     // Blank is allowed: a bottle can be logged without an amount. Anything else must be a plausible
     // number, so Save is disabled rather than writing a nonsense total.
@@ -77,9 +81,17 @@ fun BottleSheet(
     val millilitres = when {
         amount.isBlank() -> null
         amount == initialText && seedAmountMl != null -> seedAmountMl
-        else -> amount.trim().toDoubleOrNull()?.let { toMillilitres(it, units.volume).roundToInt() }
+        else -> amountMlFor(amount, units.volume)
     }
     val amountOk = amount.isBlank() || (millilitres != null && millilitres in MIN_BOTTLE_ML..MAX_BOTTLE_ML)
+    val unreadable = resolveFailed && amount.isNotBlank() && millilitres == null
+
+    // Save evaluates a leftover sum anyway, so a parent who types `6-2` and taps Save without `=` still
+    // stores 4. `=` is for SEEING the number before it is kept, which is the part a busy parent needs.
+    val pressKey: (String) -> Unit = { key ->
+        resolveFailed = false
+        amount = if (key == CALC_BACKSPACE) amount.dropLast(1) else amountInput(amount + key)
+    }
 
     ActivitySheet(
         type = EventType.BOTTLE,
@@ -106,12 +118,10 @@ fun BottleSheet(
         ) { epochDay -> startedAt = dateOn(startedAt, epochDay, zone) }
         TimeRow(instantMs = startedAt, zone = zone, onChange = { startedAt = it })
 
-        TextFieldRow(
+        CalculatorField(
             label = "Amount (${volumeUnitLabel(units.volume)})",
             value = amount,
-            onValueChange = { typed -> amount = typed.filter { it.isDigit() || it == '.' } },
-            placeholder = "e.g. ${editableAmount(120, units.volume)}",
-            keyboardType = KeyboardType.Decimal,
+            isError = unreadable,
         )
         if (presets.isNotEmpty()) {
             FlowRow(
@@ -129,7 +139,14 @@ fun BottleSheet(
                 }
             }
         }
-        if (!amountOk) {
+        if (unreadable) {
+            Text(
+                text = "That sum cannot be read.",
+                style = MaterialTheme.typography.bodySmall,
+                color = BabyLogTheme.colors.danger,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        } else if (!amountOk) {
             Text(
                 text = "Enter an amount between " +
                     formatVolume(MIN_BOTTLE_ML.toDouble(), units.volume) + " and " +
@@ -139,6 +156,15 @@ fun BottleSheet(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
+
+        CalculatorPad(
+            accent = accent,
+            onKey = pressKey,
+            onEquals = {
+                val resolved = resolvedAmountText(amount, units.volume)
+                if (resolved != null) amount = resolved else resolveFailed = true
+            },
+        )
 
         TextFieldRow(
             label = "Formula brand",

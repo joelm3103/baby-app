@@ -109,8 +109,12 @@ android {
         // 1.5.0 is Phase 23, the update check: the app asks GitHub for its newest release when it opens, once
         // a day, so a build delivered by hand can say a newer one exists. That is a capability the app did not
         // have, so a MINOR rung, and code 33 so it installs in place over the delivered 1.4.1.
-        versionCode = 33
-        versionName = "1.5.0"
+        // 1.6.0 is Phase 24, the bottle calculator: the amount field takes a SUM entered on the sheet's own
+        // pad — `7*2`, `6-2` — and `=` puts the answer back into the field so what is checked is what is
+        // stored. A capability the app did not have, so a MINOR rung, and code 34 so it installs in place
+        // over the delivered 1.5.0.
+        versionCode = 34
+        versionName = "1.6.0"
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".

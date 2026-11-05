@@ -2,6 +2,7 @@ package app.babylog.ui.home
 
 import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -186,6 +188,185 @@ internal fun decimalInput(typed: String): String {
     val firstDot = cleaned.indexOf('.')
     if (firstDot < 0) return cleaned
     return cleaned.substring(0, firstDot + 1) + cleaned.substring(firstDot + 1).filter { it.isDigit() }
+}
+
+/**
+ * Digits, one decimal point and the arithmetic signs — the bottle amount's field (Phase 24).
+ *
+ * Separate from [decimalInput] rather than a widening of it: growth, health and the bottle's own presets
+ * still take a NUMBER, and a field that silently started accepting `6-2` where a percentile belongs would
+ * be a different kind of mistake. The card's quick-log presets keep using [decimalInput].
+ */
+internal fun amountInput(typed: String): String {
+    val out = StringBuilder(typed.length)
+    // One dot per OPERAND, not per field: "6-2.5" is legal, "6.2.5" collapses to "6.25". The flag resets on
+    // an operator because that starts a new number.
+    var dotSeen = false
+    for (char in typed) {
+        when {
+            char.isDigit() -> out.append(char)
+            char == '.' && !dotSeen -> {
+                out.append(char)
+                dotSeen = true
+            }
+
+            char in app.babylog.domain.OPERATOR_CHARS -> {
+                out.append(char)
+                dotSeen = false
+            }
+
+            char == ' ' -> out.append(char)
+        }
+    }
+    return out.toString()
+}
+
+/**
+ * The amount, shown but not typed into (Phase 24).
+ *
+ * The bottle amount is entered on [CalculatorPad] below it, so this is a display rather than a text field and
+ * no software keyboard can ever open over the amount — a keypad with `*` and `/` on it is the whole point,
+ * and the system decimal pad has neither. Drawn rather than a read-only `OutlinedTextField` because a
+ * read-only field still takes focus, and a field that takes focus asks the keyboard to come up.
+ *
+ * The label sits INSIDE the box over the value, the way the sheet's other fields read, so the amount still
+ * looks like the field it replaces.
+ */
+@Composable
+fun CalculatorField(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+) {
+    val colors = BabyLogTheme.colors
+    val shape = RoundedCornerShape(4.dp)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .border(1.dp, if (isError) colors.danger else colors.divider, shape)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isError) colors.danger else colors.textSecondary,
+        )
+        Text(
+            text = value.ifBlank { "0" },
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (value.isBlank()) colors.textSecondary else colors.textPrimary,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+}
+
+/**
+ * The amount's own keypad (Phase 24).
+ *
+ * The field takes a SUM — `7*2`, `6-2` — and a phone's decimal keypad offers no `*` and no `/`, so the sheet
+ * draws the keys instead of asking the system keyboard for them: digits, the point, a backspace and the four
+ * operators, in the arrangement a pocket calculator has used for fifty years. Because the keys are ours, both
+ * phones have them in the same place, and nothing can open a full keyboard over a number field.
+ *
+ * The operators carry an accent OUTLINE rather than a second fill: the same rule the temperature band follows,
+ * so which keys are arithmetic survives a colour-blind parent, and an outline only needs to clear the 3:1 a
+ * graphic needs (the accent measures 4.2-8.4:1 here) where text would need 4.5:1.
+ */
+@Composable
+fun CalculatorPad(
+    accent: Color,
+    onKey: (String) -> Unit,
+    onEquals: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = BabyLogTheme.colors
+    val haptics = rememberHaptics()
+    val rows = listOf(
+        listOf("1", "2", "3", DIVIDE),
+        listOf("4", "5", "6", TIMES),
+        listOf("7", "8", "9", MINUS),
+        listOf(".", "0", CALC_BACKSPACE, "+"),
+    )
+    Column(
+        modifier = modifier.fillMaxWidth().padding(top = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        rows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { key ->
+                    CalculatorKey(
+                        key = key,
+                        accent = accent,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onKey(key) },
+                    )
+                }
+            }
+        }
+        // The one key that does something to the WHOLE field rather than append to it, so it is the full
+        // width of the pad and filled with the accent: on a calculator, `=` is the point of the pad.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(accent)
+                .clickable {
+                    haptics.tap()
+                    onEquals()
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "=",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.onAccent,
+            )
+        }
+    }
+}
+
+/** The characters the pad emits, so the sheet can tell a digit from a key that resolves the sum. */
+const val CALC_BACKSPACE = "⌫"
+const val DIVIDE = "÷"
+const val TIMES = "×"
+const val MINUS = "−"
+
+/** The pad's keys: any of these that is not a digit or the point is arithmetic. */
+private val PAD_OPERATORS = setOf("+", MINUS, TIMES, DIVIDE)
+
+@Composable
+private fun CalculatorKey(
+    key: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = BabyLogTheme.colors
+    val haptics = rememberHaptics()
+    val shape = RoundedCornerShape(14.dp)
+    val operator = key in PAD_OPERATORS
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .clip(shape)
+            .background(colors.surfaceRaised)
+            .then(if (operator) Modifier.border(1.dp, accent, shape) else Modifier)
+            .clickable {
+                haptics.tap()
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = key,
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.textPrimary,
+        )
+    }
 }
 
 /**
