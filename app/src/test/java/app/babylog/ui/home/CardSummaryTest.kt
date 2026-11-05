@@ -38,6 +38,18 @@ class CardSummaryTest {
     }
 
     @Test
+    fun `a bottle with a leftover still shows what was drunk`() {
+        // Phase 26 stores the DRUNK amount in `amountMl` and the leftover beside it, so the card needs no
+        // change at all: it already reads the result the sheet calculated. Pinned because a future change
+        // that "helpfully" switched the card to the poured amount would quietly undo the phase.
+        val e = event(EventType.BOTTLE).copy(amountMl = 150, leftBehindMl = 30)
+
+        assertEquals("150" to "ml", bigValue(e, metric))
+        assertEquals("150 ml", recentRowLabel(e, metric))
+        assertEquals(180, e.pouredMl)
+    }
+
+    @Test
     fun `bottle with no amount has no big value rather than a zero`() {
         assertNull(bigValue(event(EventType.BOTTLE), metric))
     }

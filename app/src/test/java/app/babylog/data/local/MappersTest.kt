@@ -70,6 +70,17 @@ class MappersTest {
     }
 
     @Test
+    fun `bottle round trips its leftover beside the amount`() {
+        // Two columns, two claims. A mapper that dropped either would make every total and the wastage
+        // report wrong together, and nothing on screen would say which one lied.
+        val e = base(EventType.BOTTLE).copy(amountMl = 150, leftBehindMl = 30)
+        val back = e.toEntity().toDomain()
+
+        assertEquals(e, back)
+        assertEquals(180, back!!.pouredMl)
+    }
+
+    @Test
     fun `solids round trips with foods, meal slot and reaction`() {
         val e = base(EventType.SOLIDS).copy(
             mealSlot = MealSlot.LUNCH,

@@ -63,9 +63,9 @@ class MigrationTest {
             assertNull(old.doseAmount)
             assertNull(old.doseUnit)
 
-            // The chain now runs to v4 (Phase 18), so this reads 4 rather than 3. The claim is the same
+            // The chain now runs to v5 (Phase 26), so this reads 5 rather than 4. The claim is the same
             // one it always made: a v1 log survives every migration this build carries.
-            assertEquals(4, db.openHelper.readableDatabase.version)
+            assertEquals(5, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -116,7 +116,7 @@ class MigrationTest {
             assertNull(old.diaperColoursCsv)
             assertNull(old.diaperConsistencyCsv)
 
-            assertEquals(4, db.openHelper.readableDatabase.version)
+            assertEquals(5, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -143,7 +143,7 @@ class MigrationTest {
             assertNotNull(read)
             assertEquals("BROWN,GREEN", read!!.diaperColoursCsv)
             assertEquals("MUSHY,PEBBLES", read.diaperConsistencyCsv)
-            assertEquals(4, db.openHelper.readableDatabase.version)
+            assertEquals(5, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -173,12 +173,44 @@ class MigrationTest {
             assertEquals("Callaloo", food!!.name)
             assertNull(food.localName)
             assertFalse(food.hidden)
-            assertEquals(4, db.openHelper.readableDatabase.version)
+            assertEquals(5, db.openHelper.readableDatabase.version)
 
             db.foodDao().upsert(food.copy(localName = "Kallaloo", hidden = true))
             val curated = db.foodDao().byId("callaloo")!!
             assertEquals("Kallaloo", curated.localName)
             assertTrue(curated.hidden)
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `a v4 log survives the upgrade and its bottles gain no invented leftover`() = runBlocking {
+        createV4Database()
+
+        val db = Room.databaseBuilder(context, AppDatabase::class.java, dbName)
+            .addMigrations(*AppDatabase.MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            // Phase 26 added "left behind" beside the amount. The row the previous build wrote must read
+            // back unchanged, and the new column must be NULL: a back-filled 0 would claim every bottle
+            // ever logged was finished to the last millilitre, which is a measurement nobody made.
+            val old = db.eventDao().allIncludingDeleted().single { it.id == "feed" }
+            assertEquals("BOTTLE", old.type)
+            assertEquals(150, old.amountMl)
+            assertNull(old.leftBehindMl)
+
+            assertEquals(5, db.openHelper.readableDatabase.version)
+
+            // And the upgraded table accepts a leftover, which is the whole point of the column.
+            db.eventDao().upsert(
+                EventEntity(
+                    id = "left", childId = "first-twin", type = "BOTTLE", startedAt = t0 + 1,
+                    amountMl = 120, leftBehindMl = 30, createdBy = "local", updatedAt = t0 + 1,
+                ),
+            )
+            assertEquals(30, db.eventDao().byId("left")!!.leftBehindMl)
         } finally {
             db.close()
         }
@@ -192,6 +224,7 @@ class MigrationTest {
         assertTrue("expected the v2 schema to be exported and committed", schemaFile(2).exists())
         assertTrue("expected the v3 schema to be exported and committed", schemaFile(3).exists())
         assertTrue("expected the v4 schema to be exported and committed", schemaFile(4).exists())
+        assertTrue("expected the v5 schema to be exported and committed", schemaFile(5).exists())
     }
 
     /** Builds the v1 database exactly as version 1 of the app would have left it. */
@@ -212,6 +245,17 @@ class MigrationTest {
                 "INSERT INTO events (id, childId, type, startedAt, diaperKind, rash, " +
                     "createdBy, updatedAt, deleted) " +
                     "VALUES ('nappy', 'first-twin', 'DIAPER', $t0, 'MIXED', 1, 'local', $t0, 0)",
+            )
+        }
+    }
+
+    /** Builds the v4 database - the build that shipped `1.6.0` - with a logged feed in it. */
+    private fun createV4Database() {
+        createDatabaseAt(4) { v4 ->
+            v4.execSQL(
+                "INSERT INTO events (id, childId, type, startedAt, amountMl, " +
+                    "createdBy, updatedAt, deleted) " +
+                    "VALUES ('feed', 'first-twin', 'BOTTLE', $t0, 150, 'local', $t0, 0)",
             )
         }
     }

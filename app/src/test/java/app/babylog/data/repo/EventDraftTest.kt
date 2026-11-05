@@ -64,6 +64,18 @@ class EventDraftTest {
     }
 
     @Test
+    fun `an edit carries the leftover it was saved with, and can clear it`() {
+        // The sheet prefills the leftover from the row being edited, so an untouched edit must write back
+        // exactly what was there — and blanking the field is an answer ("nothing was left"), not a no-op.
+        val withLeftover = existing.copy(leftBehindMl = 30)
+        val untouched = EventDraft(type = EventType.BOTTLE, startedAt = withLeftover.startedAt, amountMl = 120, leftBehindMl = 30)
+        val cleared = EventDraft(type = EventType.BOTTLE, startedAt = withLeftover.startedAt, amountMl = 150, leftBehindMl = null)
+
+        assertEquals(30, untouched.applyTo(withLeftover, 1L).leftBehindMl)
+        assertNull(cleared.applyTo(withLeftover, 1L).leftBehindMl)
+    }
+
+    @Test
     fun `clearing a value clears it rather than keeping the old one`() {
         // An amount deleted in the sheet means "no amount", not "forget I asked".
         val draft = EventDraft(type = EventType.BOTTLE, startedAt = existing.startedAt, amountMl = null)

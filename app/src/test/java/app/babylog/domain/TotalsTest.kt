@@ -94,6 +94,9 @@ class TotalsTest {
         assertEquals("3", bottle.rows.value("Sessions"))
         assertEquals("120 ml", bottle.rows.value("Average bottle")) // 360 / 3
         assertEquals("4h 0m 0s", bottle.rows.value("Time between feeds")) // 4h then 4h
+        // Phase 26: none of these feeds recorded a leftover, so the report says so rather than staying silent.
+        assertEquals("0 ml", bottle.rows.value("Left behind"))
+        assertEquals("0%", bottle.rows.value("Wasted"))
 
         val diaper = totals.getValue(EventType.DIAPER)
         assertEquals("4", diaper.headline)
@@ -119,6 +122,36 @@ class TotalsTest {
     }
 
     // ---- edges -------------------------------------------------------------
+
+    @Test
+    fun `the bottle totals report what was left behind, and poured is drunk plus left`() {
+        val events = listOf(
+            bottle(at(6, 0), 150).copy(leftBehindMl = 30),
+            bottle(at(10, 0), 120),
+        )
+
+        val bottle = totalsFor(events, listOf(firstTwin), UnitPreferences.Metric, NightWindow(18, 6), zone)
+            .first { it.type == EventType.BOTTLE }
+
+        // The headline is still what was DRUNK, which is the point of storing it that way: no existing total
+        // changes meaning because a leftover was recorded beside it.
+        assertEquals("270", bottle.headline)
+        assertEquals("30 ml", bottle.rows.value("Left behind"))
+        assertEquals("10%", bottle.rows.value("Wasted")) // 30 left of 300 poured
+        assertEquals("270 ml", bottle.perChild.single().value)
+    }
+
+    @Test
+    fun `a range with no bottle has no wastage figure rather than a zero`() {
+        val bottle = totalsFor(
+            listOf(diaper(at(3, 0))),
+            listOf(firstTwin), UnitPreferences.Metric, NightWindow(18, 6), zone,
+        ).first { it.type == EventType.BOTTLE }
+
+        // "0% wasted" would be a claim about bottles that are not in the range at all.
+        assertEquals("\u2014", bottle.rows.value("Left behind"))
+        assertEquals("\u2014", bottle.rows.value("Wasted"))
+    }
 
     @Test
     fun `a single feed has no average gap`() {

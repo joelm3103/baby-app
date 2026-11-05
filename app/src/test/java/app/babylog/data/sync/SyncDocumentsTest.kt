@@ -117,6 +117,26 @@ class SyncDocumentsTest {
     }
 
     @Test
+    fun `the leftover travels beside the amount`() {
+        val read = eventFromSyncMap(event.copy(amountMl = 150, leftBehindMl = 30).toSyncMap())!!
+
+        // 150 drunk and 30 left is a bottle that was made at 180; storing both is what keeps the poured
+        // volume recoverable on the other phone.
+        assertEquals(150, read.amountMl)
+        assertEquals(30, read.leftBehindMl)
+    }
+
+    @Test
+    fun `a document written before the leftover existed reads as not recorded`() {
+        // The other phone may still be on 1.6.0; its documents have no such key, and that must read as
+        // NULL rather than as a parse failure or - worse - as a zero nobody measured.
+        val documents = event.toSyncMap().toMutableMap()
+        documents.remove("leftBehindMl")
+
+        assertNull(eventFromSyncMap(documents)!!.leftBehindMl)
+    }
+
+    @Test
     fun `integers come back as integers even though Firestore may hand them back as doubles`() {
         // A whole number that round-trips through a Double and back to Int is the difference between
         // 120 ml and a row the entity constructor refuses.

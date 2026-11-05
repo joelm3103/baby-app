@@ -109,6 +109,21 @@ class BackupTest {
     }
 
     @Test
+    fun `a leftover travels with its feed, and an older export still restores without one`() {
+        val fed = events.first { it.id == "e1" }.copy(amountMl = 150, leftBehindMl = 30)
+        val read = Backup.read(Backup.write(snapshot().copy(events = listOf(fed))))
+
+        assertEquals(30, read.events.single().leftBehindMl)
+
+        // A file written before Phase 26 has no key at all; the import must read that as "not recorded"
+        // instead of dropping the feed or inventing a zero.
+        val older = Backup.write(snapshot()).replace(Regex(",\\s*\"leftBehindMl\": null"), "")
+        assertFalse("the key must be gone for this to test anything", older.contains("leftBehindMl"))
+
+        assertNull(Backup.read(older).events.first { it.id == "e1" }.leftBehindMl)
+    }
+
+    @Test
     fun `the file is indented JSON tagged with the schema`() {
         val json = Backup.write(snapshot())
 
