@@ -166,8 +166,9 @@ a pickable list of formulas in chips above the field, on a new schema-v5 `formul
 27-row asset, its own sync path and an ADR-0004. The owner rejected that on 2026-11-04 in favour of the
 arithmetic alone, entered on the sheet's own pad, so all of it came out again before anything reached `main`:
 the schema is back to v4, `docs/DECISIONS.md` has no ADR-0004, and `AGENTS.md` carries no formula rules. The
-attempt is kept as a local tag (`wip/phase24-formula-attempt`) and nowhere else — it is not part of this
-project's history, and the details above are the only record of it.
+attempt was kept as a local tag (`wip/phase24-formula-attempt`) and nowhere else, until the history rewrite of
+2026-11-05 (ADR-0005) dropped the tag: it pointed into pre-rewrite history, which no longer exists. The details
+above are the only record of it now.
 
 Reverting a landed-on-this-phone schema had one cost, recorded in the phase section: the handset's database
 was already v5, so it was cleared and its log restored from an export.
@@ -2798,8 +2799,9 @@ table, a bundled 27-row asset, `FormulaEntity`/`FormulaDao`/`FormulaCatalogue`/`
 sync path, a backup field, a `match /formulas/{formulaId}` rules block and an ADR-0004 argued against the
 food catalogue's model. The owner asked for the calculator alone and for the list to go, so it went — before
 any of it reached `main`. Schema is back to v4, `docs/DECISIONS.md` stops at ADR-0003, `AGENTS.md` carries no
-formula rules, and `firebase/firestore.rules` is untouched. `wip/phase24-formula-attempt` is a local tag on
-the attempt and nothing in the repo references it.
+formula rules, and `firebase/firestore.rules` is untouched. The attempt lived on as the local tag
+`wip/phase24-formula-attempt`, dropped on 2026-11-05 when history was rewritten (ADR-0005); nothing in the repo
+references it.
 
 The cost of that reversal is recorded below, and it is a real one: the test phone had already installed the
 v5 build, so its database had to go back to v4.
