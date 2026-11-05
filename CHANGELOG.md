@@ -53,7 +53,15 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   code 35 so it installs in place over the delivered `1.6.0`. Ship stays Phase 25; it still has no commits.
 - `1.7.1` / versionCode 36 — **Phase 27, the note on the row**. A PATCH rung: no new stored byte, no new
   control, no schema change — the app can now *show* something it has been recording all along.
-- Nothing is tagged. A tag is cut only on a delivered build, and this one has not been delivered.
+- **Released 2026-11-05: tag `v1.7.1`, published as a GitHub Release** with `BabyLog-1.7.1.apk` attached
+  (14 781 151 bytes, SHA-256 `a48e41bf…cacbe`), the second release this repo has and the first cut on a build
+  two phases landed in one day. `1.7.0` was built and installed on the handset but never released — Phase 27
+  superseded it hours later, so it carries no tag.
+- **The release page does not make the update check work yet.** The repository is private, so an
+  unauthenticated `GET .../releases/latest` answers `404` (measured: `404` without a token, `200` with one)
+  and the app's About row keeps saying `No release published yet`. That is ADR-0003's open decision, not a
+  defect introduced here: publish the repository, host the release where the check can read it, or retire
+  the check.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `1.7.0`, 2026-11-05
 

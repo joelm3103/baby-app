@@ -60,8 +60,8 @@ everything after it is additive.**
 | 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **677 tests green** (19 new: 10 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
 | 24 — Bottle calculator | **DONE, device-verified** — `1.6.0` / versionCode 34; the bottle amount is entered on the sheet's OWN pad — 1-9, the point, a backspace and `÷ × − +` — and `=` puts the answer back into the field, so `7×2` becomes `14` where the parent typed it and 14 is what is stored. No software keyboard opens over the amount, and the `= 4 oz` preview line the first build printed underneath is gone. A formula list was built and removed before landing; see the phase section. **684 tests green** (7 new) |
 | 26 — Left behind and the wastage report | **DONE, device-verified** — `1.7.0` / versionCode 34→35; the bottle calculator is withdrawn and a bottle gains an optional `leftBehindMl` beside the amount, so the sheet asks for the pour and the leftover and stores what was drunk; schema v5 with `MIGRATION_4_5` and nothing back-filled; Summary's Bottle card gains `Left behind` and `Wasted`, Trends' Bottle tab gains a `Left behind` card; **703 tests green**. ADR-0004. The pass on `<handset>` installed in place over `1.6.0`, survived the migration with its log intact, and found one defect — the `Consumed` line composed outside the sheet's content lambda and drew behind it — fixed and re-verified |
-| 27 — The note on the row | **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
-| 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones, verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
+| 27 — The note on the row | **RELEASED** (`v1.7.1`, 2026-11-05) — **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
+| 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
 
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -3015,6 +3015,20 @@ Installed with `adb install -r` over the delivered-then-current `1.7.0`. The art
 the **Light** theme. The row's note uses `textOnCard` on a card and `textSecondary` on the list, both of which
 already clear AA on their surfaces (`textSecondary` measures 3.06:1 only on a *tinted* card, which is why the
 card uses the other token), so this is a confirmation rather than a doubt — but it has not been seen.
+
+### Released — `v1.7.1`, 2026-11-05
+
+Tagged and published as a GitHub Release on `9d4e9bf`, with the built artifact attached and nothing rebuilt:
+`BabyLog-1.7.1.apk`, `versionCode 36`, 14 781 151 bytes, SHA-256
+`a48e41bf3051d504cf4ae866c81c6edc76e925438530f95e0335492d809cacbe` — the same digest GitHub reports for the
+asset, so the file on the page is the file that was installed. `1.7.0` carries no tag: Phase 27 replaced it on
+the handset hours after it was built.
+
+**The repository is private, so the release is visible to the two owners' accounts and invisible to the app.**
+Measured on 2026-11-05: `GET /repos/joelm3103/baby-app/releases/latest` answers `404` without a token and `200`
+with one, so Settings → About still reads `No release published yet` on both phones. Phase 25's decision —
+publish the repository, host the release where the unauthenticated check can read it, or retire the check
+under ADR-0003 — is now the only thing standing between a published build and an update row that says so.
 
 **Not done, deliberately:** the note is not on the History totals screen (that screen lists totals, not
 entries), not in the reminder chips, and not on the Both-mode card headline. One row, one line.
