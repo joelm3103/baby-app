@@ -53,7 +53,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   code 35 so it installs in place over the delivered `1.6.0`. Ship stays Phase 25; it still has no commits.
 - `1.7.1` / versionCode 36 — **Phase 27, the note on the row**. A PATCH rung: no new stored byte, no new
   control, no schema change — the app can now *show* something it has been recording all along.
-- **The About card names a handle, not a legal name.** `ABOUT_CREDITS` reads `Built by joelm3103, for Kai and
+- **The About card names a handle, not a legal name.** Verified on the phone on the rebuilt `1.7.1` release
+  APK: Settings → About reads `Version 1.7.1 (build 36) · release build` above `Built by joelm3103, for Kai and
+  Levi.` `ABOUT_CREDITS` reads `Built by joelm3103, for Kai and
   Levi.`, and the same handle replaced the owner's name everywhere it appeared — including in this
   repository's history, which was rewritten once on 2026-11-05 (ADR-0005) so that every commit from the About card's introduction
   (`db63a21` before the rewrite, `4b220d7` after) onward has a new hash. Nothing about the app changed except that one string: same version, same schema,
@@ -179,8 +181,14 @@ looked exactly the same as one without. The owner asked for the note on the entr
 `6 oz · took it slowly, very windy a…` with the time still pinned right and one row height, and the same in the
 `See all` list. The owner's own existing note came alive in the same pass: the 3:54 AM feed reads
 `6 oz · Spit up`, which it never had before. The test feed was deleted afterwards and the card went back to
-that single row, and `logcat -b crash` stayed empty through the whole pass. Not seen, and owed: system `BACK`
-out of an open sheet, and the note in the Light theme — the phone left USB before either check ran.
+that single row, and `logcat -b crash` stayed empty through the whole pass.
+
+The two checks that pass could not reach ran later the same day, on the rebuilt release APK, with the phone back
+on USB. System `BACK` out of an open bottle sheet returned to the Activity list with the sheet gone and nothing
+written — the seeded `6` was abandoned, and Kai's card still held its one real row. And the note is legible in
+the Light theme, measured off the screenshot rather than eyeballed: the card fill is `(226, 211, 180)`, the
+label `(31, 35, 51)` at 10.55:1, the note `(64, 78, 105)` — `textOnCard` on its own tint — at 5.66:1, both
+clear of AA. The theme was put back to Dark afterwards, and `logcat -b crash` was still empty.
 
 ### Removed
 

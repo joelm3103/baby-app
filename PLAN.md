@@ -3013,7 +3013,15 @@ Installed with `adb install -r` over the delivered-then-current `1.7.0`. The art
 
 **Found nothing to fix** — the first build of it was the one that shipped.
 
-**Not run, and owed:** system `BACK` from an open sheet (the phone left USB before that check), and the note in
+**Run later, on the rebuilt release APK** (the phone left USB during the first sitting, so these were owed):
+
+| Check | What the phone showed |
+|---|---|
+| System `BACK` out of an open sheet | the bottle sheet closed and the Activity list returned, sheet gone and nav tabs back; nothing written — the seeded `6` was abandoned and Kai's card still held its one real row |
+| The note in the **Light** theme | on the tinted Bottle card the fill measured `(226, 211, 180)`, the label `(31, 35, 51)` at 10.55:1 and the note `(64, 78, 105)` at 5.66:1 (screenshot pixels, not an eyeball); theme put back to Dark afterwards |
+| The About card | `Version 1.7.1 (build 36) · release build` above `Built by joelm3103, for Kai and Levi.` — the rebuilt APK's string, not the one it replaced |
+
+Previously titled "not run, and owed": system `BACK` from an open sheet, and the note in
 the **Light** theme. The row's note uses `textOnCard` on a card and `textSecondary` on the list, both of which
 already clear AA on their surfaces (`textSecondary` measures 3.06:1 only on a *tinted* card, which is why the
 card uses the other token), so this is a confirmation rather than a doubt — but it has not been seen.
