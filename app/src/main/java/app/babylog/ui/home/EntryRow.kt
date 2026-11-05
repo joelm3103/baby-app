@@ -14,7 +14,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.TemperatureBand
@@ -121,8 +125,25 @@ internal fun EntryRow(
                     modifier = Modifier.weight(1f, fill = false),
                 )
             }
+            // What was logged, then — after a dot — whatever the parent wrote about it. Both are ONE
+            // Text so they ellipsise together and the row keeps a single height; the note is the part
+            // that gets cut, because the amount is what the row exists to say. The note carries the
+            // surface's meta token rather than `textPrimary`: a remark is quieter than a record.
+            val row = rowText(event, units, foodNames)
             Text(
-                text = recentRowLabel(event, units, foodNames),
+                text = if (row.note == null) {
+                    AnnotatedString(row.label)
+                } else {
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(color = colors.textPrimary)) { append(row.label) }
+                        withStyle(
+                            SpanStyle(color = if (onCard) colors.textOnCard else colors.textSecondary),
+                        ) {
+                            append(" · ")
+                            append(row.note)
+                        }
+                    }
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.textPrimary,
                 maxLines = 1,

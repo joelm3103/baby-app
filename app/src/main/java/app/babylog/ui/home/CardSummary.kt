@@ -265,6 +265,29 @@ fun recentRowLabel(
 }
 
 /**
+ * One entry row's line, split into what was logged and what the parent wrote about it (Phase 27).
+ *
+ * **The two are returned apart because they are not the same claim.** The label is the record — an amount,
+ * a nappy, a reading — and the note is a remark on it, so the row paints the label in `textPrimary` and the
+ * note in the surface's meta token. Joined into one string they would get one colour, and a bottle's amount
+ * would stop being the loudest thing on its own row.
+ *
+ * A note that is only whitespace is NO note: a parent who typed a space wrote nothing, and a dangling `·`
+ * at the end of every row would be punctuation pretending to be content.
+ */
+data class RowText(val label: String, val note: String?)
+
+/** Splits an entry's row into the record and its note. See [RowText]. */
+fun rowText(
+    event: BabyEvent,
+    units: UnitPreferences,
+    foodNames: Map<String, String> = emptyMap(),
+): RowText = RowText(
+    label = recentRowLabel(event, units, foodNames),
+    note = event.note?.trim()?.takeIf { it.isNotEmpty() },
+)
+
+/**
  * The Health card's three kinds of record for one child.
  *
  * Latest of EACH KIND, not the newest entry — the rule [GrowthLatest] follows, and this card needs it for

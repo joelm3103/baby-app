@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.7.0"
+val appVersionName = "1.7.1"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -128,7 +128,11 @@ android {
         // much was poured and how much was abandoned instead of asking a parent to do the subtraction in the
         // field. A recorded fact plus a report the app did not have, so a MINOR rung, and code 35 so it
         // installs in place over the delivered 1.6.0.
-        versionCode = 35
+        // 1.7.1 is Phase 27, the note on the row: an entry row now says what the parent wrote about it,
+        // after a dot and in the meta colour, so a note is visible without opening the record. Polish
+        // only — no new stored byte, no new control, no schema change — so a PATCH rung, and code 36 so
+        // the pass installs in place over 1.7.0.
+        versionCode = 36
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
