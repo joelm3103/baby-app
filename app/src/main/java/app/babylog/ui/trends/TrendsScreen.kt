@@ -179,6 +179,7 @@ fun TrendsScreen(
                 } else {
                     TrendPane(
                         series = series,
+                        wastage = trends.wastage,
                         units = trends.units,
                         childLabel = trends.childLabel,
                         zone = trends.zone,

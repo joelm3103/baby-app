@@ -744,7 +744,7 @@ fun AppScaffold(container: AppContainer) {
                         presets = settingsPresets,
                         zone = zone,
                         now = sheetNow,
-                        initialAmountMl = state.lastBottleAmountMl,
+                        initialAmountMl = state.lastBottlePouredMl,
                         onDismiss = onDismissSheet,
                         onSave = onSaveSheet,
                         initial = editingEvent,

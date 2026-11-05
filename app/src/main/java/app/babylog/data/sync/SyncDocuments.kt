@@ -98,6 +98,9 @@ fun EventEntity.toSyncMap(): SyncMap = mapOf(
     "startedAt" to startedAt,
     "endedAt" to endedAt,
     "amountMl" to amountMl,
+    // Phase 26. A document written before this build simply lacks the key, which reads back as NULL —
+    // "no leftover recorded" — exactly as `diaperColoursCsv` does.
+    "leftBehindMl" to leftBehindMl,
     "formulaBrand" to formulaBrand,
     "mealSlot" to mealSlot,
     "foodIdsCsv" to foodIdsCsv,
@@ -131,6 +134,7 @@ fun eventFromSyncMap(map: SyncMap): EventEntity? {
         startedAt = map.long("startedAt") ?: return null,
         endedAt = map.long("endedAt"),
         amountMl = map.int("amountMl"),
+        leftBehindMl = map.int("leftBehindMl"),
         formulaBrand = map.string("formulaBrand"),
         mealSlot = map.string("mealSlot"),
         foodIdsCsv = map.string("foodIdsCsv"),

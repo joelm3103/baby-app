@@ -34,7 +34,10 @@ import app.babylog.domain.TrendLine
 import app.babylog.domain.TrendRange
 import app.babylog.domain.TrendSeries
 import app.babylog.domain.UnitPreferences
+import app.babylog.domain.WastageReport
+import app.babylog.domain.formatVolume
 import app.babylog.domain.formatTrendTotal
+import app.babylog.domain.wastedPercentText
 import app.babylog.domain.trendAxisUnit
 import app.babylog.domain.trendHeadline
 import app.babylog.domain.trendHeadlineUnit
@@ -57,6 +60,11 @@ import java.time.ZoneId
 @Composable
 fun TrendPane(
     series: TrendSeries,
+    /**
+     * The bottle tab's wastage report (Phase 26); null on every other activity, because only a bottle has
+     * anything poured to leave behind.
+     */
+    wastage: WastageReport? = null,
     units: UnitPreferences,
     childLabel: String,
     zone: ZoneId,
@@ -139,6 +147,20 @@ fun TrendPane(
         }
 
         item { TrendSummaryCard(series = series, units = units, zone = zone, accent = accent) }
+
+        // Under the chart rather than in a tab of its own: "how much did he take" and "how much went down
+        // the sink" are two readings of the same bottles, and a parent should not have to change tabs to
+        // compare them.
+        if (wastage != null && wastage.hasData) {
+            item {
+                WastageCard(
+                    report = wastage,
+                    perBucket = series.range.bucket.noun,
+                    units = units,
+                    accent = accent,
+                )
+            }
+        }
     }
 }
 
@@ -282,6 +304,86 @@ private fun ChildSummary(
             "${formatTrendTotal(series.metric, best.value, units)} \u00b7 " +
                 bucketLabel(best.bucketStart, series.range.bucket, zone),
         )
+    }
+}
+
+/**
+ * What was poured, what was drunk, and what was abandoned — the wastage report (Phase 26).
+ *
+ * On the BOTTLE tab only, and under the volume chart, because the two numbers answer one question between
+ * them. The big value is the average LEFT PER BUCKET, matching the summary card above it: "how much do we
+ * throw away on a normal day" is the question a report like this is actually asked.
+ *
+ * It is a tinted card, so every label is `textOnCard` and the accent value is `labelFor(accent)` — the raw
+ * accent on a 26% tint measures 3.4-4.3:1 and is not legible.
+ */
+@Composable
+private fun WastageCard(
+    report: WastageReport,
+    perBucket: String,
+    units: UnitPreferences,
+    accent: Color,
+) {
+    val colors = BabyLogTheme.colors
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.card))
+            .background(colors.cardGradientFor(accent))
+            .cardArtwork(app.babylog.domain.EventType.BOTTLE, accent)
+            .padding(Spacing.cardPadding),
+    ) {
+        Text(
+            text = "Left behind",
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.labelFor(accent),
+        )
+        Text(
+            text = "${formatVolume(report.pouredMl.toDouble(), units.volume)} poured · " +
+                "${report.feedsWithLeftover} of ${report.feeds} feeds left something",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textOnCard,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+        report.lines.forEachIndexed { index, line ->
+            if (index > 0) {
+                HorizontalDivider(
+                    color = colors.textOnCard.copy(alpha = 0.25f),
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = line.childName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textOnCard,
+                )
+                Box(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${line.feedsWithLeftover} of ${line.feeds} feeds",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textOnCard,
+                )
+            }
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
+                Text(
+                    text = formatVolume(line.wastedMl.toDouble() / report.days, units.volume),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colors.labelFor(accent),
+                )
+                Text(
+                    text = "   left per $perBucket",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textOnCard,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            SummaryRow("Total left", formatVolume(line.wastedMl.toDouble(), units.volume))
+            SummaryRow("Poured", formatVolume(line.pouredMl.toDouble(), units.volume))
+            SummaryRow("Wasted", wastedPercentText(line.wastedShare))
+        }
     }
 }
 

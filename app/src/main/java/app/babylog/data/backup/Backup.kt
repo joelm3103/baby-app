@@ -99,6 +99,7 @@ object Backup {
         put("startedAt", e.startedAt)
         putNullable("endedAt", e.endedAt)
         putNullable("amountMl", e.amountMl)
+        putNullable("leftBehindMl", e.leftBehindMl)
         putNullable("formulaBrand", e.formulaBrand)
         putNullable("mealSlot", e.mealSlot)
         putNullable("foodIdsCsv", e.foodIdsCsv)
@@ -128,6 +129,9 @@ object Backup {
         startedAt = o.getLong("startedAt"),
         endedAt = o.longOrNull("endedAt"),
         amountMl = o.intOrNull("amountMl"),
+        // An export written before Phase 26 has no such key; null means "not recorded", so an old file
+        // still restores every feed it holds rather than refusing the whole restore.
+        leftBehindMl = o.intOrNull("leftBehindMl"),
         formulaBrand = o.stringOrNull("formulaBrand"),
         mealSlot = o.stringOrNull("mealSlot"),
         foodIdsCsv = o.stringOrNull("foodIdsCsv"),

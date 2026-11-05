@@ -97,11 +97,15 @@ data class HomeUiState(
         }
 
     /**
-     * Pre-fills the bottle sheet. A parent logs the same 120 ml far more often than a new number, so
-     * opening the sheet on the last amount is the difference between one tap and twelve.
+     * Pre-fills the bottle sheet. A parent makes the same 6 oz far more often than a new number, so opening
+     * the sheet on the last POUR is the difference between one tap and twelve.
+     *
+     * It is [BabyEvent.pouredMl] rather than `amountMl`, and that is the whole point of Phase 26: `amountMl`
+     * is what was DRUNK, so seeding from it would prefill the next feed with the part of the last one that
+     * was finished instead of the amount that was made.
      */
-    val lastBottleAmountMl: Int?
-        get() = cards.firstOrNull { it.type == EventType.BOTTLE }?.last?.amountMl
+    val lastBottlePouredMl: Int?
+        get() = cards.firstOrNull { it.type == EventType.BOTTLE }?.last?.pouredMl
 }
 
 /**

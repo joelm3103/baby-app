@@ -4,6 +4,7 @@ import app.babylog.ui.LocalTimeFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.clockTime
@@ -191,182 +196,86 @@ internal fun decimalInput(typed: String): String {
 }
 
 /**
- * Digits, one decimal point and the arithmetic signs — the bottle amount's field (Phase 24).
+ * A typed number in a box whose label sits INSIDE it, above the value (Phase 26).
  *
- * Separate from [decimalInput] rather than a widening of it: growth, health and the bottle's own presets
- * still take a NUMBER, and a field that silently started accepting `6-2` where a percentile belongs would
- * be a different kind of mistake. The card's quick-log presets keep using [decimalInput].
- */
-internal fun amountInput(typed: String): String {
-    val out = StringBuilder(typed.length)
-    // One dot per OPERAND, not per field: "6-2.5" is legal, "6.2.5" collapses to "6.25". The flag resets on
-    // an operator because that starts a new number.
-    var dotSeen = false
-    for (char in typed) {
-        when {
-            char.isDigit() -> out.append(char)
-            char == '.' && !dotSeen -> {
-                out.append(char)
-                dotSeen = true
-            }
-
-            char in app.babylog.domain.OPERATOR_CHARS -> {
-                out.append(char)
-                dotSeen = false
-            }
-
-            char == ' ' -> out.append(char)
-        }
-    }
-    return out.toString()
-}
-
-/**
- * The amount, shown but not typed into (Phase 24).
+ * This is the shape the owner's reference sheet uses for the bottle's two numbers, and it is deliberately
+ * not [TextFieldRow]'s floating label: two of these sit side by side, and a floating label that moves to
+ * the border on focus would make the pair jump the moment a parent started typing. Drawn here rather than
+ * reached for from Material so both boxes keep one geometry whether they are empty, filled or in error.
  *
- * The bottle amount is entered on [CalculatorPad] below it, so this is a display rather than a text field and
- * no software keyboard can ever open over the amount — a keypad with `*` and `/` on it is the whole point,
- * and the system decimal pad has neither. Drawn rather than a read-only `OutlinedTextField` because a
- * read-only field still takes focus, and a field that takes focus asks the keyboard to come up.
- *
- * The label sits INSIDE the box over the value, the way the sheet's other fields read, so the amount still
- * looks like the field it replaces.
+ * [trailing] carries the small word beside the label — `Optional` on the leftover field, `*` on the amount
+ * that cannot be left blank. It is `textSecondary`, because it qualifies the label rather than being data.
  */
 @Composable
-fun CalculatorField(
+fun LabelledNumberField(
     label: String,
     value: String,
+    onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    trailing: String? = null,
     isError: Boolean = false,
 ) {
     val colors = BabyLogTheme.colors
     val shape = RoundedCornerShape(4.dp)
+    val focus = remember { FocusRequester() }
     Column(
+        // Tapping anywhere in the box focuses the number: the label lives inside the border, so a tap on it
+        // reads as a tap on the field, and leaving it inert would be a second tap for no reason.
         modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp)
             .border(1.dp, if (isError) colors.danger else colors.divider, shape)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .clickable { focus.requestFocus() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isError) colors.danger else colors.textSecondary,
-        )
-        Text(
-            text = value.ifBlank { "0" },
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (value.isBlank()) colors.textSecondary else colors.textPrimary,
-            modifier = Modifier.padding(top = 2.dp),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isError) colors.danger else colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (trailing != null) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = trailing,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                )
+            }
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.textPrimary),
+            cursorBrush = SolidColor(colors.textPrimary),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 2.dp)
+                .focusRequester(focus),
         )
     }
 }
 
 /**
- * The amount's own keypad (Phase 24).
+ * Two [LabelledNumberField]s on one row — the amount and what was left behind.
  *
- * The field takes a SUM — `7*2`, `6-2` — and a phone's decimal keypad offers no `*` and no `/`, so the sheet
- * draws the keys instead of asking the system keyboard for them: digits, the point, a backspace and the four
- * operators, in the arrangement a pocket calculator has used for fifty years. Because the keys are ours, both
- * phones have them in the same place, and nothing can open a full keyboard over a number field.
- *
- * The operators carry an accent OUTLINE rather than a second fill: the same rule the temperature band follows,
- * so which keys are arithmetic survives a colour-blind parent, and an outline only needs to clear the 3:1 a
- * graphic needs (the accent measures 4.2-8.4:1 here) where text would need 4.5:1.
+ * Kept here rather than inlined in the sheet so the 8dp gap and the shared top margin sit in the same file
+ * as the fields themselves; a second sheet that needs a pair gets the same geometry for free.
  */
 @Composable
-fun CalculatorPad(
-    accent: Color,
-    onKey: (String) -> Unit,
-    onEquals: () -> Unit,
+fun PairedFieldRow(
     modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
 ) {
-    val colors = BabyLogTheme.colors
-    val haptics = rememberHaptics()
-    val rows = listOf(
-        listOf("1", "2", "3", DIVIDE),
-        listOf("4", "5", "6", TIMES),
-        listOf("7", "8", "9", MINUS),
-        listOf(".", "0", CALC_BACKSPACE, "+"),
-    )
-    Column(
+    Row(
         modifier = modifier.fillMaxWidth().padding(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        rows.forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { key ->
-                    CalculatorKey(
-                        key = key,
-                        accent = accent,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onKey(key) },
-                    )
-                }
-            }
-        }
-        // The one key that does something to the WHOLE field rather than append to it, so it is the full
-        // width of the pad and filled with the accent: on a calculator, `=` is the point of the pad.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(accent)
-                .clickable {
-                    haptics.tap()
-                    onEquals()
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "=",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.onAccent,
-            )
-        }
-    }
-}
-
-/** The characters the pad emits, so the sheet can tell a digit from a key that resolves the sum. */
-const val CALC_BACKSPACE = "⌫"
-const val DIVIDE = "÷"
-const val TIMES = "×"
-const val MINUS = "−"
-
-/** The pad's keys: any of these that is not a digit or the point is arithmetic. */
-private val PAD_OPERATORS = setOf("+", MINUS, TIMES, DIVIDE)
-
-@Composable
-private fun CalculatorKey(
-    key: String,
-    accent: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val colors = BabyLogTheme.colors
-    val haptics = rememberHaptics()
-    val shape = RoundedCornerShape(14.dp)
-    val operator = key in PAD_OPERATORS
-    Box(
-        modifier = modifier
-            .height(52.dp)
-            .clip(shape)
-            .background(colors.surfaceRaised)
-            .then(if (operator) Modifier.border(1.dp, accent, shape) else Modifier)
-            .clickable {
-                haptics.tap()
-                onClick()
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = key,
-            style = MaterialTheme.typography.titleMedium,
-            color = colors.textPrimary,
-        )
-    }
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
 }
 
 /**

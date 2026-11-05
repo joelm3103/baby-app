@@ -16,6 +16,15 @@ data class EventEntity(
     val startedAt: Long,
     val endedAt: Long? = null,
     val amountMl: Int? = null,
+    /**
+     * What was left in the bottle, in canonical millilitres (Phase 26, schema v5).
+     *
+     * [amountMl] stays what the baby DRANK — the sheet subtracts before saving — so this column is a
+     * sibling fact rather than a second reading of the same number: poured = amountMl + leftBehindMl is
+     * exactly what the parent typed. NULL means nobody recorded a leftover, which is a different claim
+     * from 0, and is the truth about every row written before the column existed.
+     */
+    val leftBehindMl: Int? = null,
     val formulaBrand: String? = null,
     val mealSlot: String? = null,
     /** Comma-separated food ids; see [app.babylog.domain.encodeFoodIds]. */

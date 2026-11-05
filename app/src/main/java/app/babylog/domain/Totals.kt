@@ -126,6 +126,8 @@ private fun bottleTotal(
 ): ActivityTotal {
     val totalMl = events.sumOf { it.amountMl ?: 0 }
     val withAmount = events.count { it.amountMl != null }
+    // Phase 26: the same report Trends draws, so the two screens cannot disagree about what was wasted.
+    val wastage = wastageReport(events, children)
     val (headline, unit) = volumeHeadline(totalMl, units.volume)
     return ActivityTotal(
         type = EventType.BOTTLE,
@@ -137,6 +139,14 @@ private fun bottleTotal(
                 "Average bottle",
                 if (withAmount == 0) DASH else formatVolume((totalMl.toDouble() / withAmount), units.volume),
             ),
+            // What was left is a fact about the bottle, not a criticism of the parent: it sits with the
+            // totals rather than being hidden, and a range with no leftover reads 0 rather than a dash
+            // because "we finished every bottle" IS the answer.
+            TotalRow(
+                "Left behind",
+                if (wastage.hasData) formatVolume(wastage.wastedMl.toDouble(), units.volume) else DASH,
+            ),
+            TotalRow("Wasted", if (wastage.hasData) wastedPercentText(wastage.wastedShare) else DASH),
             TotalRow("Time between feeds", averageGap(events)),
         ),
         perChild = children.map { child ->

@@ -17,6 +17,16 @@ plugins {
  * Local-only Firebase configuration. Absent on a fresh clone, and the app then starts as a
  * single-phone logger rather than refusing to launch: see `data/sync/FirebaseSetup.kt`.
  */
+/**
+ * The version name, named once.
+ *
+ * It is used in two places now — `versionName` itself and the release APK's FILENAME — and a second copy of
+ * the string is how a build ends up called `BabyLog-1.6.0.apk` while claiming to be `1.7.0` on the About
+ * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
+ * construction rather than by care.
+ */
+val appVersionName = "1.7.0"
+
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
     if (file.exists()) file.inputStream().use { load(it) }
@@ -113,8 +123,13 @@ android {
         // pad — `7*2`, `6-2` — and `=` puts the answer back into the field so what is checked is what is
         // stored. A capability the app did not have, so a MINOR rung, and code 34 so it installs in place
         // over the delivered 1.5.0.
-        versionCode = 34
-        versionName = "1.6.0"
+        // 1.7.0 is Phase 26, the left-behind field: the calculator comes out again one version after it
+        // landed, and a bottle gains an optional `leftBehindMl` beside the amount, so the report can say how
+        // much was poured and how much was abandoned instead of asking a parent to do the subtraction in the
+        // field. A recorded fact plus a report the app did not have, so a MINOR rung, and code 35 so it
+        // installs in place over the delivered 1.6.0.
+        versionCode = 35
+        versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
         // tells "this build has no sync configured" apart from "sync is configured, but signed out".
@@ -167,6 +182,18 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+        }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        // `BabyLog-1.7.0.apk` rather than `app-release.apk`: the file a parent downloads should say what it
+        // is, and two builds of the same app in one downloads folder should not be able to overwrite each
+        // other silently. Tagged by the version NAME, not the code, because that is what the release page
+        // and the About screen carry; the code is in the manifest for anyone who needs it.
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("BabyLog-$appVersionName.apk")
         }
     }
 }

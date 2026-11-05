@@ -8,6 +8,8 @@ import app.babylog.data.repo.SettingsRepository
 import app.babylog.domain.CHARTED_TYPES
 import app.babylog.domain.Child
 import app.babylog.domain.ChildSelection
+import app.babylog.domain.WastageReport
+import app.babylog.domain.wastageReport
 import app.babylog.domain.EventType
 import app.babylog.domain.HealthTrend
 import app.babylog.domain.TrendRange
@@ -44,6 +46,13 @@ data class TrendsUiState(
     val range: TrendRange = TrendRange.FORTNIGHT,
     val units: UnitPreferences = UnitPreferences.Metric,
     val series: TrendSeries? = null,
+    /**
+     * The bottle tab's wastage report (Phase 26), and null on every other tab.
+     *
+     * Derived from the SAME rows as [series] and divided by the same bucket count, so the card under the
+     * chart cannot describe a different window than the chart above it.
+     */
+    val wastage: WastageReport? = null,
     val health: HealthTrend? = null,
     val childLabel: String = "",
     val zone: ZoneId = ZoneId.systemDefault(),
@@ -96,21 +105,27 @@ class TrendsViewModel(
             val firstEventAt = events.earliest(ids)
             val window = trendWindow(inputs.range, now, zone, firstEventAt)
             events.observeBetween(ids, window.from, window.to).map { rows ->
+                val series = if (inputs.type in CHARTED_TYPES) {
+                    trendSeries(
+                        type = inputs.type,
+                        children = inScope,
+                        events = rows,
+                        range = inputs.range,
+                        now = now,
+                        zone = zone,
+                        units = inputs.units,
+                        firstEventAt = firstEventAt,
+                    )
+                } else {
+                    null
+                }
                 TrendsUiState(
                     type = inputs.type,
                     range = inputs.range,
                     units = inputs.units,
-                    series = if (inputs.type in CHARTED_TYPES) {
-                        trendSeries(
-                            type = inputs.type,
-                            children = inScope,
-                            events = rows,
-                            range = inputs.range,
-                            now = now,
-                            zone = zone,
-                            units = inputs.units,
-                            firstEventAt = firstEventAt,
-                        )
+                    series = series,
+                    wastage = if (inputs.type == EventType.BOTTLE) {
+                        wastageReport(rows, inScope, days = series?.bucketCount ?: 1)
                     } else {
                         null
                     },

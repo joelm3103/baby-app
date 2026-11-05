@@ -21,6 +21,15 @@ data class EventDraft(
     val startedAt: Long,
     val endedAt: Long? = null,
     val amountMl: Int? = null,
+    /**
+     * What was left in the bottle, already in millilitres (Phase 26).
+     *
+     * The DRAFT takes the two facts a parent typed and takes [amountMl] as what was drunk, because the
+     * subtraction happens in the sheet rather than here: one place decides what a pour of 6 with 1 left
+     * becomes, and this class only carries the result. Blank and `0` both mean nothing was left, but they
+     * stay different values here — `null` is "not recorded" — so a report never pretends to a measurement.
+     */
+    val leftBehindMl: Int? = null,
     val formulaBrand: String? = null,
     val mealSlot: MealSlot? = null,
     val foodIds: List<String> = emptyList(),
@@ -53,6 +62,7 @@ data class EventDraft(
         startedAt = startedAt,
         endedAt = endedAt,
         amountMl = amountMl,
+        leftBehindMl = leftBehindMl,
         formulaBrand = formulaBrand,
         mealSlot = mealSlot,
         foodIds = foodIds,

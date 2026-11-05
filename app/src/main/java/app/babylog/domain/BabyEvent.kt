@@ -154,6 +154,14 @@ data class BabyEvent(
     val endedAt: Long? = null,
     // BOTTLE
     val amountMl: Int? = null,
+    /**
+     * What was left in the bottle. NULL is "not recorded", not zero — see [pouredMl].
+     *
+     * The pair is how one feed is described: [amountMl] is what the baby DRANK and this is what was
+     * abandoned, so the bottle that was made is `amountMl + leftBehindMl` exactly. The app subtracts
+     * ONCE, in the sheet, before saving; nothing at read time evaluates a formula nobody stored.
+     */
+    val leftBehindMl: Int? = null,
     val formulaBrand: String? = null,
     // SOLIDS
     val mealSlot: MealSlot? = null,
@@ -198,5 +206,16 @@ data class BabyEvent(
      * own is also true of every point event, which is how a logged diaper got a live timer.
      */
     val isRunning: Boolean get() = type.hasDuration && endedAt == null
+
+    /** What was left behind, with "not recorded" read as nothing left — for sums only, never for storage. */
+    val leftBehindOrZero: Int get() = leftBehindMl ?: 0
+
+    /**
+     * How much went into the bottle: what was drunk plus what was left.
+     *
+     * Null when no amount was recorded at all, because a feed nobody measured has no poured volume either
+     * and inventing one would put a number on a report that the parent never entered.
+     */
+    val pouredMl: Int? get() = amountMl?.let { it + leftBehindOrZero }
     val durationMs: Long? get() = endedAt?.let { it - startedAt }
 }

@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ChildEntity::class, EventEntity::class, FoodEntity::class, OutboxEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -71,7 +71,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        /**
+         * v4 -> v5: a bottle gained "left behind" (Phase 26, `1.7.0`).
+         *
+         * Additive and nullable, with NO back-fill: every row written before this migration recorded no
+         * leftover, and NULL is the truth about it. Writing 0 would claim every past bottle was finished
+         * to the last millilitre, which is a measurement nobody made — and it would put that claim on the
+         * wastage report the phase adds.
+         */
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE events ADD COLUMN leftBehindMl INTEGER")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, NAME)
