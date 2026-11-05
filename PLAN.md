@@ -3018,11 +3018,16 @@ card uses the other token), so this is a confirmation rather than a doubt — bu
 
 ### Released — `v1.7.1`, 2026-11-05
 
-Tagged and published as a GitHub Release on `9d4e9bf`, with the built artifact attached and nothing rebuilt:
+Tagged and published as a GitHub Release on `main`, with the built artifact attached and nothing rebuilt:
 `BabyLog-1.7.1.apk`, `versionCode 36`, 14 781 151 bytes, SHA-256
-`a48e41bf3051d504cf4ae866c81c6edc76e925438530f95e0335492d809cacbe` — the same digest GitHub reports for the
+`65fbd2f3257b036afe74bbfbca1450c98cc50f3aa5501f3bb3410c862f21db2a` — the same digest GitHub reports for the
 asset, so the file on the page is the file that was installed. `1.7.0` carries no tag: Phase 27 replaced it on
 the handset hours after it was built.
+
+**The About card names a handle.** `ABOUT_CREDITS` is `Built by joelm3103, for Kai and Levi.` — the owner's
+legal name was in the released APK, so it was taken out of the build and then out of the repository's history
+in the same pass (ADR-0005). Version, `versionCode`, schema and test count are untouched: the only byte that
+moved is a string literal, and the APK above is the rebuild that carries it.
 
 **The repository is private, so the release is visible to the two owners' accounts and invisible to the app.**
 Measured on 2026-11-05: `GET /repos/joelm3103/baby-app/releases/latest` answers `404` without a token and `200`

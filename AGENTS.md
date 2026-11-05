@@ -116,6 +116,13 @@ Rules learned the hard way:
 
 ## Release signing and delivery (Phase 16)
 
+- **The app names a handle, never a legal name** (ADR-0005). `ABOUT_CREDITS` is
+  `Built by joelm3103, for Kai and Levi.` and `AboutTest` pins the exact string. The About card is the only
+  surface that identifies a person and the worst place for one — it ends up in screenshots and inside a
+  decompilable APK — so the owner's name was removed from the build and then from this repository's history,
+  which was rewritten once on 2026-11-05: every commit from `db63a21` onward has a new hash and both tag
+  targets moved. Do not put the name back anywhere, and do not add another identifier (email, phone, address)
+  to shipped strings or docs.
 - **The release certificate IS the app's identity.** Android installs a build as an update only when the
   signing certificate matches the one on the device, so the key — not the package name or the version — is
   what a phone recognises. Sign with a different key and the install fails

@@ -53,8 +53,13 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   code 35 so it installs in place over the delivered `1.6.0`. Ship stays Phase 25; it still has no commits.
 - `1.7.1` / versionCode 36 — **Phase 27, the note on the row**. A PATCH rung: no new stored byte, no new
   control, no schema change — the app can now *show* something it has been recording all along.
+- **The About card names a handle, not a legal name.** `ABOUT_CREDITS` reads `Built by joelm3103, for Kai and
+  Levi.`, and the same handle replaced the owner's name everywhere it appeared — including in this
+  repository's history, which was rewritten once on 2026-11-05 (ADR-0005) so that every commit from `db63a21`
+  onward has a new hash. Nothing about the app changed except that one string: same version, same schema,
+  same tests.
 - **Released 2026-11-05: tag `v1.7.1`, published as a GitHub Release** with `BabyLog-1.7.1.apk` attached
-  (14 781 151 bytes, SHA-256 `a48e41bf…cacbe`), the second release this repo has and the first cut on a build
+  (14 781 151 bytes, SHA-256 `65fbd2f3…db2a`), the second release this repo has and the first cut on a build
   two phases landed in one day. `1.7.0` was built and installed on the handset but never released — Phase 27
   superseded it hours later, so it carries no tag.
 - **The release page does not make the update check work yet.** The repository is private, so an

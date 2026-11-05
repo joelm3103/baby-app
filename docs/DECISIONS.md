@@ -265,3 +265,45 @@ no change at all to start showing the result of the subtraction.
   can express a sum can express a wrong one, and neither could say what was left. `domain/BottleMath.kt` and
   its seven tests are gone; what remains of that ground is the much smaller `BottleAmount.kt`, which does the
   one subtraction.
+
+## ADR-0005 — The app names a handle, and the history was rewritten once to say so
+
+**Date:** 2026-11-05 · **Phase:** 27 · **Status:** accepted · **Supersedes:** nothing
+
+The About card printed the owner's legal name. It was the only place in the app that identified a person, and
+it is the worst place for one: the card ends up in screenshots and inside an APK that anyone holding the file
+can decompile. It now reads `Built by joelm3103, for Kai and Levi.` — the handle, never the legal name.
+
+### Decision
+
+- **`ABOUT_CREDITS` names a handle.** The twins stay, because the constant exists to say who the log is for and
+  a generic "your baby" would be a stranger's if the code were copied. `AboutTest` pins the exact string, so
+  the credit cannot change by accident.
+- **The name left the repository's history too, once.** The string was reachable from two commits
+  (`db63a21`, `a143746`) and, through them, from every commit after them. `git filter-repo --replace-text`
+  was run in a mirror clone over all 168 commits, replacing the legal name with the handle and the Windows
+  profile path with `C:\Users\<you>\`, and the result was force-pushed over `main` and both tags.
+- **Version, `versionCode`, schema and test count are unchanged.** The build is still `1.7.1` / `36`. The
+  rewrite changes hashes, not content, and the single string change is the only byte that moved in the app.
+- **Tags still mean what they meant.** `v1.0.0` and `v1.7.1` were re-pointed at their rewritten commits, so a
+  tag is still "the commit this build came from".
+
+### Why the history rewrite, rather than only the source
+
+Deleting a string from the current tree leaves it one `git log -p` away, and this repository carries enough
+adjacent detail — the family's dated measurements, the seeded birth date in `ChildRepository`, the Windows
+profile in the runbooks — that a leak of the name would identify two minors rather than a developer. The
+alternative, keeping history and relying on the repository staying private, makes the private setting the only
+thing protecting it. One rewrite, done at a moment when nobody else holds a clone, is cheaper than that.
+
+### Consequences
+
+- **Every commit from `db63a21` onward has a new hash**, and both tag targets changed. A hash quoted in an old
+  message, screenshot or issue no longer resolves; the subjects, dates, authors and trees are the same, so
+  `git log --oneline` still reads as the same history.
+- **Any other clone must be re-cloned, not pulled.** There is no collaborator clone today (the fork was
+  removed when the repository was sanitised once before), so this cost was already paid.
+- **The released APK was rebuilt** so the artifact carries the new string, and republished as the only `1.7.1`
+  release. The digest in `CHANGELOG.md` and `PLAN.md` is that rebuild's.
+- **This is the last time it should be needed.** The name is now nowhere in tracked content or history; the
+  line in `AGENTS.md` exists so a future pass does not put it back.
