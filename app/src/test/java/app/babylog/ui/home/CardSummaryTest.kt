@@ -423,6 +423,40 @@ class CardSummaryTest {
         assertNotNull(cardColumns(EventType.GROWTH, emptyList(), listOf("first-twin"), metric))
     }
 
+    // ---- a row's note (Phase 27) -------------------------------------------
+
+    @Test
+    fun `a row carries the note beside its label, kept apart`() {
+        // Apart rather than joined: the label is the record and gets `textPrimary`, the note is a remark
+        // and gets the surface's meta token. One string would give both one colour.
+        val e = event(EventType.BOTTLE).copy(amountMl = 120, note = "  took it slowly  ")
+        assertEquals(RowText(label = "120 ml", note = "took it slowly"), rowText(e, metric))
+    }
+
+    @Test
+    fun `a note of nothing but whitespace is no note`() {
+        // A parent who typed a space wrote nothing, and a dangling `·` on every row would be punctuation
+        // pretending to be content.
+        val e = event(EventType.BOTTLE).copy(amountMl = 120, note = "   ")
+        assertEquals("120 ml", rowText(e, metric).label)
+        assertNull(rowText(e, metric).note)
+    }
+
+    @Test
+    fun `a row with no note is just its label`() {
+        val e = event(EventType.DIAPER).copy(diaperKind = DiaperKind.MIXED)
+        assertNull(rowText(e, metric).note)
+        assertEquals(recentRowLabel(e, metric), rowText(e, metric).label)
+    }
+
+    @Test
+    fun `the note is on the row for every activity, not only a bottle`() {
+        val sleep = event(EventType.SLEEP).copy(endedAt = t0 + 1_800_000, note = "car seat")
+        assertEquals("car seat", rowText(sleep, metric).note)
+        val health = event(EventType.HEALTH).copy(temperatureC = 38.4, note = "after jabs")
+        assertEquals("after jabs", rowText(health, metric).note)
+    }
+
     private fun event(type: EventType, at: Long = t0, id: String = "e") = BabyEvent(
         id = id, childId = "first-twin", type = type, startedAt = at,
         createdBy = "u1", updatedAt = at,
