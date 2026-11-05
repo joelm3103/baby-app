@@ -25,11 +25,15 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Delivery moves from Firebase App Distribution to GitHub Releases.** The key, the manual build and the `versionCode` contract are unchanged; the channel is not (ADR-0001's second amendment, and ADR-0003 for the check itself).
 - **The About promise was rewritten rather than left to become false.** "No analytics, no trackers, no ads" still holds, and the sentence now names the one other request the phone makes instead of implying it talks only to Firebase.
 - **The device pass ran on `<handset>`**, after a first attempt that found no phone attached. The About row was driven in both themes, the switch was turned off and back on, and the live API answered for a repository with no releases: `No release published yet.`
+- **`1.6.0` — the bottle amount is worked out in the sheet, and `=` puts the answer in the field** (Phase 24). The sheet draws its own keypad — `1-9`, the point, a backspace and `÷ × − +` — and `7×2` becomes `14` where the parent typed it, which is then what is stored. No software keyboard opens over the amount. A MINOR rung: arithmetic on the way in is a capability the app did not have.
+- **A formula list was built and removed the same day, before it landed.** The first cut put a pickable list of formulas in chips above the field, on a new schema-v5 table with a bundled asset and its own ADR. The owner asked for the calculator alone; the schema is back to v4 and nothing of it is in this record because nothing of it reached `main`.
+- **Getting the test phone back from v5 to v4 cost its settings**, which is the honest bill for a schema that landed on a phone and then did not. The log itself came back from an export, entire, on the first try.
 
 ### Versions
 
+- `1.6.0` / versionCode 34 — **Phase 24, the bottle calculator**. A MINOR rung: an amount field that can work out `7×2` is a capability the app did not have, and code 34 so it installs in place over the delivered `1.5.0`. **Ship becomes Phase 25**; it still has no commits, so it moves for free.
 - `1.5.0` / versionCode 33 — **Phase 23, the update check**. A MINOR rung, because the app gained a capability it did not have, and code 33 so it installs in place over the delivered `1.4.1`. **Ship becomes Phase 24** and delivers this build; it has no commits, so it moves for free under the standing rule.
-- Nothing is tagged. A tag is still cut only on a delivered build, and this one is not delivered yet.
+- Nothing is tagged. A tag is still cut only on a delivered build, and neither of these is delivered yet.
 
 ### Added
 
@@ -52,12 +56,43 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **`shouldCheckForUpdates` compares timestamps without a subtraction that can overflow** — two guards first, so the arithmetic is only reached for two ordered positive values.
 - **A Robolectric class without `@Config(sdk = [34])` dies before its first test on this machine** — `Failed to interact with raw FileDescriptor internals`, thrown out of `ApplicationSharedMemory`. Every other Robolectric class in the repo pins 34; the new one did not, and pinned it after the failure. `AGENTS.md` now states the rule where the check lives.
 
-### Tests
+### Phase 24 — Bottle calculator (`1.6.0`)
+
+#### Added
+
+- **`domain/BottleMath.kt`** — the amount field takes a SUM: `+ − × ÷`, decimals, spaces and parentheses, with the standard precedence (`2+3*2` is 8). Deliberately small — no functions, no variables, no percent — because a calculator that can express more than a bottle amount can express a wrong one. Anything unreadable is `null`, never a guess, and `amountMlFor` is the one place text becomes a stored volume.
+- **`resolvedAmountText`** — what `=` writes back into the field: the value in the display unit at that unit's own rounding, so the number a parent checks is the number kept.
+- **`CalculatorPad`** — the sheet's own keys, `1-9`, the point, a backspace and `÷ × − +`, with `=` as a full-width accent key. A phone's decimal keypad has no `*` and no `/`, so the keys have to be ours or a sum cannot be typed at all; because they are ours, both phones have them in the same place.
+- **`CalculatorField`** — the amount shown, not typed into. A read-only text field still takes focus and a focused field asks the keyboard to come up, so this is drawn: no keyboard can open over the amount.
+
+#### Changed
+
+- **`=` replaces the first build's preview line.** That build printed `= 4 oz` underneath the field; the owner rejected it on 2026-11-04 — "the result not even in the field but below it" — so the answer now lands where the numbers were typed.
+- **A half-typed sum survives a failed `=`.** `6−` keeps its text, says `That sum cannot be read.` and leaves Save disabled; any further key clears the message. Save still evaluates a leftover sum, so a parent who never presses `=` is not punished for it.
+- **`amountInput` stays separate from `decimalInput`** — one decimal point per operand and the operator characters, where growth, health and the quick-log presets keep the digits-only sanitizer.
+
+#### Removed before landing
+
+- **A formula list: chips, a schema-v5 `formulas` table, a bundled 27-row asset, `FormulaRepository` and its sync/backup path, a `match /formulas/{formulaId}` rules block and ADR-0004.** Built first, then removed on the owner's word on the same day and before any of it reached `main` — which is why this section does not describe it further. The attempt survives only as the local tag `wip/phase24-formula-attempt`.
+
+#### Tests
+
+- **677 → 684: seven cases, all in `BottleMathTest`** — a plain number is its own value, made-minus-left is the amount drunk (`6-2` is 4), precedence and parentheses, unreadable input is null rather than zero, the stored value is millilitres whatever unit was typed, `.5` and `6.` read while `6..2` does not, and `=` resolves `7*2` to `14`, `7/3` to `2.3`, `6-2` to `4`, leaves `6-` and blank null, and passes a plain `4` through so pressing `=` twice is harmless.
+- 69 → 70 XML files in `app/build/test-results/testDebugUnitTest`, summed as **684 tests, 0 failures, 0 errors, 0 skipped**.
+
+#### Verification
+
+- `:app:testDebugUnitTest` and `:app:assembleRelease` succeed on this tree; the release APK is `1.6.0` / versionCode 34, signed `CN=BabyLog` (SHA-1 `07:66:EE:…`, unchanged), SHA-256 `17760093…d6684`.
+- **Verified on `<handset>`**, every coordinate from a `uiautomator` dump. The handset was on the withdrawn v5 build, so its data was cleared, `1.6.0` installed and the export imported: the log returned entire (Kai `5 oz` 4:45 AM, Levi `2.5 oz` 4:38 AM, the 16-hour-old nappies) and the import reported 300 changes queued. `7×2` then `=` made the field read `14`, and the saved entry read `14 oz` at 10:00 PM — deleted again afterwards, leaving a tombstone like any deleted row. `6−` then `=` printed `That sum cannot be read.` with Save carrying `enabled="false"`. Both themes carried the same pad, the operator outlines and the accent `=`; `logcat -b crash -d` held **0** `FATAL EXCEPTION`.
+- **Not claimed:** that the two phones agree on anything yet. The twin's phone is still on `1.5.0` and was not touched by this pass.
+- **The revert's bill, stated plainly:** clearing the app for v5 → v4 clears DataStore, and a backup carries children, events and foods only. Volume `fl oz`, the 12-hour clock and the `3 4 5 6 oz` presets were restored by hand; the temperature, length and weight units, the day/night window and the two per-child `Every 3h` bottle reminders were not, and need a look on the phone.
+
+### Tests, Phase 23
 
 - **658 → 677: nineteen cases in three new classes** — ten in `UpdateCheckTest` (a version is its numeric run, an unreadable one is never "newer", the switch off means no request at all, a day is the interval, a clock that went backwards does not ask forever, the endpoint is derived from one link, one lookup becomes one outcome), two in `GitHubReleaseParseTest` (a release is a tag *and* a page), and seven in `UpdateCopyTest` (off is not a failure, a fresh install says so, an available version is named without its `v`, an age is friendly and bounded).
 - 66 → 69 XML files in `app/build/test-results/testDebugUnitTest`, summed as **677 tests, 0 failures, 0 errors, 0 skipped**. The nineteenth came from a code review: a version segment too large for an `Int` used to be cut short, so `1.5.0.99999999999999999999` compared equal to `1.5.0` and a newer release would have read as up to date.
 
-### Verification
+### Verification, Phase 23
 
 - `:app:testDebugUnitTest` and `:app:assembleRelease` succeed on this tree; the release APK is `1.5.0` / versionCode 33, signed `CN=BabyLog` with the unchanged SHA-1.
 - **A reviewer pass over the diff found no critical defect and four worth fixing**, all of which were fixed and re-tested rather than argued with: the two races above, the truncating version parse, and the overflow-prone interval arithmetic. The one finding deliberately declined was a size limit on the response body — a truncated read would report a genuine release as `Could not reach GitHub`, which is a worse lie than an unbounded read from a trusted endpoint behind a five-second timeout.

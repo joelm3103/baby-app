@@ -58,7 +58,8 @@ everything after it is additive.**
 | 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice) and nothing is persisted, so it opens on the dial every time. The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
 | 22 — Filled Soft redesign | **DONE, device-verified** — `1.4.1` / versionCode 32; the tiled stroke-glyph watermark is gone, replaced by a per-activity vertical gradient card fill and a two-layer decoration: the activity's illustration as a whole sticker, with scattered silhouettes and hearts spread across the entire card behind it (nine new `ic_soft_*` drawables); **658 tests green**. Two decoration-placement defects were found by measuring the phone's own pixels rather than by looking (a pacifier drawn inside the illustration's silhouette, a heart behind the opaque pill row), and the owner then corrected the design itself on 2026-11-02: the scatter must cover the whole card, not a 76dp band, and the sticker must read as a whole object. The revision was verified on the phone on 2026-11-03 in both themes — every card's geometry read from a `uiautomator` dump and its artwork counted by colour in a `screencap`. **One defect is knowingly open:** on a card with nothing logged the illustration is drawn underneath its first control, because the 48dp band that fixed it was rejected in favour of the previous, more compact cards. See the Phase 22 section |
 | 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **677 tests green** (19 new: 10 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
-| 24 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver `1.5.0` as a GitHub Release to both phones, verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23 |
+| 24 — Bottle calculator | **DONE, device-verified** — `1.6.0` / versionCode 34; the bottle amount is entered on the sheet's OWN pad — 1-9, the point, a backspace and `÷ × − +` — and `=` puts the answer back into the field, so `7×2` becomes `14` where the parent typed it and 14 is what is stored. No software keyboard opens over the amount, and the `= 4 oz` preview line the first build printed underneath is gone. A formula list was built and removed before landing; see the phase section. **684 tests green** (7 new) |
+| 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones, verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
 
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -152,16 +153,32 @@ The rung is `1.2.1` / versionCode 29 — a PATCH rather than a MINOR, because th
 changes no stored data: every setting the app had is still there, under the name it had, with only the way to
 reach it changed.
 
+### Renumbering, 2026-11-04 — the bottle calculator takes 24 before Ship
+
+Phase 24 — Ship had no commits. The owner asked for the bottle amount to be worked out in the sheet, so that
+work takes **Phase 24** and Ship moves freely to **Phase 25**. The rung is `1.6.0` / versionCode 34, a MINOR:
+an amount field that can work out `7×2` is a capability the app did not have.
+
+**A formula list was built on this branch first and removed before it landed.** The first cut of the phase put
+a pickable list of formulas in chips above the field, on a new schema-v5 `formulas` table with a bundled
+27-row asset, its own sync path and an ADR-0004. The owner rejected that on 2026-11-04 in favour of the
+arithmetic alone, entered on the sheet's own pad, so all of it came out again before anything reached `main`:
+the schema is back to v4, `docs/DECISIONS.md` has no ADR-0004, and `AGENTS.md` carries no formula rules. The
+attempt is kept as a local tag (`wip/phase24-formula-attempt`) and nowhere else — it is not part of this
+project's history, and the details above are the only record of it.
+
+Reverting a landed-on-this-phone schema had one cost, recorded in the phase section: the handset's database
+was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified (current state, 2026-11-04): `:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
-Phase 23 tree. The release APK is `1.5.0` / versionCode 33, signed `CN=BabyLog`, SHA-1
-`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`, where About was driven in both
-themes and the live GitHub 404 was read back as `No release published yet.`. The suite is **677/677**, 0
-failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (69 files). The
-last nineteen came from Phase 23: ten in `UpdateCheckTest`, two in `GitHubReleaseParseTest` and seven in
-`UpdateCopyTest`. The previous close-out was `1.4.1` / versionCode 32 at
+Phase 24 tree. The release APK is `1.6.0` / versionCode 34, signed `CN=BabyLog`, SHA-1
+`0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`, where the sheet's pad was driven
+in both themes: `7×2` then `=` made the field read `14`, the saved entry read `14 oz`, and `6−` then `=`
+printed `That sum cannot be read.` with Save disabled. The suite is **684/684**, 0 failures, 0 errors and 0
+skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (70 files). The last seven came from
+Phase 24's `BottleMathTest` — the arithmetic, the stored millilitres, and what `=` puts back into the field. The previous close-out was `1.4.1` / versionCode 32 at
 658/658 (`<handset>`, over `1.4.0`), and the last thirteen of those came from Phase 22: ten
 `CardArtworkTest` and three more in the rewritten `PatternPaletteTest`; before that `1.4.0` / versionCode 31 at 645/645, whose last nine came from
 Phase 20 — five `PostedNotificationTest`, four `ReminderNotificationIdTest`, three `BottleQuickLogTest`, three
@@ -2728,12 +2745,109 @@ the stored preference are observed; the guard that makes "off means no request a
 Evidence: `logs/phase23-device/` (gitignored) — `about-dark.xml`, `about-off.xml`, `about-light.xml`,
 `settings.xml`, `home.xml` and the two screenshots.
 
-## Phase 24 — Ship
-Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the `1.5.0` release
+## Phase 24 — Bottle calculator — DONE, device-verified (`1.6.0`)
+
+The owner asked for one thing about one sheet: the amount should be worked out on the way in, and the way to
+work it out should be a calculator — not a result printed below the field. The first build did the arithmetic
+and printed `= 4 oz` underneath; the owner rejected that on 2026-11-04 ("not like how it's calculated now
+with the result not even in the field but below it"), so `=` now writes the answer into the field itself.
+
+### What was built
+
+- **`domain/BottleMath.kt`** — reads `+ − × ÷`, decimals, spaces and parentheses with the standard precedence
+  (`2+3*2` is 8, not 10). Deliberately small: no functions, no variables, no exponents, no percent — a
+  calculator that can express more than a bottle amount can express a wrong one. Anything it cannot read is
+  `null`, never a guess.
+- **`resolvedAmountText(text, unit)`** — what `=` puts back into the field, in the display unit at one
+  decimal, which is the same rounding the field would store. So the number a parent checks is the number
+  kept.
+- **`CalculatorPad`** — the sheet draws its own keys: `1-9`, the point, a backspace and `÷ × − +`, in the
+  arrangement a pocket calculator has used for fifty years, with `=` as a full-width accent key beneath.
+  The operators carry an accent OUTLINE rather than a second fill, because which keys are arithmetic has to
+  survive a colour-blind parent (the same shape-not-hue rule the temperature band follows), and an outline
+  only needs the 3:1 a graphic needs where a coloured label would need 4.5:1.
+- **`CalculatorField`** — the amount is DISPLAYED, not typed into. A read-only text field still takes focus
+  and a focused field asks the keyboard to come up, so this is drawn: label inside the box, value beneath,
+  border in `danger` when the sum cannot be read. **No software keyboard ever opens over the amount**, which
+  is what makes the twelve keys the same twelve keys on both phones.
+- **`=` keeps a half-typed sum.** `6−` then `=` leaves the text alone, prints `That sum cannot be read.` and
+  leaves Save disabled — the failed press is a question the parent asked, not a reason for the app to erase
+  what they typed. Any further key clears the message.
+- **`amountMlFor` stays the one place text becomes a stored volume**, and Save evaluates a leftover sum too,
+  so a parent who types `6-2` and taps Save without `=` still stores 4. `=` exists so the number can be SEEN
+  before it is kept.
+- **`amountInput` is still separate from `decimalInput`** — one decimal point per operand (`6-2.5` reads,
+  `6.2.5` collapses) and the operator characters. Growth, health and the card's preset pills keep the
+  digits-only sanitizer: a percentile that silently accepted `6-2` would be a different mistake.
+
+### A formula list was built and removed before it landed, 2026-11-04
+
+The first cut of this phase put a pickable formula list in chips above the field: a schema-v5 `formulas`
+table, a bundled 27-row asset, `FormulaEntity`/`FormulaDao`/`FormulaCatalogue`/`FormulaRepository`, its own
+sync path, a backup field, a `match /formulas/{formulaId}` rules block and an ADR-0004 argued against the
+food catalogue's model. The owner asked for the calculator alone and for the list to go, so it went — before
+any of it reached `main`. Schema is back to v4, `docs/DECISIONS.md` stops at ADR-0003, `AGENTS.md` carries no
+formula rules, and `firebase/firestore.rules` is untouched. `wip/phase24-formula-attempt` is a local tag on
+the attempt and nothing in the repo references it.
+
+The cost of that reversal is recorded below, and it is a real one: the test phone had already installed the
+v5 build, so its database had to go back to v4.
+
+### What it does not do, on purpose
+
+- **No functions, no memory, no percent.** See `BottleMath.kt`'s own note.
+- **An expression is never stored.** `=` writes a number into the field and Save stores that number, so
+  nothing in the database depends on being re-evaluated later by a different parser.
+- **No result line under the field.** That was the first build and the owner removed it; the field itself is
+  where the answer belongs.
+
+### Tests: 677 → 684
+
+Seven, all in `BottleMathTest`: a plain number is its own value, made-minus-left is the amount drunk (the
+case the feature exists for), precedence and parentheses, unreadable input is null rather than zero, the
+stored value is millilitres whatever unit was typed, `.5` and `6.` read while `6..2` does not, and `=`
+resolves `7*2` to `14`, `7/3` to `2.3`, `6-2` to `4`, leaves `6-` and the empty string null, and a plain `4`
+to itself so pressing `=` twice is harmless.
+
+### The device pass, 2026-11-04 — `<handset>` (SM-S918U1)
+
+`1.6.0` / versionCode 34, signed with the family certificate, every coordinate from a `uiautomator` dump.
+
+- **The database came back from v5 to v4 over the live log.** The handset was already on the withdrawn v5
+  build, so the pass cleared the app's data, installed `1.6.0` and imported the export taken minutes earlier
+  (Settings → Data → Import backup). The log returned entire — Kai `5 oz` at 4:45 AM, Levi `2.5 oz` at
+  4:38 AM, the 16-hour-old nappy rows — and the import reported 300 changes queued for the server.
+- **`7×2`, then `=`.** The field read `7×2` while it was being typed and `14` the moment `=` was pressed.
+  Saving wrote a `14 oz` entry at 10:00 PM, which was then deleted, leaving a tombstone like any deleted row.
+- **`6−`, then `=`.** The field kept its text, `That sum cannot be read.` appeared under it, and the Save
+  button carried `enabled="false"` in the dump. No chips anywhere; `Formula brand` is free text again.
+- **Both themes.** The pad, the operator outlines, the accent `=` key and the amount box were identical in
+  `cmd uimode night no`; the system night mode was returned to dark afterwards.
+- `logcat -b crash -d` held **0** `FATAL EXCEPTION` across install, import and both theme passes.
+
+### Cost of the schema revert, recorded because it is not free
+
+Clearing the app to get from v5 back to v4 clears DataStore as well, and a backup carries children, events
+and foods only — not settings, presets or reminders. On this phone the volume unit (fl oz), the 12-hour clock
+and the `3 4 5 6 oz` bottle presets were restored by hand immediately after the import. **Not restored,
+because they were never recorded anywhere the export could reach:** the temperature unit, the length and
+weight units, the day/night window and the two per-child `Every 3h` bottle reminders — those need a look on
+the phone. A future phase that changes the schema of a live phone should assume the same bill.
+
+Evidence: the `uiautomator` dumps in `logs/` (gitignored) and the screenshots in `../babylog-shots/`
+(outside the repo).
+
+## Phase 25 — Ship
+Publish the Phase 18 Firestore rules and catalogue from the Firebase console, deliver the landed release
 APK to both phones **as a GitHub Release** (ADR-0001's 2026-11-04 amendment — App Distribution is retired),
 verify the shared catalogue, the pending-food flow and the update row on both, then use the delivered build
 for **a week before writing another line of code**. Both phones exist and are known good as of 2026-11-03, so
-this is about `1.5.0` arriving on the second one, not about first contact.
+this is about the landed build arriving on the second one, not about first contact.
+
+**Decide the private-repository question first.** The GitHub repository is private, so the update check's
+unauthenticated read of `releases/latest` answers 404 however many releases are published. Before a release
+page can announce anything, the owner has to publish the repository, publish the release somewhere the
+check can read, or retire the check (ADR-0003 records what it was for).
 
 ---
 

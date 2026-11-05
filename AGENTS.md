@@ -314,9 +314,33 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   the parent and a submenu that passes it through dumps them on Activity. Two defects came off the phone: an
   appended `s` printed `2 childs`, so `counted()` takes its plural explicitly, and a summary long enough to wrap
   made its row taller than the rest, so a value that cannot fit one line belongs in the submenu instead.
+- **The bottle amount is entered on the app's OWN pad, and the field is a display, not a text input** (Phase 24).
+  `CalculatorPad` draws `1-9`, the point, a backspace and `÷ × − +`; `CalculatorField` shows the value and takes
+  no focus. A phone's decimal keypad has no `*` and no `/`, so a system keyboard cannot type a sum at all — and a
+  read-only `OutlinedTextField` is NOT a display, because it still takes focus and a focused field asks the
+  keyboard to come up. The operator keys carry an accent OUTLINE and the digits do not (shape, not hue, the same
+  rule the fever band follows), and an outline only has to clear the 3:1 a graphic needs: an accent-coloured
+  label would need 4.5:1 and measures 4.2:1 on the light theme. `=` is a full-width accent key labelled in
+  `onAccent`, because on a calculator it is the point of the pad.
 
 ## Domain rules that already cost us
 
+- **The bottle amount takes a SUM, and `=` puts the answer INTO the field** (Phase 24). `6-2` is a 6 oz bottle
+  with 2 oz left and stores the 4 oz drunk; `7×2` stores 14. `domain/BottleMath.kt` reads it with the standard
+  precedence, `amountMlFor` is the only place text becomes millilitres, and `resolvedAmountText` is what `=`
+  writes back — at the display unit's own rounding, so the number a parent checks is the number kept. It is
+  deliberately small (no functions, variables, exponents or percent), because a calculator that can express
+  more than a bottle amount can express a wrong one, and unreadable input is `null`, never 0. Save evaluates a
+  leftover sum too, so a parent who never presses `=` is not punished for it. `=` on something unreadable keeps
+  the text and says `That sum cannot be read.` — a mistyped sum is the parent's to finish, not the app's to
+  erase — and the first build's `= 4 oz` line UNDER the field was rejected on 2026-11-04 for exactly that
+  reason: the result belongs where the numbers were typed.
+- **An untouched prefill keeps its stored value.** A 90 ml bottle renders as `3` fl oz, and re-parsing that
+  would store 89 ml, so a sheet opened and saved without a touch must not rewrite the amount. Every field whose
+  edit prefill round-trips through a coarser display unit needs the same guard.
+- **Only the bottle amount takes arithmetic.** `amountInput` is separate from `decimalInput` on purpose: growth,
+  health and the card's quick-log presets keep the digits-only sanitizer, because a percentile that silently
+  accepted `6-2` would be a different kind of mistake.
 - **`endedAt == null` does NOT mean "running".** Only duration-capable types can run:
   `isRunning = type.hasDuration && endedAt == null`. Treating a null end as "in progress" put a live
   timer on every card, because a point event has no end either.
@@ -500,7 +524,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-677 unit tests through Phase 23 (`1.5.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+684 unit tests through Phase 24 (`1.6.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -541,7 +565,8 @@ only, and `1.0.0` is the first release.
 | | | 21 time picker | `1.4.0` |
 | | | 22 Filled Soft redesign | `1.4.1` |
 | | | 23 update check | `1.5.0` |
-| | | 24 Ship | uses delivered release |
+| | | 24 bottle calculator | `1.6.0` |
+| | | 25 Ship | uses delivered release |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -566,8 +591,9 @@ logs a feed in one tap is a capability the app did not have — **Phase 21 is th
 MINOR because the dial and the wheels are two input modes the app did not have — **Phase 22 is the Filled
 Soft redesign on `1.4.1`**, a PATCH because the card surface changed and no capability, control, copy or
 stored byte did — **Phase 23 is the update check on `1.5.0`**, a MINOR because a build delivered by hand had
-no way to say a newer one existed — and **Phase 24 is Ship**, which delivers `1.5.0`. Ship has no commits and
-moves freely until its work starts.
+no way to say a newer one existed — **Phase 24 is the bottle calculator on `1.6.0`**, a MINOR because an amount
+field that can work out `7×2` is a capability the app did not have — and **Phase 25 is Ship**, which delivers
+whatever build is landed when it runs. Ship has no commits and moves freely until its work starts.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
   would install fine by `versionCode` and still read as going backwards on the phone.
