@@ -20,5 +20,10 @@ const val SOURCE_REPOSITORY_URL: String = "https://github.com/joelm3103/baby-app
  *
  * Kept out of the composable so the naming is one decision: the app is for two specific children, and a
  * generic "your baby" would be a stranger's if copied.
+ *
+ * It names a HANDLE, never a legal name. This is the one place the app says who built it, and the card ends up
+ * in screenshots and inside an APK anyone holding the file can open — so the credit says `joelm3103` and the
+ * legal name stays out of the build. Changed on 2026-11-05, before the same name left the repository's
+ * history; do not put it back.
  */
 const val ABOUT_CREDITS: String = "Built by joelm3103, for Kai and Levi."
