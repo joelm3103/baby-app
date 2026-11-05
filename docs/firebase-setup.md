@@ -159,7 +159,7 @@ like a console problem.
 export JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ADB="C:/Users/<you>/AppData/Local/Android/Sdk/platform-tools/adb.exe"
-"$ADB" install -r app/build/outputs/apk/debug/app-debug.apk
+"$ADB" install -r app/build/outputs/apk/debug/BabyLog-1.7.0.apk   # %appname%-%appversion%
 ```
 
 The app id is `app.babylog`. A build from before the id change installs **beside** this one and keeps its
@@ -287,7 +287,8 @@ The three things this runbook used to leave to Phase 16 now exist:
   debug SHA-1, which stays because development still runs on debug builds. Without it Google Sign-In
   refuses every release build and email/password still works — the same asymmetry as above.
 - **Over-the-air delivery.** A manual Firebase App Distribution upload of
-  `app/build/outputs/apk/release/app-release.apk`, with both tester accounts invited once. Delivery is
+  `app/build/outputs/apk/release/BabyLog-1.7.0.apk` (`%appname%-%appversion%`), with both tester accounts
+  invited once. Delivery is
   deliberately manual: ADR-0001 in `docs/DECISIONS.md` records why no plugin, service account or CLI was
   added, and what that costs.
 

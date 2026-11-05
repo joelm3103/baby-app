@@ -57,10 +57,15 @@ alongside it, because development still happens on debug builds.
 export JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 ./gradlew :app:testDebugUnitTest :app:assembleRelease
 "C:/Users/<you>/AppData/Local/Android/Sdk/build-tools/37.0.0/apksigner.bat" \
-    verify --print-certs app/build/outputs/apk/release/app-release.apk
+    verify --print-certs app/build/outputs/apk/release/BabyLog-1.7.0.apk
 "C:/Users/<you>/AppData/Local/Android/Sdk/build-tools/37.0.0/aapt2.exe" \
-    dump badging app/build/outputs/apk/release/app-release.apk
+    dump badging app/build/outputs/apk/release/BabyLog-1.7.0.apk
 ```
+
+The artifact is named `BabyLog-<versionName>.apk` (`%appname%-%appversion%`, owner's request 2026-11-05), so
+the file says what it is and two builds cannot overwrite each other. `app/build.gradle.kts` derives the name
+from the same `appVersionName` the About screen reads; the build type decides the directory, not the filename.
+Dated `CHANGELOG.md` and `PLAN.md` records still say `app-release.apk`, because they record what happened.
 
 `apksigner` must print `certificate DN: CN=BabyLog, OU=Family, O=BabyLog, C=TT` and a SHA-1 digest equal to
 the table above; any other digest means the APK signed with a different key, so stop and find out what.
@@ -79,7 +84,7 @@ long-lived secret to guard.
 1. Build and verify as above.
 2. Firebase console → **App Distribution** → the `app.babylog` Android app → **Testers & Groups**: both
    accounts are invited once and stay invited.
-3. **Distribute** → upload `app/build/outputs/apk/release/app-release.apk`, add release notes, distribute.
+3. **Distribute** → upload `app/build/outputs/apk/release/BabyLog-1.7.0.apk`, add release notes, distribute.
 4. Each phone opens the App Distribution email or notification and installs over the air. `dumpsys package
    app.babylog` then names what landed.
 

@@ -28,7 +28,11 @@ param(
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $adb = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
-$apk = Join-Path $repo "app\build\outputs\apk\debug\app-debug.apk"
+$apkDir = Join-Path $repo "app\build\outputs\apk\debug"
+# The APK is named BabyLog-<version>.apk since Phase 26, so this takes the newest file in the directory
+# rather than a hard-coded version: a rung bump must not break the capture script.
+$apk = Get-ChildItem -Path $apkDir -Filter "BabyLog-*.apk" -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName
 $pkg = "app.babylog"
 
 if (-not (Test-Path $adb)) { throw "adb not found at $adb - set the Android SDK path." }

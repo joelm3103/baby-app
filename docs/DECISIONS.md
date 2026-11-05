@@ -209,3 +209,59 @@ Android requires anyway.
   `Could not reach GitHub`, which is a worse statement than an unbounded read from a trusted endpoint behind a
   five-second timeout; if the endpoint ever changes, the cap belongs here as a decision rather than as a
   silent guard.
+
+---
+
+## ADR-0004 — A bottle records what was drunk, and the leftover beside it
+
+**Date:** 2026-11-05 · **Phase:** 26 · **Status:** accepted · **Supersedes:** nothing (withdraws Phase 24's
+calculator without reversing a stored format)
+
+### Decision
+
+A bottle feed is stored as **two integers**:
+
+- `amountMl` — what the baby **drank**, unchanged in meaning since schema v1;
+- `leftBehindMl` — what was **left in the bottle**, a nullable column added in schema v5.
+
+The sheet asks for the poured amount and the optional leftover, and **subtracts once, at save**, in
+`domain/BottleAmount.kt`. Nothing is stored as an expression, and nothing at read time evaluates one. The
+poured volume is **derived**: `poured = amountMl + leftBehindMl`, exactly, because the two stored numbers are
+what the subtraction was made of.
+
+### Why
+
+The parent's arithmetic was never the point; the facts under it were. Phase 24 let the amount field take a sum
+(`7×2`), which solved the typing and threw away both operands: after saving, nothing in the database could say
+whether a 5 oz feed had been a 5 oz bottle or a 6 oz bottle with an ounce left. Waste is a quantity this
+family actually buys, so the app has to be able to report it.
+
+The alternative — store the POURED amount in `amountMl` and derive `consumed = amount − left` — was rejected
+on the repo's own hard rule: an existing column's meaning is never repurposed. Under that design every reader
+(totals, the Trends volume chart, the card's big number, the screen reader) would have to change in the same
+commit, and a phone still running `1.6.0` would read a poured 6 as a drunk 6 for every new feed. Storing the
+drunk number instead means the whole app keeps its meaning for free, which is why the card's big number needed
+no change at all to start showing the result of the subtraction.
+
+### What this buys, and what it costs
+
+- **Old rows are already correct.** `leftBehindMl` is NULL on everything written before v5, and NULL sums as
+  zero, so a pre-Phase-26 bottle reads as the drunk amount it always meant. The migration back-fills nothing.
+- **NULL is not zero.** "Nobody recorded a leftover" and "nothing was left" are different claims, exactly as
+  `rash` and a nappy's colour are. Wastage counts sum NULL as zero; the feed count of leftovers only counts
+  recorded ones.
+- **The pair is lossless and one edit deep.** Editing a row reopens at poured = `amount + left`, so an
+  untouched edit writes the same two numbers back. A coarser display unit cannot erode the stored value: the
+  untouched-prefill guard covers both fields.
+- **A leftover equal to the amount is legal** — a bottle made and refused — and stores zero drunk. It is the
+  clearest case the wastage report exists for.
+- **A one-tap preset cannot record a leftover.** The quick-log pills write `amountMl = preset` with
+  `leftBehindMl = NULL`: one tap cannot answer two questions (the `DIAPER_QUICK_KINDS` rule, applied to a
+  bottle).
+- **The stored pair can differ from the typed ounces by a millilitre.** `6 fl oz − 1 fl oz` is 147.87 ml and
+  stores 148 drunk + 30 left, which sums to 178 rather than the 177 the display would round to. That is why
+  the report derives poured from the pair and never re-parses a field.
+- **Phase 24's calculator is withdrawn, and so is the formula list that briefly preceded this.** A field that
+  can express a sum can express a wrong one, and neither could say what was left. `domain/BottleMath.kt` and
+  its seven tests are gone; what remains of that ground is the much smaller `BottleAmount.kt`, which does the
+  one subtraction.
