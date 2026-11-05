@@ -120,8 +120,8 @@ Rules learned the hard way:
   `Built by joelm3103, for Kai and Levi.` and `AboutTest` pins the exact string. The About card is the only
   surface that identifies a person and the worst place for one — it ends up in screenshots and inside a
   decompilable APK — so the owner's name was removed from the build and then from this repository's history,
-  which was rewritten once on 2026-11-05: every commit from `db63a21` onward has a new hash and both tag
-  targets moved. Do not put the name back anywhere, and do not add another identifier (email, phone, address)
+  which was rewritten once on 2026-11-05: every commit from `4b220d7` (the About card's introduction, `db63a21` before the
+  rewrite) onward has a new hash and both tag targets moved. Do not put the name back anywhere, and do not add another identifier (email, phone, address)
   to shipped strings or docs.
 - **The release certificate IS the app's identity.** Android installs a build as an update only when the
   signing certificate matches the one on the device, so the key — not the package name or the version — is

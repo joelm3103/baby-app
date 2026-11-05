@@ -280,7 +280,8 @@ can decompile. It now reads `Built by joelm3103, for Kai and Levi.` — the hand
   a generic "your baby" would be a stranger's if the code were copied. `AboutTest` pins the exact string, so
   the credit cannot change by accident.
 - **The name left the repository's history too, once.** The string was reachable from two commits
-  (`db63a21`, `a143746`) and, through them, from every commit after them. `git filter-repo --replace-text`
+  (`db63a21` and `a143746` as they were numbered then; `4b220d7` and `50e29c0` after the rewrite) and,
+  through them, from every commit after them. `git filter-repo --replace-text`
   was run in a mirror clone over all 168 commits, replacing the legal name with the handle and the Windows
   profile path with `C:\Users\<you>\`, and the result was force-pushed over `main` and both tags.
 - **Version, `versionCode`, schema and test count are unchanged.** The build is still `1.7.1` / `36`. The
@@ -298,8 +299,9 @@ thing protecting it. One rewrite, done at a moment when nobody else holds a clon
 
 ### Consequences
 
-- **Every commit from `db63a21` onward has a new hash**, and both tag targets changed. A hash quoted in an old
-  message, screenshot or issue no longer resolves; the subjects, dates, authors and trees are the same, so
+- **Every commit from the About card's introduction onward has a new hash**, and both tag targets changed:
+  `db63a21` became `4b220d7`, and the old numbering resolves to nothing. A hash quoted in an old message,
+  screenshot or issue no longer resolves; the subjects, dates, authors and trees are the same, so
   `git log --oneline` still reads as the same history.
 - **Any other clone must be re-cloned, not pulled.** There is no collaborator clone today (the fork was
   removed when the repository was sanitised once before), so this cost was already paid.

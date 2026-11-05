@@ -55,8 +55,8 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   control, no schema change — the app can now *show* something it has been recording all along.
 - **The About card names a handle, not a legal name.** `ABOUT_CREDITS` reads `Built by joelm3103, for Kai and
   Levi.`, and the same handle replaced the owner's name everywhere it appeared — including in this
-  repository's history, which was rewritten once on 2026-11-05 (ADR-0005) so that every commit from `db63a21`
-  onward has a new hash. Nothing about the app changed except that one string: same version, same schema,
+  repository's history, which was rewritten once on 2026-11-05 (ADR-0005) so that every commit from the About card's introduction
+  (`db63a21` before the rewrite, `4b220d7` after) onward has a new hash. Nothing about the app changed except that one string: same version, same schema,
   same tests.
 - **Released 2026-11-05: tag `v1.7.1`, published as a GitHub Release** with `BabyLog-1.7.1.apk` attached
   (14 781 151 bytes, SHA-256 `65fbd2f3…db2a`), the second release this repo has and the first cut on a build
