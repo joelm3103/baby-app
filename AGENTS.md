@@ -82,7 +82,8 @@ The emulator was deliberately skipped. A real phone is the feedback loop (~2 min
 
 ```bash
 ADB="C:/Users/<you>/AppData/Local/Android/Sdk/platform-tools/adb.exe"   # NATIVE path
-"$ADB" install -r app/build/outputs/apk/release/app-release.apk   # release-signed: a debug APK will NOT install over 1.0.0
+APK=app/build/outputs/apk/release/BabyLog-1.7.0.apk                  # %appname%-%appversion%
+"$ADB" install -r "$APK"   # release-signed: a debug APK will NOT install over 1.0.0
 "$ADB" shell am start -n app.babylog/.MainActivity
 "$ADB" logcat -d | grep -a -A30 "FATAL EXCEPTION"
 "$ADB" exec-out screencap -p > shot.png
@@ -107,10 +108,11 @@ Rules learned the hard way:
 - **`adb shell` mangles `/sdcard/...` into a Windows path under Git Bash.** Prefix the command with
   `MSYS_NO_PATHCONV=1`, or the dump lands in `C:/Program Files/Git/sdcard/` and reads back 68 bytes.
 - **Screenshots are captured by `scripts/capture-timeline.ps1`** into a folder beside the repo, not committed.
-- **A pass now installs a RELEASE-signed build.** `1.0.0` was the first release-signed APK, so `app-debug.apk`
-  has a different certificate and `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Build
-  `:app:assembleRelease` (its `versionCode` is above what is installed) and `adb install -r` that; never
-  uninstall to make a debug build fit, because that discards the log and the outbox.
+- **A pass now installs a RELEASE-signed build.** `1.0.0` was the first release-signed APK, so a debug build
+  has a different certificate and `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — which is also
+  why the artifact is named `BabyLog-<version>.apk` in both directories rather than `app-release` / `app-debug`.
+  Build `:app:assembleRelease` (its `versionCode` is above what is installed) and `adb install -r` that APK;
+  never uninstall to make a debug build fit, because that discards the log and the outbox.
 
 ## Release signing and delivery (Phase 16)
 
@@ -141,6 +143,11 @@ Rules learned the hard way:
   a phone's copy is compared against; a second build signed by the same certificate is still a different file.
 - **`versionCode` is still a contract**: it only rises, and a landed rung is never renumbered. Nothing
   automates the comparison any more, which is exactly why the number must not be handled loosely.
+- **The artifact is named `BabyLog-<versionName>.apk`** (`%appname%-%appversion%`, owner's request 2026-11-05),
+  set once in `app/build.gradle.kts` through `androidComponents.onVariants { … outputFileName }` from the same
+  `appVersionName` constant `versionName` uses, so the file and the About screen cannot disagree. It applies to
+  debug and release alike, which is why the install commands above name the version rather than `app-release`.
+  Dated `CHANGELOG.md` and `PLAN.md` records keep `app-release.apk`: they record what happened.
 - **The app asks GitHub for its newest release when it opens, once a day, and it is the only request that is
   not Firebase or a food catalogue read** (ADR-0003). One unauthenticated `GET`, `User-Agent: BabyLog`, no
   account, no id, nothing about the babies — which is what keeps the About screen's "no analytics, no
@@ -258,6 +265,14 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   edge — the fill clears 3:1 against the sheet OR the ring clears 3:1 against the fill — for six fills ×
   both themes. **Selection adds a ring; it never changes a swatch's size**, so a row cannot shift as boxes
   are ticked.
+- **An entry row shows the note the parent wrote about it** (Phase 27), after the record and a dot:
+  `6 oz · Spit up`. `CardSummary.rowText(event, …)` returns `RowText(label, note)` **apart** and `EntryRow`
+  draws them as one `AnnotatedString` — label in `textPrimary`, the note in the surface's meta token
+  (`textOnCard` on a card, `textSecondary` on the `See all` list). Kept apart rather than joined because they
+  are different claims: one colour for both would stop the amount being the loudest thing on its own row.
+  **Whitespace is not a note** (trim, then null), so no row ends in a dangling `·`; the pair share ONE `Text`
+  so they ellipsise together and every row keeps one height, and the note is what gets cut. One `EntryRow`
+  serves the cards, both modes and the `See all` list — never draw a second row renderer.
 - **A record with a missing number names the gap, never its own activity.** A bottle can be logged with a
   blank amount, and the app must not invent a volume — so the card says `No amount recorded` (row:
   `No amount`) rather than falling back to the word `Bottle`, which repeated the card's title and showed no
@@ -314,33 +329,40 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   the parent and a submenu that passes it through dumps them on Activity. Two defects came off the phone: an
   appended `s` printed `2 childs`, so `counted()` takes its plural explicitly, and a summary long enough to wrap
   made its row taller than the rest, so a value that cannot fit one line belongs in the submenu instead.
-- **The bottle amount is entered on the app's OWN pad, and the field is a display, not a text input** (Phase 24).
-  `CalculatorPad` draws `1-9`, the point, a backspace and `÷ × − +`; `CalculatorField` shows the value and takes
-  no focus. A phone's decimal keypad has no `*` and no `/`, so a system keyboard cannot type a sum at all — and a
-  read-only `OutlinedTextField` is NOT a display, because it still takes focus and a focused field asks the
-  keyboard to come up. The operator keys carry an accent OUTLINE and the digits do not (shape, not hue, the same
-  rule the fever band follows), and an outline only has to clear the 3:1 a graphic needs: an accent-coloured
-  label would need 4.5:1 and measures 4.2:1 on the light theme. `=` is a full-width accent key labelled in
-  `onAccent`, because on a calculator it is the point of the pad.
+- **A bottle is two numbers side by side, and the sheet says the result before keeping it** (Phase 26). The
+  amount — what was poured — and an optional **Left behind** sit in one row of `LabelledNumberField`s inside a
+  `PairedFieldRow`, the labels inside the box above the value rather than floating to the border, because a
+  floating label makes a pair jump the moment one is focused. Preset chips sit under them, then the line
+  `Consumed: 5 oz (6 − 1)` with the bottle glyph. The bracket appears only when something was left: `(6 − 0)`
+  is arithmetic that says nothing. The word and value use `labelFor(accent)`, never the raw accent — `#FFC857`
+  on the light theme's white sheet is about 1.5:1 — and the working uses `textSecondary`. The trailing word
+  beside a label (`Optional`, `*`) is `textSecondary` too, because it qualifies the label rather than being
+  data. **The calculator is gone and must not come back**: Phase 24's pad let a parent type `6-2` and threw away
+  both operands, which is why nothing could report waste.
 
 ## Domain rules that already cost us
 
-- **The bottle amount takes a SUM, and `=` puts the answer INTO the field** (Phase 24). `6-2` is a 6 oz bottle
-  with 2 oz left and stores the 4 oz drunk; `7×2` stores 14. `domain/BottleMath.kt` reads it with the standard
-  precedence, `amountMlFor` is the only place text becomes millilitres, and `resolvedAmountText` is what `=`
-  writes back — at the display unit's own rounding, so the number a parent checks is the number kept. It is
-  deliberately small (no functions, variables, exponents or percent), because a calculator that can express
-  more than a bottle amount can express a wrong one, and unreadable input is `null`, never 0. Save evaluates a
-  leftover sum too, so a parent who never presses `=` is not punished for it. `=` on something unreadable keeps
-  the text and says `That sum cannot be read.` — a mistyped sum is the parent's to finish, not the app's to
-  erase — and the first build's `= 4 oz` line UNDER the field was rejected on 2026-11-04 for exactly that
-  reason: the result belongs where the numbers were typed.
+- **A bottle stores what was DRUNK, and the leftover beside it** (Phase 26, ADR-0004). `amountMl` keeps the
+  meaning it has had since schema v1; `leftBehindMl` is a nullable sibling; `pouredMl` is derived as
+  `amountMl + leftBehindMl` and is never stored. `domain/BottleAmount.kt` holds the one subtraction and is the
+  only place two typed numbers become the stored pair: it refuses a leftover with no amount beside it and a
+  leftover larger than the pour, and it allows a leftover EQUAL to the pour (a bottle made and refused stores
+  zero drunk). **NULL is not zero** — "nobody measured a leftover" and "nothing was left" are different claims,
+  and the v4 → v5 migration back-fills nothing. The pair can differ from the typed ounces by a millilitre
+  (`6 − 1` fl oz is 147.87 ml → 148 drunk + 30 left), so anything deriving a poured volume reads the pair and
+  never re-parses a field. **A one-tap preset cannot record a leftover** — one tap cannot answer two questions
+  (the `DIAPER_QUICK_KINDS` rule) — so a pill writes a null leftover and counts as finished.
+- **Wastage is reported, and an empty range says nothing rather than `0%`.** `domain/Wastage.kt` is the one
+  implementation: `wastageReport` gives drunk, left, poured, feeds and feeds-with-a-leftover per child, and a
+  share that is `null` when nothing was poured. `wastedPercentText` prints `<1%` for a share that is real but
+  rounds away — the same rule as an average that rounds away — and `—` for no data. Summary's Bottle card and
+  Trends' Bottle tab both read it, so they cannot disagree about the same week.
 - **An untouched prefill keeps its stored value.** A 90 ml bottle renders as `3` fl oz, and re-parsing that
   would store 89 ml, so a sheet opened and saved without a touch must not rewrite the amount. Every field whose
   edit prefill round-trips through a coarser display unit needs the same guard.
-- **Only the bottle amount takes arithmetic.** `amountInput` is separate from `decimalInput` on purpose: growth,
-  health and the card's quick-log presets keep the digits-only sanitizer, because a percentile that silently
-  accepted `6-2` would be a different kind of mistake.
+- **Every numeric field takes a NUMBER again, through `decimalInput`.** The bottle's `amountInput` went with the
+  calculator: digits and one decimal point, the same sanitiser growth and health use, so a percentile cannot
+  quietly accept `6-2` and a bottle cannot quietly accept one either.
 - **`endedAt == null` does NOT mean "running".** Only duration-capable types can run:
   `isRunning = type.hasDuration && endedAt == null`. Treating a null end as "in progress" put a live
   timer on every card, because a point event has no end either.
@@ -524,7 +546,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-684 unit tests through Phase 24 (`1.6.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+707 unit tests through Phase 27 (`1.7.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -567,6 +589,8 @@ only, and `1.0.0` is the first release.
 | | | 23 update check | `1.5.0` |
 | | | 24 bottle calculator | `1.6.0` |
 | | | 25 Ship | uses delivered release |
+| | | 26 left-behind field | `1.7.0` |
+| | | 27 note on the row | `1.7.1` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -592,8 +616,12 @@ MINOR because the dial and the wheels are two input modes the app did not have �
 Soft redesign on `1.4.1`**, a PATCH because the card surface changed and no capability, control, copy or
 stored byte did — **Phase 23 is the update check on `1.5.0`**, a MINOR because a build delivered by hand had
 no way to say a newer one existed — **Phase 24 is the bottle calculator on `1.6.0`**, a MINOR because an amount
-field that can work out `7×2` is a capability the app did not have — and **Phase 25 is Ship**, which delivers
-whatever build is landed when it runs. Ship has no commits and moves freely until its work starts.
+field that can work out `7×2` is a capability the app did not have — **Phase 26 is the left-behind field on
+`1.7.0`**, which withdraws Phase 24's calculator a version later and adds the recorded leftover and the wastage
+report, a MINOR because a fact the app never kept plus a report it never had is more than a fix — **Phase 27 is
+the note on the row on `1.7.1`**, a PATCH because a note the app had been storing all along is now drawn and
+nothing about what it stores or asks for changed — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
+work starts; it stayed 25 when 26 landed ahead of it.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`
   would install fine by `versionCode` and still read as going backwards on the phone.

@@ -49,7 +49,7 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 658 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 707 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
@@ -59,6 +59,8 @@ everything after it is additive.**
 | 22 — Filled Soft redesign | **DONE, device-verified** — `1.4.1` / versionCode 32; the tiled stroke-glyph watermark is gone, replaced by a per-activity vertical gradient card fill and a two-layer decoration: the activity's illustration as a whole sticker, with scattered silhouettes and hearts spread across the entire card behind it (nine new `ic_soft_*` drawables); **658 tests green**. Two decoration-placement defects were found by measuring the phone's own pixels rather than by looking (a pacifier drawn inside the illustration's silhouette, a heart behind the opaque pill row), and the owner then corrected the design itself on 2026-11-02: the scatter must cover the whole card, not a 76dp band, and the sticker must read as a whole object. The revision was verified on the phone on 2026-11-03 in both themes — every card's geometry read from a `uiautomator` dump and its artwork counted by colour in a `screencap`. **One defect is knowingly open:** on a card with nothing logged the illustration is drawn underneath its first control, because the 48dp band that fixed it was rejected in favour of the previous, more compact cards. See the Phase 22 section |
 | 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **677 tests green** (19 new: 10 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
 | 24 — Bottle calculator | **DONE, device-verified** — `1.6.0` / versionCode 34; the bottle amount is entered on the sheet's OWN pad — 1-9, the point, a backspace and `÷ × − +` — and `=` puts the answer back into the field, so `7×2` becomes `14` where the parent typed it and 14 is what is stored. No software keyboard opens over the amount, and the `= 4 oz` preview line the first build printed underneath is gone. A formula list was built and removed before landing; see the phase section. **684 tests green** (7 new) |
+| 26 — Left behind and the wastage report | **DONE, device-verified** — `1.7.0` / versionCode 34→35; the bottle calculator is withdrawn and a bottle gains an optional `leftBehindMl` beside the amount, so the sheet asks for the pour and the leftover and stores what was drunk; schema v5 with `MIGRATION_4_5` and nothing back-filled; Summary's Bottle card gains `Left behind` and `Wasted`, Trends' Bottle tab gains a `Left behind` card; **703 tests green**. ADR-0004. The pass on `<handset>` installed in place over `1.6.0`, survived the migration with its log intact, and found one defect — the `Consumed` line composed outside the sheet's content lambda and drew behind it — fixed and re-verified |
+| 27 — The note on the row | **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones, verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
 
 
@@ -172,13 +174,22 @@ was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-04): `:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
-Phase 24 tree. The release APK is `1.6.0` / versionCode 34, signed `CN=BabyLog`, SHA-1
+Verified (current state, 2026-11-05): `:app:testDebugUnitTest` succeeded on the Phase 27 tree. The suite is
+**707/707**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(71 files). Both phases of the day are installed and device-verified on `<handset>`: `1.7.1` / versionCode 36
+in place over `1.7.0` / 35, which went in place over the delivered `1.6.0` — no uninstall, and the log survived
+the v4 → v5 migration with every row intact. 26 of the tests came from Phase 26 — nine `BottleAmountTest`, eight
+`WastageTest`, the migration case, two `TotalsTest`, two `SyncDocumentsTest`, and one each in `CardSummaryTest`,
+`EventDraftTest`, `MappersTest` and `BackupTest` — while Phase 24's seven `BottleMathTest` went with the
+calculator they tested; Phase 27 added four in `CardSummaryTest` for the row's note. The previous close-out,
+for the record:
+`:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
+Phase 24 tree. `1.6.0` / versionCode 34, signed `CN=BabyLog`, SHA-1
 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`, where the sheet's pad was driven
 in both themes: `7×2` then `=` made the field read `14`, the saved entry read `14 oz`, and `6−` then `=`
-printed `That sum cannot be read.` with Save disabled. The suite is **684/684**, 0 failures, 0 errors and 0
-skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml` (70 files). The last seven came from
-Phase 24's `BottleMathTest` — the arithmetic, the stored millilitres, and what `=` puts back into the field. The previous close-out was `1.4.1` / versionCode 32 at
+printed `That sum cannot be read.` with Save disabled. It was 684/684 in 70 files, and the seven that closed it
+were Phase 24's `BottleMathTest` — the arithmetic, the stored millilitres, and what `=` put back into the field.
+The previous close-out was `1.4.1` / versionCode 32 at
 658/658 (`<handset>`, over `1.4.0`), and the last thirteen of those came from Phase 22: ten
 `CardArtworkTest` and three more in the rewritten `PatternPaletteTest`; before that `1.4.0` / versionCode 31 at 645/645, whose last nine came from
 Phase 20 — five `PostedNotificationTest`, four `ReminderNotificationIdTest`, three `BottleQuickLogTest`, three
@@ -2848,6 +2859,165 @@ this is about the landed build arriving on the second one, not about first conta
 unauthenticated read of `releases/latest` answers 404 however many releases are published. Before a release
 page can announce anything, the owner has to publish the repository, publish the release somewhere the
 check can read, or retire the check (ADR-0003 records what it was for).
+
+---
+
+## Phase 26 — Left behind and the wastage report — `1.7.0` / versionCode 35
+
+**As built — 2026-11-05. Read this before changing a bottle again.**
+
+Phase 24's calculator is withdrawn one version after it landed, and a bottle gains a second, optional number.
+The sheet asks for the pour and — optionally — what came back, says `Consumed: 5 oz (6 − 1)` before saving,
+and the app subtracts **once**, at save, in `domain/BottleAmount.kt`. `amountMl` still means what the baby
+**drank**; the new nullable `leftBehindMl` is a sibling fact; the poured volume is `amount + left`, exactly.
+ADR-0004 records why that shape was chosen over storing the poured amount and deriving the drunk one.
+
+**Ship stays Phase 25.** It still has no commits, so it moves for free under the standing rule, and it
+currently needs a decision about the private repository before it can promise anything (ADR-0003).
+
+### As built, where it differed from a straightened-out version of the story
+
+- **The card needed no code change, and that is the point rather than an omission.** `CardSummary.bigValue`,
+  `detailLine` and `recentRowLabel` already read `amountMl`; because the sheet stores the drunk amount there,
+  the big number and the recent row show the result of the subtraction for free. `CardSummaryTest` pins it, so
+  a future change that "helpfully" switched the card to the poured amount cannot land quietly.
+- **`domain/BottleMath.kt` and its seven tests are gone**, and so are `CalculatorField`, `CalculatorPad`,
+  `CalculatorKey`, the pad constants, `amountInput` and `OPERATOR_CHARS`. What replaces them on that ground is
+  `BottleAmount.kt`: `bottleAmount(pouredMl, leftBehindMl)` returns the stored pair and refuses exactly two
+  things — a leftover with no amount beside it, and a leftover larger than the pour. A leftover **equal** to
+  the pour is legal: a bottle made and refused stores zero drunk and is the clearest case the report exists for.
+- **NULL is not zero.** A bottle logged before v5 reads `leftBehindMl = null`, and the migration back-fills
+  nothing — a `0` would claim every past bottle was finished to the millilitre. Sums read NULL as nothing left;
+  the "feeds that left something" count only counts recorded ones.
+- **The prefill moved from the drunk amount to the POURED one** (`HomeViewModel.lastBottlePouredMl`). Seeding
+  from `amountMl` would have prefilled the next feed with the part of the last one that was finished.
+- **A leftover of 0 gets no bracket.** `Consumed: 6 oz` with nothing left, `Consumed: 5 oz (6 − 1)` with
+  something — `(6 − 0)` is arithmetic that says nothing. This is the one wording judgement the phase makes
+  without the owner, and it is reversible in a line.
+- **The `Consumed` line uses `labelFor(accent)`, not the raw accent.** On the light theme the bottle's
+  `#FFC857` on a white sheet measures about 1.5:1; the lifted token clears 4.5:1 on both themes.
+- **Two fields side by side are new components**, `LabelledNumberField` and `PairedFieldRow` in
+  `SheetControls.kt`, because the reference sheet puts the label inside the box above the value — which a
+  floating-label `OutlinedTextField` cannot do without the pair jumping as soon as one is focused.
+- **The pair can differ from the typed ounces by a millilitre.** `6 − 1` fl oz is 147.87 ml and stores 148 drunk
+  + 30 left, which sums to 178 rather than the 177 the display would round to. That is why the report derives
+  poured from the pair and never re-parses a field.
+- **The one-tap preset pills still cannot record a leftover.** One tap cannot answer two questions (the
+  `DIAPER_QUICK_KINDS` rule), so a pill writes `amountMl = preset` with a null leftover and counts as finished.
+
+### Wastage, in one place
+
+`domain/Wastage.kt` — `wastageReport(events, children, days)` gives a `WastageLine` per child: drunk, left,
+poured (derived), feeds, feeds that left something, and the wasted share, which is **null when nothing was
+poured** rather than `0%`. `wastedPercentText` prints `<1%` for a share that is real but rounds away, the same
+rule Trends follows for an average. Summary's Bottle card reads four rows from it; Trends' Bottle tab draws the
+`Left behind` card from it, under the volume chart, divided by the window's bucket count so a day off the log
+pulls the average down rather than disappearing.
+
+### Device pass — `<handset>` (SM-S918U1), `1.7.0`, 2026-11-05
+
+Installed in place over the delivered `1.6.0` (`versionCode 34 → 35`, no uninstall), and the pre-existing log
+survived the v4 → v5 migration with every row intact — the 3:54 AM bottle still reads `6 oz` on its card.
+
+**One defect, and it is the reason a green build is not a pass.** `ConsumedLine` was first written as a value —
+`val consumedLine = stored?.consumedMl?.let { ConsumedLine(...) }` — so the composable emitted into
+`BottleSheet`'s own scope *before* `ActivitySheet` laid out, and it was drawn **behind** the sheet. The sheet
+showed a correct-looking gap and no words; `uiautomator` had no `Consumed:` node at all, which is what proved
+it was unemitted rather than invisible. The line is now two plain values (`consumedMl`, `consumedArithmetic`)
+and the composable is called **inside** the content lambda. **A composable must never be called from a
+`?.let` that is being used as a value** — it compiles, it costs a layout height, and it emits into the wrong
+place.
+
+Verified after the fix: the two fields and the `Optional`/`*` markers; `Consumed: 5 oz (6 − 1)` for 6 and 1,
+`Consumed: 6 oz` with blank leftover; the preset chip staying highlighted once a leftover is typed; the
+decimal keypad (the field is a text field again, not a display); Save writing 5 drunk + 1 left and the card,
+the recent row and the reminder chip all agreeing (`Every 3h (12:45 PM)`); a second feed with a blank leftover
+storing 6 oz, with the prefill opened at **6** (poured) rather than 5; `Left behind 7` on `Amount 6` marking
+the box `danger`, printing the message and making Save do nothing; Summary `Left behind 1 oz` / `Wasted 6%`
+beside the unchanged `Average bottle`; Trends' `Left behind` card reading `195.6 oz poured · 1 of 35 feeds`,
+`0.1 oz left per day`, `Wasted 1%` — 194.6 + 1 = 195.6, so the two screens agree; and the `Consumed` line still
+legible in the light theme, where the raw accent measures about 1.5:1.
+
+**Editing is the other half of the guard.** `Edit feed` on the 6 / 1 row opened with both fields filled and
+`Consumed: 5 oz (6 − 1)`; pressing Save without touching anything kept 5 drunk + 1 left, so a re-save cannot
+erode either field through a coarser display unit. Deleting that row and the 6 oz one returned the log to its
+real state: Kai's only bottle is the 3:54 AM `6 oz`, Summary reads `Left behind 0 oz` / `Wasted 0%`, and Trends
+reads `0 of 33 feeds left something`.
+
+**Open judgement for the owner:** with nothing ever left, Trends still draws the whole `Left behind` card full of
+zeros (`0 oz left per day`, `0 of 33 feeds`), because the card shows whenever the range holds a bottle. Summary's
+rows say `0 oz` / `0%` by explicit decision, so the two agree — but a full card of zeros on a log that has never
+recorded a leftover is a candidate for hiding until `feedsWithLeftover > 0`. Not changed unilaterally; it is one
+condition in `TrendPane`.
+
+**Recorded, not fixed:** a disabled `Save` looks exactly like an enabled one. That is `ActivitySheet`'s header
+and applies to every sheet in the app; it is not this phase's, and it is not silent — the message above the
+field says why.
+
+### Release artifact name
+
+`app/build.gradle.kts` names the APK `BabyLog-<versionName>.apk` (`BabyLog-1.7.0.apk`) through
+`androidComponents.onVariants`, with the version name declared once and used by both `versionName` and the
+filename. The live documents follow it — `AGENTS.md`, `docs/release-signing.md`, `docs/firebase-setup.md` and
+`scripts/capture-timeline.ps1` — while the dated records in this file and in `CHANGELOG.md` keep
+`app-release.apk`, because they record what happened.
+
+---
+
+## Phase 27 — The note on the row — `1.7.1` / versionCode 36
+
+**As built — 2026-11-05.**
+
+Notes had been written and never read. Every sheet has had a Notes field since Phase 6; nothing outside the
+sheet drew it, so a feed with "Spit up" on it looked exactly like one without — on the card, in the `See all`
+list, and in every total. This phase shows what was already stored.
+
+- **`RowText(label, note)` and `rowText(event, units, foodNames)`** in `CardSummary.kt`. The two halves are
+  returned **apart** because they are different claims: the label is the record (an amount, a nappy, a
+  reading) and gets `textPrimary`; the note is a remark and gets the surface's meta token — `textOnCard` on a
+  tinted card, `textSecondary` on the plain list, exactly the choice `onCard` already made for the child name
+  and the time. Joined into one string they would share one colour, and a bottle's amount would stop being the
+  loudest thing on its own row.
+- **A note of nothing but whitespace is no note.** `trim()` then `takeIf { it.isNotEmpty() }`: a parent who
+  typed a space wrote nothing, and a trailing `·` on every row would be punctuation pretending to be content.
+- **`EntryRow` composes one `AnnotatedString`** — label in `textPrimary`, `" · note"` in the meta token — and
+  draws it in the single `Text` the row already had. So the two ellipsise together, every row keeps today's
+  height, and the cut falls on the note because the record is what the row exists to say.
+- **One implementation, three surfaces.** The activity cards, the both-mode cards and the `See all` overlay all
+  draw `EntryRow`, so there is no second code path and no way for the list and the card to disagree about
+  whether a row has a note.
+- **Zero schema work, zero new control.** The note was already on `BabyEvent`, in the entity, the export and
+  the sync document. A PATCH rung, which is why it is `1.7.1` and code 36.
+- **Four tests** in `CardSummaryTest`: kept apart and trimmed, whitespace is null, a row with no note equals
+  its label, and the note reaches a sleep row and a health row as well as a bottle.
+
+### Device pass — `<handset>` (SM-S918U1), `1.7.1` / code 36 — 2026-11-05
+
+Installed with `adb install -r` over the delivered-then-current `1.7.0`. The artifact is the **release-signed**
+`BabyLog-1.7.1.apk`, not `app-debug.apk`: `1.0.0` was the first release build, so a debug APK answers
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` and the only way to make it fit is an uninstall, which discards the log.
+
+| Check | What the phone showed |
+|---|---|
+| Install in place | `Streamed Install … Success` over `1.7.0`; `dumpsys package app.babylog` reads `versionCode=36`, `versionName=1.7.1` |
+| Foreground before input | `topResumedActivity=app.babylog/.MainActivity`; asserted again before each tap |
+| A note on a card row | 6 oz feed with a note typed on the sheet drew `6 oz · took it slowly, very windy a…` — one line, the clock still pinned right at `10:52 AM`, vertical alignment with the sibling rows unchanged |
+| The same row in `See all` | `6 oz · took it slowly, very windy and sp…`, the note in `textSecondary` on the sheet's plain background |
+| A note that already existed | the 3:54 AM feed reads `6 oz · Spit up` — the owner's own note, which no surface had ever drawn |
+| Rows with no note | `6 oz` at `6:20 PM`, `4 oz` at `7:11 PM` — identical to before, no stray `·` |
+| Taps taken from dumps | every coordinate parsed from a fresh `uiautomator` dump (`+ Log feed for Kai` at `540,1329`, the `10:52 AM` row, `Delete this entry`, the dialog's `Delete` at `831,1324`); no tap was estimated from a screenshot |
+| Test data removed | the fabricated 10:52 feed deleted through edit sheet → confirm dialog → `Delete`; Kai's card went back to its one real row and the Undo snackbar was left alone |
+| Crashes | `logcat -b crash -d` empty — zero `FATAL EXCEPTION` lines across install, typing, saving, deleting and both themes' worth of navigation |
+
+**Found nothing to fix** — the first build of it was the one that shipped.
+
+**Not run, and owed:** system `BACK` from an open sheet (the phone left USB before that check), and the note in
+the **Light** theme. The row's note uses `textOnCard` on a card and `textSecondary` on the list, both of which
+already clear AA on their surfaces (`textSecondary` measures 3.06:1 only on a *tinted* card, which is why the
+card uses the other token), so this is a confirmation rather than a doubt — but it has not been seen.
+
+**Not done, deliberately:** the note is not on the History totals screen (that screen lists totals, not
+entries), not in the reminder chips, and not on the Both-mode card headline. One row, one line.
 
 ---
 

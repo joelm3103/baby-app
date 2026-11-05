@@ -17,6 +17,166 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-05]
+
+**In short:**
+
+- **`1.7.0` — the bottle calculator is withdrawn one version after it landed, and a bottle gains a second,
+  optional number: what was left behind.** The sheet asks for the pour and the leftover, says
+  `Consumed: 5 oz (6 − 1)` before saving, and the app does the subtraction so both facts survive. A MINOR
+  rung: a recorded fact and a report the app did not have.
+- **Nothing is stored as a formula.** `amountMl` still means what the baby **drank** — unchanged since schema
+  v1 — and a new nullable `leftBehindMl` records what was abandoned. The poured volume is `amount + left`,
+  exactly, so nothing on screen or in a total had to change meaning. ADR-0004.
+- **Schema v5, additive, with nothing back-filled.** A bottle logged before today has NULL for its leftover —
+  "nobody measured one" — rather than a zero claiming the bottle was finished to the millilitre.
+- **Wastage is now reportable.** Summary's Bottle card gains `Left behind` and `Wasted`; Trends' Bottle tab
+  gains a `Left behind` card under the volume chart. One pure implementation feeds both, so the two screens
+  cannot disagree.
+- **The release APK is named `BabyLog-<version>.apk`**, at the owner's request (`%appname%-%appversion%`), so a
+  downloaded file says what it is and two builds cannot silently overwrite each other.
+- **`1.7.1` — a row now says what you wrote about it.** Notes have been stored since the first sheet and
+  drawn nowhere; every entry row (the cards and the `See all` list) now shows it after the record
+  (`6 oz · Spit up`), in the meta colour so the amount stays the loudest thing on its own row.
+- **703 unit tests green.** The withdrawn calculator's 7 went with it and 26 arrived: the save rule, the
+  report, the v4 → v5 migration, and the sync/backup/mapper/draft/totals/card paths that carry the column.
+- **The device pass found one real defect, and it is the kind only a phone finds.** The `Consumed` line was
+  built as a VALUE (`stored?.consumedMl?.let { ConsumedLine(...) }`) before the sheet's content lambda, so it
+  composed into `BottleSheet`'s own scope and was drawn *behind* the sheet: the space was there, the words were
+  not, and nothing in a green build or 703 passing tests could see it. The line is now computed as two plain
+  values and the composable is called inside the content lambda. Fixed, rebuilt and re-verified on
+  `<handset>`.
+
+### Versions
+
+- `1.7.0` / versionCode 35 — **Phase 26, the left-behind field and the wastage report**. A MINOR rung, and
+  code 35 so it installs in place over the delivered `1.6.0`. Ship stays Phase 25; it still has no commits.
+- `1.7.1` / versionCode 36 — **Phase 27, the note on the row**. A PATCH rung: no new stored byte, no new
+  control, no schema change — the app can now *show* something it has been recording all along.
+- Nothing is tagged. A tag is cut only on a delivered build, and this one has not been delivered.
+
+### Verified on the phone — `<handset>` (SM-S918U1), `1.7.0`, 2026-11-05
+
+Installed in place over the delivered `1.6.0` (code 34 → 35, no uninstall), and the existing log survived the
+v4 → v5 migration untouched: the 3:54 AM bottle still read `6 oz` on its card and in its recent row.
+
+- **The sheet matches the owner's reference sheet.** Date, Time, `Amount (fl oz) *` and
+  `Left behind (fl oz) Optional` side by side with the labels inside the boxes, preset chips under them with
+  the tap still highlighted after a leftover was typed, then `Consumed:`, then Formula brand and Notes. The
+  numeric field raises the decimal keypad, not a text keyboard.
+- **`Consumed: 5 oz (6 − 1)`** with Amount 6 and Left behind 1, and the arithmetic in `textSecondary` while the
+  value takes the lifted accent. Blank leftover reads `Consumed: 6 oz` with no bracket.
+- **Saving stores the drunk amount and shows it everywhere.** The card's big number fell to `5 oz`, the recent
+  row said `5 oz`, and the reminder chip re-anchored to `Every 3h (12:45 PM)`. A second feed with the leftover
+  blank stored 6 oz and read `6 oz` in both places. The prefill for that second feed was **6** — the poured
+  amount, not the 5 that was drunk.
+- **`Left behind 7` on `Amount 6`** outlined the leftover box in `danger`, printed `Left behind cannot be more
+  than the amount.`, hid the (now impossible) consumed line, and tapping Save did nothing at all — the sheet
+  stayed open and no row was written.
+- **Summary**: `Sessions 3`, `Average bottle 5.6 oz`, `Left behind 1 oz`, `Wasted 6%`, `Time between feeds
+  2h 55m 58s`, headline 16.9 oz — the drunk total, i.e. the sum the app already reported.
+- **Trends → Bottle**: the `Left behind` card under the volume chart, `195.6 oz poured · 1 of 35 feeds left
+  something`, `0.1 oz left per day`, `Total left 1 oz`, `Poured 195.6 oz`, `Wasted 1%` — and 194.6 + 1 = 195.6,
+  so the two cards agree to the ounce.
+- **Light theme**: the `Consumed` line keeps its contrast (`labelFor(accent)`, the deep amber), which the raw
+  `#FFC857` would not have.
+
+- **Editing a row brings its leftover back.** Opening the 6 / 1 feed as `Edit feed` filled both fields, said
+  `Consumed: 5 oz (6 − 1)`, and Save pressed without a touch kept 5 drunk + 1 left — the untouched-prefill
+  guard now covers the leftover as well as the amount, which is what stops a coarser display unit eroding a
+  stored value on every edit.
+- **The two fabricated test feeds were deleted, and the log went back to what it was**: Kai's card shows only
+  the real 3:54 AM `6 oz`, Summary reads `Left behind 0 oz` / `Wasted 0%` (a poured bottle and no recorded
+  leftover is a zero, not a dash) and Trends reads `0 of 33 feeds left something`. The dash case is a range
+  with no bottle in it at all, and `TotalsTest` pins that one.
+- **No crash** in `logcat -b crash` across the whole pass, including the two deletes.
+
+**Left as it was, deliberately:** `Save` looks identical whether it is enabled or not — the sheet header has
+never dimmed a disabled label, and this phase did not change that. It is a real trap (a parent sees a bright
+`Save` that does nothing), but it belongs to `ActivitySheet` and to every sheet in the app, not to this phase.
+
+### Added
+
+- **`domain/BottleAmount.kt`** — the one subtraction. `bottleAmount(pouredMl, leftBehindMl)` returns
+  `BottleAmount(consumedMl, leftBehindMl)` and refuses exactly two things: a leftover with no amount beside
+  it, and a leftover larger than the pour. A leftover EQUAL to the pour is legal (a bottle made and refused
+  stores zero drunk), a negative one is refused rather than trusted, and `pouredMl` is derived from the pair
+  so the two stored numbers are always the truth.
+- **`domain/Wastage.kt`** — `WastageLine` / `WastageReport` / `wastageReport(events, children, days)`, per child:
+  drunk, left, poured, feeds, feeds that recorded a leftover, and the wasted share (`null` when nothing was
+  poured, never `0%`). `wastedPercentText` prints `<1%` for a share that is real but rounds away, the same
+  rule Trends already follows for an average.
+- **`leftBehindMl` through the data layer** — `EventEntity`, schema v5 exported as
+  `app/schemas/…/5.json` with `MIGRATION_4_5` (`ALTER TABLE events ADD COLUMN leftBehindMl INTEGER`), and the
+  usual five carriers: `Mappers`, `EventDraft` (`toEvent`/`applyTo`), `Backup` (an export from before this
+  phase still restores every feed), `SyncDocuments` (an absent key reads as NULL, not a parse failure).
+- **`BabyEvent.leftBehindMl`, `leftBehindOrZero` and `pouredMl`** — the derived pair, so no caller invents the
+  arithmetic.
+- **`LabelledNumberField` and `PairedFieldRow`** in `SheetControls.kt` — a typed number in a box whose label
+  sits inside it above the value, and a row that puts two side by side. Explains why it is not
+  `OutlinedTextField`'s floating label: two of them adjacent would jump the moment a parent typed.
+- **The `Consumed` line** — the bottle glyph, `Consumed:`, the value in `labelFor(accent)` and the arithmetic
+  in brackets when something was left. The raw accent on a white sheet measures about 1.5:1, so the lifted
+  token is used rather than the hue.
+- **Summary and Trends wastage** — two new rows on the Bottle total card (dash when the range holds no bottle)
+  and the `Left behind` card on Trends' bottle tab: average left per bucket big, then total left, poured,
+  wasted share and how many feeds left something.
+
+### Changed
+
+- **`ui/home/BottleSheet.kt` is rewritten to the owner's reference sheet**: Date, Time, Amount and
+  **Left behind** side by side (the second marked `Optional`), preset chips under them, the `Consumed` line,
+  then brand and notes. Save is disabled when a leftover exceeds the amount or arrives without one.
+- **The prefill is the last POURED amount** (`HomeViewModel.lastBottlePouredMl`), not the last drunk amount:
+  a parent makes 6 oz again far more often than they make whatever part of it was finished. The leftover is
+  never prefilled — it is this feed's own fact, except when editing a row that already records one.
+- **The untouched-prefill guard now covers both fields**, so opening and saving an edit cannot erode a stored
+  value through a coarser display unit.
+- **The release artifact is named in `app/build.gradle.kts`** via `androidComponents.onVariants { … outputFileName }`,
+  with the version name declared once and used by both `versionName` and the filename. **`AGENTS.md`**'s
+  install command, **`docs/release-signing.md`**'s verify/upload commands, **`docs/firebase-setup.md`** and
+  **`scripts/capture-timeline.ps1`** follow the new name; dated `PLAN.md` and `CHANGELOG.md` records keep
+  `app-release.apk`, because they record what happened.
+- **`AGENTS.md`** gains the design-contract rules this phase establishes: the two-field bottle sheet, the
+  `Consumed` line and its measured colour, `leftBehindMl` as a sibling fact that a one-tap pill cannot write,
+  and the wastage rule that a share is `null` rather than `0%`.
+
+### Phase 27 — The note on the row (`1.7.1`)
+
+**Notes were write-only.** Every logging sheet has had a Notes field since Phase 6, and nothing outside the
+sheet ever drew it: a parent could write "Spit up" on a feed and the card, the `See all` list and every total
+looked exactly the same as one without. The owner asked for the note on the entry row on 2026-11-05.
+
+- **`RowText` / `rowText(event, units, foodNames)`** in `CardSummary.kt` split a row into the record and its
+  note, and they are returned **apart** rather than joined because they are not the same claim: the label goes
+  in `textPrimary`, the note in the surface's meta token (`textOnCard` on a card, `textSecondary` on the plain
+  list). One string would give both one colour and the amount would stop being the loudest thing on its row.
+- **A note of nothing but whitespace is no note** — `takeIf { it.isNotEmpty() }` after the trim, so a parent
+  who typed a space gets a clean row instead of a dangling `·`.
+- **`EntryRow` draws the two as one `Text`** — an `AnnotatedString` with two spans, `label · note` — so they
+  ellipsise together, the row keeps a single height, and the note is the part that gets cut. Rows without a
+  note are unchanged, down to the pixel.
+- **One implementation, three surfaces**: the activity cards, both-mode cards and the `See all` overlay all
+  draw `EntryRow`, so the note appears in each without a second code path — and the `onCard` flag already
+  decided which meta token to use.
+- **Four tests** in `CardSummaryTest`: the note is kept apart from the label and trimmed, whitespace is null, a
+  row with no note is just its label, and the note reaches non-bottle rows (sleep, health) too.
+
+**Verified on the phone (`1.7.1`, code 36, in place over `1.7.0`)** — a note typed on a 6 oz feed rendered as
+`6 oz · took it slowly, very windy a…` with the time still pinned right and one row height, and the same in the
+`See all` list. The owner's own existing note came alive in the same pass: the 3:54 AM feed reads
+`6 oz · Spit up`, which it never had before. The test feed was deleted afterwards and the card went back to
+that single row, and `logcat -b crash` stayed empty through the whole pass. Not seen, and owed: system `BACK`
+out of an open sheet, and the note in the Light theme — the phone left USB before either check ran.
+
+### Removed
+
+- **`domain/BottleMath.kt` and `domain/BottleMathTest.kt`** — the expression parser and its seven tests. A
+  field that can express a sum can express a wrong one, and it could not say what was left.
+- **`CalculatorField`, `CalculatorPad`, `CalculatorKey`, `CALC_BACKSPACE`, `DIVIDE`, `TIMES`, `MINUS`,
+  `PAD_OPERATORS`, `amountInput` and `OPERATOR_CHARS`** — the pad, its display and its sanitiser. The amount
+  field takes digits and one decimal point again, through the shared `decimalInput`.
+
 ## [2026-11-04]
 
 **In short:**
