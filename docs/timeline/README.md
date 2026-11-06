@@ -354,7 +354,7 @@ three airplane-mode writes on A arriving exactly once, with no duplicates.
   for a drain** (19, 20) — after a first sign-in the two `CHILD` rows sat queued until something tapped
   `Sync now`.
 
-The A↔B half is not in this folder: it was two devices (`<handset>` and `emulator-5554`) and its evidence
+The A↔B half is not in this folder: it was two devices (a handset and `emulator-5554`) and its evidence
 is the row ids in `PLAN.md` plus the database states under `evidence/databases/`.
 
 ![p13-01-launch](2026-10-22-phase13/p13-01-launch.png)

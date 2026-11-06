@@ -39,8 +39,9 @@ device to verify both directions and cross-device deletion; Phase 14's later off
 fixes were checked on the phone, not re-checked on the second device. Email + password is the primary
 sign-in and Google Sign-In is the second button. The build reads five values from a local, gitignored
 `firebase.properties` — `google-services.json` is where four come from, because the usual plugin would
-break a fresh clone — plus the two uids in `firebase/firestore.rules`; without those values it remains a
-single-phone logger, as Settings → Sync reports. `docs/firebase-setup.md` is the console runbook;
+break a fresh clone — plus the two uids that only the local, gitignored `firebase/firestore.rules` holds
+(`firebase/firestore.rules.example` is the template); without those values it remains a single-phone
+logger, as Settings → Sync reports. `docs/firebase-setup.md` is the console runbook;
 `PLAN.md` records the device evidence and the unfinished phases.
 
 **Versioning:** one version per phase, so a build on a phone says which phase produced it — `0.MINOR` for a
@@ -141,7 +142,7 @@ baby-app/
 ├── CHANGELOG.md               # dated record of every day of work, with the version ladder
 ├── app/                       # the single Android module (source, tests, schemas, assets)
 ├── docs/                      # firebase-setup.md (Phase 13 console), release-signing.md, DECISIONS.md
-├── firebase/                  # firestore.rules, pasted into the console by hand
+├── firebase/                  # firestore.rules.example — the real rules hold the uids, so they stay local
 └── scripts/                   # android-env.ps1, sdkmanager.ps1, growth assets, timeline capture, keystore
 ```
 

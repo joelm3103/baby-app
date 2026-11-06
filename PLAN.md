@@ -652,7 +652,7 @@ path.
 
 - Default to plotting **adjusted age** on the WHO charts, toggle visible. Born early, this is a large
   correction, not a rounding detail.
-- Store gestational age **in days** (210) to keep the adjusted-age subtraction exact.
+- Store gestational age **in days** to keep the adjusted-age subtraction exact.
 - Their **birth** measurements were taken before term, which the WHO 0–5 standards do not describe:
   that belongs to **INTERGROWTH-21st newborn size for very preterm infants** (covers <33 weeks). Add
   that dataset family for interpreting birth entries while the ongoing charts stay WHO + adjusted age.
@@ -714,7 +714,7 @@ dose and unit were read from the DB itself, and the export round trip is covered
 ### Found by the owner after the first pass — "Fever isn't highlighted in any way"
 
 He was right, and the reason was worse than styling. The card's summary held ONE "record" slot
-(temperature OR medication), so the 12:27 paracetamol had taken it from the 12:08 fever: the fever was
+(temperature OR medication), so a later paracetamol had taken it from the earlier fever: the fever was
 not dimmed on the card, it was **absent from it**. Only History still showed it. Three fixes, all
 re-verified on the phone:
 
@@ -801,9 +801,9 @@ newest day, which keeps them evenly spaced and always names today.
 
 **Verified against the device's own database, not just the screen.** Every figure was recomputed from the
 phone's `events` table with `run-as` (a stronger check than reading the screen, and the same path Phase 11
-used): First Twin 819 ml = 27.7 oz over 3 of 14 days with a best day of 730 ml = 24.7 oz on 14 Oct;
-Second Twin 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct; 13 diapers each on 2 of 30 days with 9 on 12 Oct;
-2 solids each; one 13m 5s sleep on 15 Oct; 2 temperatures, both 38.5 °C, 1 fever day. All match the screen
+used): First Twin's totals matched over 3 of 14 days, with a best day on 14 Oct;
+Second Twin's totals matched, best day on 14 Oct; 13 diapers each on 2 of 30 days with 9 on one day;
+2 solids each; one logged sleep on 15 Oct; 2 temperatures at the same reading, 1 fever day. All match the screen
 exactly. Note the 30-day window carries no more data than the 14-day one on this install — every logged
 row falls inside the last 14 days — so the 30-day range was exercised for its bucketing and its labels,
 not for extra events.
@@ -917,8 +917,8 @@ second phone. Steps and failure symptoms are in `docs/firebase-setup.md`.
 
 The same phone, the same day, after the console steps in `docs/firebase-setup.md` were done and the five
 values were written to `firebase.properties`: project `baby-log-app-119e4`, the Android app
-`1:705332594857:android:71a9c8f699a0effd7041b8`, and two uids — `wJjDVdK1FVRkSoSwBo5LOc8GGJt1` and
-`REPLACE_WITH_SECOND_UID` — now in `firebase/firestore.rules` and `firebase.allowedUids`.
+`1:705332594857:android:71a9c8f699a0effd7041b8`, and two uids — quoted in no document, held in
+`firebase/firestore.rules` and `firebase.allowedUids` — now in the rules and the allow-list.
 
 **The values are compiled in, so a reinstall is not enough.** `BuildConfig` was checked first, because
 every failure mode here looks like a console problem: `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID`,
@@ -929,7 +929,7 @@ versionCode 11.
 |---|---|
 | The card leaves single-phone mode | Email and Password fields, `Sign in`, and — new — **`Sign in with Google`**, which only appears when `webClientId` is non-blank. That button is the proof the OAuth client id reached the build |
 | Auth is reachable, and errors are sentences | Empty submit → *"Enter the account's email and password."*; a wrong credential → *"Wrong email or password."* from Firebase itself. Neither crashed |
-| Sign-in, and the first-sign-in seed | `Signed in as joelm3103@gmail.com`, *"Everything here is on the server."*, and the outbox was **already empty** — the seeded children had been queued and acked |
+| Sign-in, and the first-sign-in seed | `Signed in as <account>`, *"Everything here is on the server."*, and the outbox was **already empty** — the seeded children had been queued and acked |
 | A live write reaches Firestore | A 60 ml bottle for both children → two `events` rows, and **0 rows queued within ~5 s**. A row is deleted from `outbox` only on ack, so both writes were confirmed by the server |
 | **Airplane mode, three writes** | Airplane mode on (`Network is unreachable`, verified): three bottles queued **exactly three intents**, and none drained |
 | **Exactly once on reconnect** | Airplane mode off → outbox **0**, **five events, five distinct ids** — 2 earlier + 3 offline, no duplicates, nothing lost, no user action needed |
@@ -965,7 +965,7 @@ closes the gap the previous two sections name: the inbound listener applying **a
 and a tombstone surviving the hop. It ran in two parts.
 
 **Part one — the wipe and re-sign-in, on the phone alone.** `pm clear app.babylog` emptied the local
-database; the log survived because Firestore held it. Signing back in as `joelm3103@gmail.com` restored
+database; the log survived because Firestore held it. Signing back in as `<account>` restored
 **the same six row ids** that were on the phone before the wipe (`920c4d6f`, `37a12b78`, `adf27e6b`,
 `b5c9f5fb`, `a464cd4f`, `b4532613`), and the row deleted *before* the wipe (`d02ad63f`) did **not**
 return — the tombstone won over the stale server document. Read from the database through `run-as`, not
@@ -973,7 +973,7 @@ from the screen; `outbox` was 0 and `logcat -b crash -d` stayed empty.
 
 **Part two — two devices, two accounts.** `emulator-5554` (Android 16) joined `<handset>` as the second
 sync client. The owner replaced the unused Firebase account, so the allow-list and the rules moved to
-the new uid `REPLACE_WITH_FIRST_UID` beside `REPLACE_WITH_SECOND_UID`, the app was rebuilt with
+the new uid `<uid A>` beside `<uid B>`, the app was rebuilt with
 that configuration, and both devices were reinstalled and signed in — the phone as `TSz2…`, the emulator
 as `B43h…`. **The emulator is a second sync client only:** it proved the wire, and layout questions were
 settled on the phone, per `AGENTS.md`.
@@ -1898,7 +1898,7 @@ restore path, so the import is proven by the same code that would restore a back
   decimal point = tenths, an explicit decimal = as written. That is the only reading under which every
   weight and length in both exports is monotone; the alternative makes one twin lose 224 g in a week.
 - **The owner's three rulings are recorded in the script as overrides, not lost in conversation:** the
-  2026-03-11 measurement's weight corrected from `3.78lbs.oz` to 3.53 kg; `Loose` consistency mapped to
+  an imported measurement's weight corrected from a garbled unit string to a real one; `Loose` consistency mapped to
   `MUSHY`; a `Dry` nappy skipped because `DiaperKind.of()` has no "neither" state.
 - **What the schema cannot hold, named rather than dropped silently:** nappy volumes (`:small|medium|large`,
   25 rows), `HATED` as a solids reaction (no enum member — carried in the note), sleep mood and location
@@ -1917,7 +1917,7 @@ restore path, so the import is proven by the same code that would restore a back
 | 4 | Activity screen | newest feed reads `9h 37m ago`, not `9d ago`; both children's 4:35 AM entries carry `K`/`L` badges ✅ |
 | 5 | Summary, 2-week window | `14 of 14 days logged` per child, against 4 from the raw export ✅ |
 | 6 | Totals recomputed by hand from the CSVs | 2066 ml / best 856 ml on 18 Oct, and 2560 ml / best 903 ml on 17 Oct — the app agreed to the millilitre ✅ |
-| 7 | Trends → Growth | 8 and 11 measurements plotted with adjusted ages; the screenshot-transcribed 21 Oct row shows as `12.7 lb · <1st percentile` ✅ |
+| 7 | Trends → Growth | 8 and 11 measurements plotted with adjusted ages; the screenshot-transcribed 21 Oct row shows as `<value> lb · <1st percentile` ✅ |
 | 8 | Settings opens, system back returns to Activity with the log intact | ✅ |
 | 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two imports, four screens and the back press ✅ |
 
@@ -1932,8 +1932,8 @@ same build, and exists to prove the drop was **field-scoped** rather than a dele
 | # | Check | Result |
 |---|---|---|
 | 1 | `install -r`, foreground before any input | `topResumedActivity=app.babylog/.MainActivity`, `0.18.1` / versionCode 24 ✅ |
-| 2 | Trends → Growth → **Length**, measurements list | 37.0 (31 Dec 25), 50.0 (27 Mar), 59.0 (29 Apr), 55.8 (6 May), 66.0 (10 Jul), 71.0 (30 Sep), 71.1 cm (9 Oct) — **no 11 March 2026 row** ✅ |
-| 3 | Trends → Growth → **Weight**, same child | `11 Mar 2026 · W 7.8 lb` still listed — the 3.53 kg that was kept, which is why the row was not deleted ✅ |
+| 2 | Trends → Growth → **Length**, measurements list | the seven length readings in date order — **no 11 March 2026 row** ✅ |
+| 3 | Trends → Growth → **Weight**, same child | the corrected March row still listed — the weight that was kept, which is why the row was not deleted ✅ |
 | 4 | System back from Trends | returns to Activity with the child switcher and today's cards intact ✅ |
 | 5 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the install and the Growth screens ✅ |
 
@@ -1945,13 +1945,13 @@ mistake as the stale `uiautomator` tree recorded under Phase 9.
 ### What the source data still gets wrong, and is not ours to fix
 
 - **The 2026-03-11 measurement was closed on 2026-10-28 by keeping only its weight.** As first imported the
-  row carried `3.78lbs.oz`, `1.39ft.in` and `32cm`: a length that grows 404 → 498 mm and a head 320 → 380 mm
+  row carried garbled unit strings in every field: a length that gains far too much for the span, and a head that grows faster than any baby's does
   inside 16 days, which is not growth, so the row is either mis-dated or mistyped. The weight was corrected
-  to 3.53 kg by the owner and sits smoothly between 1409 g at birth and 3867 g on 27 March; the two
+  to a plausible weight by the owner and sits smoothly between the birth weight and the later reading; the two
   impossible measurements are now **absent**, which is what the app already means by "not recorded", rather
   than present and wrong on a percentile chart. `DROP_FIELDS` in the converter carries the rule and the reason.
-- **Length readings still wobble in the source** — 59.0 → 55.8 cm across a week for one twin, 44.0 → 41.0 cm
-  and 56.0 → 54.0 cm for the other. Those are plausible measurement error between two people and one
+- **Length readings still wobble in the source** — a few centimetres backwards within a week for one twin, then the same again
+  for the other. Those are plausible measurement error between two people and one
   wriggling baby, not impossible values, so they are imported as recorded: suppressing them would be editing
   the log. They show as jitter on the Length chart and are worth re-measuring, not deleting.
 - **The CSV export covers 9–18 Oct only**; 19–28 Oct were transcribed from four screenshots by hand, which
@@ -2095,7 +2095,7 @@ signature change from the debug key forces.
 | 2 | It is signed by the release key | the installed `base.apk` pulled back and read with `apksigner`: `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f` — the keystore's own, not the debug `24:E3:…` ✅ |
 | 3 | What was delivered is what was built | SHA-256 of the built `app-release.apk` and of the installed APK are both `4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca`, 14 675 571 bytes ✅ |
 | 4 | It launches | `topResumedActivity=app.babylog/.MainActivity` after `am start` ✅ |
-| 5 | Sync came back after the wipe | Settings → Sync reads `Signed in as joelm3103@gmail.com`, `Everything here is on the server.`, `Up to date.` ✅ |
+| 5 | Sync came back after the wipe | Settings → Sync reads `Signed in as <account>`, `Everything here is on the server.`, `Up to date.` ✅ |
 | 6 | The log is intact, counted from the app's own export | exported at 13:34 through Settings → Data → Export: **219 live events** — BOTTLE 104, DIAPER 80, GROWTH 19, SLEEP 2, SOLIDS 14 — and 2 children (`kai`, `levi`). The export made before the uninstall at 13:12 held the same 219 live rows (221 including 2 tombstones) ✅ |
 | 7 | The app shows the restored history | Activity screen for Kai: Bottle `1d ago` 6 oz, Diaper `1d ago` Wet, Solids `10d ago` Carrot, Pumpkin, Chicken, Broccoli ✅ |
 | 8 | No crash | `logcat -b crash -d` → **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
@@ -3388,8 +3388,8 @@ Three of the six defects below are layout, which is exactly what a green build c
 - **The Trends pane used `fillMaxSize()` inside the screen's Column**, so it claimed the whole height
   instead of the space below the chips: it overlapped them, and the end of its list could not be scrolled
   to. It now takes the remaining height with `weight(1f)`.
-- **The percentile label clamped off-chart values into a percentile.** 5.4 kg at 218 adjusted days is
-  z = −3.9, which the old clamp printed as `1st percentile` — claiming the child sat ON the 1st line rather
+- **The percentile label clamped off-chart values into a percentile.** A real off-chart weight at a given adjusted age sits far
+  below every curve, which the old clamp printed as `1st percentile` — claiming the child sat ON the 1st line rather
   than below every curve. Now `<1st` / `>99th`.
 - **The kg box showed 100 g.** 6350 g rendered as "6.4" kg, hiding 50 g a parent could neither see nor
   correct. The sheet now shows 10 g in kg and 0.01 in in inches, finer than the millimetre stored behind it,
@@ -3421,7 +3421,7 @@ allows `run-as`, which is a stronger check than the export path the plan named.
 ### The migration, on the real database
 
 The phone was carrying a v1 database from Phase 10 with 69 event rows on it, including two health rows
-whose `medication` text was `Calpol 2.5 ml` — written before a dose had a column. It was copied off the
+whose `medication` text carried its dose inline — written before a dose had a column. It was copied off the
 device, the new build installed over it, the app launched, and it was copied back.
 
 | Check | Result |
@@ -3429,7 +3429,7 @@ device, the new build installed over it, the app launched, and it was copied bac
 | `PRAGMA user_version` before / after | 1 → **2** |
 | `events` columns before / after | 22 → **24** (`doseAmount`, `doseUnit` added) |
 | Event rows before / after | **69 before, 69 after** (64 live, 5 tombstones) |
-| Legacy health rows after the upgrade | pass — still `38.5 °C` and `Calpol 2.5 ml`, with `doseAmount = NULL` and `doseUnit = NULL`, not `0` |
+| Legacy health rows after the upgrade | pass — still their reading and their medicine text, with `doseAmount = NULL` and `doseUnit = NULL`, not `0` |
 | App launches after the upgrade; `logcat -b crash` | pass — empty, and `grep -c "FATAL EXCEPTION"` = 0 |
 
 ### The screens
@@ -3443,12 +3443,12 @@ device, the new build installed over it, the app launched, and it was copied bac
 | Picking a medicine | pass — the row reads `Paracetamol (Calpol)`, the free-text field hides, and Save becomes enabled |
 | Dose unit dropdown | pass — exactly `ml`, `mg`, `drops`, `sachet`, `tablet`, `other` |
 | **Both mode writes two rows with one timestamp** | pass — `K ... 12:27` and `L ... 12:27`, and the DB shows two rows sharing `startedAt` per save |
-| Stored dose, read from the DB | pass — `medication = Paracetamol (Calpol)`, `doseAmount = 2.5`, `doseUnit = MILLILITRES` |
-| **The last-dose hint** | pass — `Last recorded — First Twin 2.5 ml · Second Twin 2.5 ml`, with the dose field still **empty** and the unit still `Choose` |
-| Vaccine sheet | pass — `Vaccine` / `for both`, Date, Time, Vaccine, `Enter the vaccine's name.`; saved row reads `6-in-1 vaccine` and the DB row carries `vaccineName = 6-in-1` with no dose |
-| The card after both kinds | pass — each child's column shows `Paracetamol (Calpol) 2.5 ml` and `6-in-1 vaccine` on separate lines |
-| Legacy rows still display | pass — `38.5 °C · Calpol 2.5 ml`, the free-text medicine from before the migration |
-| History | pass — headline `38.5` `°C` with the `Fever` pill, rows `Records 6`, `Medication Paracetamol (Calpol)`, `Dose 2.5 ml`, `Vaccine 6-in-1`, `Measured 18 Oct`, per-child `First Twin 3` / `Second Twin 3` |
+| Stored dose, read from the DB | pass — the medicine name in `medication`, the typed amount in `doseAmount`, `doseUnit = MILLILITRES` |
+| **The last-dose hint** | pass — `Last recorded — First Twin <amount> · Second Twin <amount>`, with the dose field still **empty** and the unit still `Choose` |
+| Vaccine sheet | pass — `Vaccine` / `for both`, Date, Time, Vaccine, `Enter the vaccine's name.`; saved row reads the typed vaccine name and the DB row carries it in `vaccineName` with no dose |
+| The card after both kinds | pass — each child's column shows that medicine with its dose and that vaccine name on separate lines |
+| Legacy rows still display | pass — the old reading and free-text medicine, from before the migration |
+| History | pass — headline the reading with the `Fever` pill, rows `Records 6`, `Medication`, `Dose`, `Vaccine`, `Measured`, per-child `First Twin 3` / `Second Twin 3` |
 | Fever marker, in pixels | pass — **10,800 pixels of exactly `#FFB6B6`** (the pill fills) with **928 pixels of `onAccent`** for the word inside them. Before the pill, the same band held 3,762 pixels of tinted text and the owner could not see it. |
 | Trends' Health tab | pass — still `Charts for health arrive in Phase 12…`; the chip is only reachable after scrolling the chip row (see below) |
 | System back closes the sheet, app stays foreground | pass |
@@ -3466,7 +3466,7 @@ device, the new build installed over it, the app launched, and it was copied bac
   and dose rows are from 12:27, because each line is the latest of its own kind. That is what the phase
   asked for, and the card's row list is where actual records are read — noted here so the juxtaposition
   is not mistaken for a single event.
-- **Legacy rows carry their dose inside the medication text** (`Calpol 2.5 ml`), because they predate the
+- **Legacy rows carry their dose inside the medication text** (a medicine and its dose in one string), because they predate the
   column. They render honestly and were left alone: rewriting a parent's historical rows is not a call to
   make inside a phase, and the data is not wrong, only unseparated.
 
@@ -3489,13 +3489,13 @@ the screen showed. The window is the **local** day (`America/Port_of_Spain` on t
 
 | Check | On screen | Re-read from the DB | Result |
 | --- | --- | --- | --- |
-| Bottle, Both, 14d | First Twin `27.7 oz`, `3 of 14 days logged`, best `24.7 oz · 14 Oct` | 819 ml = 27.7 oz, 3 days, best 730 ml = 24.7 oz on 14 Oct | pass |
-| Bottle, Both, 14d | Second Twin `19.1 oz`, best `16.1 oz · 14 Oct` | 566 ml = 19.1 oz, best 477 ml = 16.1 oz on 14 Oct | pass |
+| Bottle, Both, 14d | First Twin's headline total, `3 of 14 days logged`, a best day | the same figures recomputed from the database, same day count and same best day | pass |
+| Bottle, Both, 14d | Second Twin's headline total and a best day | the same figures recomputed from the database, same best day | pass |
 | The 7d chip | `Bottle feed · 7 days`, averages `4` and `2.7` oz/day | 27.7/7 = 3.96, 19.1/7 = 2.73 | pass |
 | Diaper, Both, 30d | `0.4 per day`, `Total 13`, best `9 · 12 Oct`, `2 of 30 days` | 13 each on 2 days, 9 of them on 12 Oct | pass |
 | Solids, Both, 30d | `0.1 per day`, `Total 2`, best `1 · 12 Oct` | 2 meals each on 2 days | pass |
 | Sleep, Both, 30d | `< 0.1 hours / day`, `Total 13m 5s · 15 Oct` | one 13m 5s session on 15 Oct | pass |
-| Health, Both, 30d | `Fever days 1`, `Temperatures 2`, `Fever readings 2`, `38.5 °C` + pill, `18 Oct 12:08` | 2 temperatures, both 38.5, 1 distinct fever day | pass |
+| Health, Both, 30d | `Fever days 1`, `Temperatures 2`, `Fever readings 2`, the reading + pill, its own timestamp | 2 temperatures at the same reading, 1 distinct fever day | pass |
 | Growth tab | Percentile chart, curves, `K` markers, callouts, dataset line | unchanged from Phase 10 (behaviour-identical move of the axis maths) | pass |
 
 Note honestly: on this install every logged row falls inside the last 14 days, so the 30-day window was

@@ -19,7 +19,7 @@ arrive exactly once after restore — were verified in that pass.
 | appId `1:705332594857:android:71a9c8f699a0effd7041b8` | `firebase.appId` | known |
 | apiKey `AIza…` | `firebase.apiKey` | **you must read it out** — see step 1 |
 | webClientId `…apps.googleusercontent.com` | `firebase.webClientId` | **you must read it out** — step 1; only for the Google button |
-| uid A, uid B | `firebase.allowedUids` **and** `firebase/firestore.rules` | created in step 4 |
+| uid A, uid B | `firebase.allowedUids` **and** the local `firebase/firestore.rules` (copied from the committed `.example`) | created in step 4 |
 
 The debug keystore on this machine has SHA-1:
 
@@ -98,7 +98,7 @@ Copy each user's **uid** (the long string in the UID column). You need both in s
 1. **Firestore Database → Create database** → production mode → the region closest to you. The region
    cannot be changed later without recreating the database; for two phones in one country it does not
    matter much, but pick it once and keep it.
-2. Open `firebase/firestore.rules` in this repo and replace:
+2. Copy `firebase/firestore.rules.example` to `firebase/firestore.rules` (the real file is gitignored, because a uid identifies an account) and replace:
 
    ```
    'REPLACE_WITH_FIRST_UID',

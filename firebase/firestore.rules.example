@@ -2,9 +2,14 @@ rules_version = '2';
 
 // BabyLog — Phase 13. Two accounts, one shared log.
 //
-// Paste this into the Firebase console (Firestore Database -> Rules) after creating the project.
-// Replace the two placeholders with the uids of the two accounts: Authentication -> Users -> the uid
-// column. They are recorded in PLAN.md once the accounts exist.
+// This is the TEMPLATE, and it is the only copy in the repository. The real file is
+// `firebase/firestore.rules`, which is gitignored because it carries the two accounts' uids — a
+// Firebase uid identifies an account, so it is not something this repo publishes.
+//
+// To use it: copy this file to `firebase/firestore.rules`, replace the two placeholders with the uids of
+// the two accounts (Authentication -> Users -> the uid column), then paste the result into the Firebase
+// console (Firestore Database -> Rules). Keep those uids in the password manager with the rest of the
+// project's credentials, and out of any document that could be shared.
 //
 // Two rules carry the whole design:
 //

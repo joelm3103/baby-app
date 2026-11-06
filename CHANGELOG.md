@@ -121,6 +121,26 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   PowerShell block, both examples hard-coded a dated destination that `adb pull` cannot create, and the
   ten-frame procedure showed a command for one frame and left the reader to infer the rest.
 
+### Security
+
+- **The handset serial and the two Firebase uids left the repository — and out of its history** (2026-11-06).
+  The serial had accumulated in 29 commits' trees (`capture-timeline.ps1`'s note about a scalar becoming its
+  first character, `PLAN.md`, `CHANGELOG.md`, three Kotlin comments, the timeline README) and in 11 commit
+  messages; the tracked `firebase/firestore.rules` carried both accounts' uids, which the file's own header
+  calls identifying.
+  - **At the tip:** the serial reads `<handset>`, and the rules became `firebase/firestore.rules.example` with
+    `REPLACE_WITH_FIRST_UID` / `REPLACE_WITH_SECOND_UID` placeholders. The real file is gitignored, because
+    those uids are per-project values that belong in the password manager, not in a clone.
+  - **In the history:** rewritten with `git-filter-repo --replace-text --replace-message`, trees and messages
+    alike, so no commit carries either fact. Every hash from the first affected commit moved and both tags
+    (`v1.0.0`, `v1.7.1`) were repointed — ADR-0006 records the decision.
+  - **A force-push is not an erasure.** GitHub keeps the old commits retrievable by exact SHA until it
+    garbage-collects, which it does not do on request; the repository is private, so the exposure is limited to
+    whoever already had access. Deleting and recreating the repository is the only definitive fix and was
+    declined — the cost is the release asset and any other history.
+  - **The `1.7.1` release asset is unchanged**; only its tag moved, so the release page now names the rewritten
+    commit.
+
 ### Verification
 
 - **Reconciliation, run before any deletion** (`logs/screenshot-migration.txt`): 27 mappings, every source
@@ -980,7 +1000,7 @@ That is the nagging `AGENTS.md` rules out, and it is recorded for a decision rat
 | 1 | The phone runs the release | `dumpsys package app.babylog` → `versionCode=26`, `versionName=1.0.0`, targetSdk 36 ✅ |
 | 2 | Signed by the family's key, not the debug one | the installed `base.apk` pulled back and read with `apksigner`: `CN=BabyLog, OU=Family, O=BabyLog, C=TT`, SHA-1 `0766ee2f…5f4f` ✅ |
 | 3 | What was delivered is what was built | SHA-256 `4dac7cfb…43bca` on both the built and the installed APK, 14 675 571 bytes each ✅ |
-| 4 | It launches, and sync came back | `topResumedActivity=app.babylog/.MainActivity`; Settings → Sync: `Signed in as joelm3103@gmail.com`, `Everything here is on the server.`, `Up to date.` ✅ |
+| 4 | It launches, and sync came back | `topResumedActivity=app.babylog/.MainActivity`; Settings → Sync: `Signed in as <account>`, `Everything here is on the server.`, `Up to date.` ✅ |
 | 5 | The log is intact, counted from the app's own Export | 13:34 export: **219 live events** — BOTTLE 104, DIAPER 80, GROWTH 19, SLEEP 2, SOLIDS 14 — 2 children. The pre-uninstall export at 13:12 held the same 219 live rows (221 including 2 tombstones) ✅ |
 | 6 | The screen agrees | Kai: Bottle `1d ago` 6 oz, Diaper `1d ago` Wet, Solids `10d ago` Carrot, Pumpkin, Chicken, Broccoli ✅ |
 | 7 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across the launch, the Settings walk and the export ✅ |
@@ -1086,9 +1106,9 @@ phone has never seen — and are recorded so a later pass does not read them as 
   values under unchanged ids would otherwise tie with the copies already on the server, and
   `SyncMerge`'s tie rule could keep the stale row — so the other phone would never see the fix.
 - **An import that would have been ~1% light on every weight is corrected.** The first conversion read
-  `18.44lbs.oz` as decimal pounds; under pounds.ounces the two series now read 1409 → 3530 → 3867 → 5151
-  → 5568 → 6878 → 8233 → 8289 g and 595 → 1851 → 1959 → 2373 → 2880 → 2951 → 3328 → 4090 → 5120 → 5310 →
-  5769 g, each strictly increasing, and the first twin's percentile moved 53rd → 50th.
+  `18.44lbs.oz` as decimal pounds; under pounds.ounces both weight series now rise strictly, every reading above
+  the one before it, and the first twin's percentile moved a few places up. No figure is quoted here: the
+  point is the shape of the two series, and the numbers behind it are the children's own measurements.
 
 ### Fixed
 
@@ -1107,12 +1127,12 @@ phone has never seen — and are recorded so a later pass does not read them as 
   silent no-op — `HomeViewModel.save` returns when `childIds` is empty — so a parent could fill a form and be
   told nothing. `ActivityScreen` now skips the cards entirely while there are no children, and the card's
   second line says the cards will appear.
-- **The 2026-03-11 measurement is now only its weight.** That row also claimed a length growing 404 → 498 mm
-  and a head 320 → 380 mm in 16 days, which no baby does; the weight stays at the 3.53 kg the owner ruled
+- **The 2026-03-11 measurement is now only its weight.** That row also claimed a length that gains far too much for the span
+  and a head that grows implausibly in 16 days, which no baby does; the weight stays at the value the owner ruled
   and the two impossible measurements are dropped rather than imported-and-wrong. `DROP_FIELDS` in the
   converter holds the rule, and the Length chart no longer plots a point the source cannot support. On
-  `<handset>`: Length lists 37.0 → 71.1 cm with **no 11 March row**, Weight still lists
-  `11 Mar 2026 · 7.8 lb` (3.53 kg) — so the drop is field-scoped rather than a deleted event — system back
+  `<handset>`: Length lists the whole series with **no 11 March row**, Weight still lists
+  the corrected March row — so the drop is field-scoped rather than a deleted event — system back
   returns to Activity, and `logcat -b crash` is 0.
 
 ### Verified on the phone — `<handset>` (SM-S918U1), `0.18.1`, 2026-10-28
@@ -1149,7 +1169,7 @@ pass is the proof that a converted file is a real restore and not a hopeful JSON
 | 4 | Activity screen | `9h 37m ago` on the feed card, not `9d ago` — the log reaches today; both children's 4:35 AM entries visible with `K`/`L` badges ✅ |
 | 5 | Summary, 2-week window | `14 of 14 days logged` for each child, where the raw export covered 4 ✅ |
 | 6 | Totals against the source, recomputed by hand from the CSVs | first twin 2066 ml / best day 856 ml on 18 Oct; second 2560 ml / best day 903 ml on 17 Oct — the app agreed exactly ✅ |
-| 7 | Trends → Growth | percentile chart plots 8 and 11 measurements with adjusted ages; the 21 Oct measurement transcribed from a screenshot appears as `12.7 lb · <1st percentile` ✅ |
+| 7 | Trends → Growth | percentile chart plots 8 and 11 measurements with adjusted ages; the measurement transcribed from a screenshot appears as `<value> lb · <1st percentile` ✅ |
 | 8 | Settings opens, system back returns to Activity with the log intact | ✅ |
 | 9 | `logcat -b crash -d` | **0** `FATAL EXCEPTION` across two imports, four screens and the back press ✅ |
 
@@ -1861,7 +1881,7 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
 - `PLAN.md`'s Phase 13 section gained a dated device-pass record with the evidence table, the behaviour worth naming (an unconfigured build never drains, so its outbox accumulates and that accumulated queue *is* the first sign-in's seed), and an explicit list of what the pass cannot prove.
 - Two stale claims corrected in the same pass: the suite is **398**, not the 339 the `Verified:` line still quoted, and `README.md` now says the build reads `firebase.properties` rather than implying it reads `app/google-services.json` — the plugin that would have read that file is deliberately not applied, so the JSON is only where the values are copied from.
 - `README.md`'s repo-layout block named the folder `first-twinpp/` and omitted `CHANGELOG.md`, `docs/` and `firebase/`; it now matches the repository.
-- `firebase/firestore.rules` carries the **current** uid pair — `REPLACE_WITH_FIRST_UID` and `REPLACE_WITH_SECOND_UID` — after the owner replaced the unused second Firebase account. The old `wJjDVdK1…` uid is gone from the rules, from `firebase.allowedUids` and from the console, so the deleted account can no longer reach the log.
+- `firebase/firestore.rules` carries the **current** uid pair after the owner replaced the unused second Firebase account. The old account's uid is gone from the rules, from `firebase.allowedUids` and from the console, so the deleted account can no longer reach the log. The uids themselves are not quoted in this file: they identify the accounts, so they live only in the local rules file and the password manager.
 - `docs/firebase-setup.md` now records a second consequence of the per-machine debug keystore: a rebuild on another computer is signed differently, so `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` and the app must be uninstalled first — which discards the local database and any **still-queued** outbox rows. Drain before switching a phone to a build from a different machine. This machine's print (`F8:27:D1:F3…`) is recorded beside the original.
 - `PLAN.md` Phase 13 is closed: the status row and heading read **DONE, device-verified**, a dated write-up of the hop and the two-account round trip sits under the phase, and a three-pass table summarises what each pass actually proved. The earlier passes' own sections are left as they were written — a verification table records what was true that day.
 
@@ -1874,7 +1894,7 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
 #### What the phone showed, pass by pass
 
 - **Unconfigured build** (`0.9.0`, no `firebase.properties`): launches with no crash; Settings → Sync renders the `NotConfigured` body — "Sync is not set up on this build, so the log stays on this phone. Logging works normally." — with no email/password fields and no Google button, so the build cannot offer a button that cannot work; a 90 ml bottle for both children wrote two `events` rows and showed `just now`, then `2m ago` after a relaunch; `pragma user_version` = 2; the phone was then cleared with `pm clear app.babylog`.
-- **Configured build:** `BuildConfig` carries the project id, app id, API key, web client id and both uids at `0.9.0` / versionCode 11; the Sync card switched to the sign-in form and the **Google button appeared**, which is what proves `webClientId` is being read; an empty submit answered "Enter the account's email and password." and a wrong credential answered "Wrong email or password." from Firebase itself; sign-in succeeded as `joelm3103@gmail.com`, the card read "Everything here is on the server." and the outbox was already empty — the first-sign-in seed had drained; a 60 ml bottle for both children left **0 queued** within five seconds, and a row is only deleted from `outbox` on ack, so both writes reached Firestore; three bottles logged in airplane mode queued **exactly three intents** and none drained; on reconnect the queue fell to 0 with **five events and five distinct ids** — no duplicates, nothing lost; one further offline write showed "1 change waiting to sync." and drained by itself on reconnect (`events` 6 → 7, outbox 0). Firestore logged only `UNAVAILABLE` stream closures during the offline window — no permission or auth errors — and `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the whole session.
+- **Configured build:** `BuildConfig` carries the project id, app id, API key, web client id and both uids at `0.9.0` / versionCode 11; the Sync card switched to the sign-in form and the **Google button appeared**, which is what proves `webClientId` is being read; an empty submit answered "Enter the account's email and password." and a wrong credential answered "Wrong email or password." from Firebase itself; sign-in succeeded as `<account>`, the card read "Everything here is on the server." and the outbox was already empty — the first-sign-in seed had drained; a 60 ml bottle for both children left **0 queued** within five seconds, and a row is only deleted from `outbox` on ack, so both writes reached Firestore; three bottles logged in airplane mode queued **exactly three intents** and none drained; on reconnect the queue fell to 0 with **five events and five distinct ids** — no duplicates, nothing lost; one further offline write showed "1 change waiting to sync." and drained by itself on reconnect (`events` 6 → 7, outbox 0). Firestore logged only `UNAVAILABLE` stream closures during the offline window — no permission or auth errors — and `logcat -b crash -d` held **0** `FATAL EXCEPTION` across the whole session.
 - **Two accounts, two devices (added retrospectively).** The emulator signed in as the second account and pulled the phone's **six** rows by id with no prior state, which is the inbound listener crossing accounts. A 90 ml bottle on the phone produced `60b95a2c` and `e390a804` on the emulator; a 120 ml bottle on the emulator produced `661e6748` and `1d3a752b` on the phone. Airplane mode on the emulator queued **exactly three intents** (`d636207e`, `391c8b77`, `e416186c`) while the phone stayed at 10 events; on reconnect the phone gained exactly those three, both devices settled at **13 events with 13 distinct ids and an empty outbox**. Long-pressing an entry row on the phone deleted `e416186c`; the emulator marked that id deleted (12 live), and after `am force-stop` plus a relaunch it was **still** deleted with nothing resurrected.
 
 #### Found on the phone, left open
@@ -1979,7 +1999,7 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
 - Both mode shows **one column per child** on the Health card too: that child's newest temperature, their newest medication and their newest vaccine.
   - These are the **latest of each kind**, not the newest entry, with the reading and the medication combined into one line when they came from the same record.
   - The column renderer is shared with Growth rather than copied.
-- `recentRowLabel(HEALTH)` shows the reading and the medicine (`38.5 °C · Calpol 2.5 ml`), so a health row is self-describing and the entry behind the headline is one of the rows. The fever marker is not part of that string; it comes from `EntryRow`'s own flag.
+- `recentRowLabel(HEALTH)` shows the reading and the medicine (a reading and a medicine, such as a temperature and a dose), so a health row is self-describing and the entry behind the headline is one of the rows. The fever marker is not part of that string; it comes from `EntryRow`'s own flag.
 - History's Health total reports `Records`, `Medication`, `Dose`, `Vaccine` and `Measured`, with the fever flag. A range holding only a medication is no longer reported as "Nothing logged".
   - Its rows are the latest of each kind too, so the reading and the dose shown can come from different records. That is the phase's own rule, and the card's row list is where the individual records are read.
 - `decimalInput()` moved into `SheetControls`. The growth sheet and the health sheet were carrying the same three lines of keypad filtering.
@@ -2012,8 +2032,8 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
   - **`Type another name…` kept the previously selected name and left the cursor nowhere.** It now clears the field and requests focus. Verified by typing with no tap: the field's own `EditText` node reports `focused=true` and the text lands in it.
   - **The medication menu filled the screen.** Fourteen shipped names plus the family's own ran from the status bar to the navigation bar and hid the form it belonged to. It is capped at 320dp, about five rows, and scrolls inside that; two swipes still reach the last name and `Type another name…`.
 - **The first build of this phase failed with 59 "unresolved reference" errors** in files nobody had touched. The incremental Kotlin cache had gone stale, and clearing it reproduced a clean build. Recorded because the errors named `ActivitySheet`, `rememberNow`, `accentFor` and `ChildBadge`: they looked like a catastrophe and were a cache.
-- **Verified on the S23 Ultra (Android 16, dark), and the pass is recorded in `PLAN.md`:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **308/308** with 0 failures and 0 errors. Both-mode health and vaccine saves each wrote **two rows with an identical timestamp**. The medication dropdown lists the shipped names plus `Type another name…`. The last-dose hint reads `Last recorded — First Twin 2.5 ml · Second Twin 2.5 ml` while leaving the dose field **empty**. History shows the fever reading in `feverOnCard` with separate Medication and Dose rows. Trends' Health tab keeps its honest Phase 12 sentence. System back closes both sheets, and `logcat -b crash` is empty.
-- The device's own database was read before and after the install: `user_version` 1 → 2, 22 → 24 columns, **69 rows before and after**, and the two legacy health rows still read `38.5 °C` / `Calpol 2.5 ml` with `doseAmount = NULL` rather than `0`.
+- **Verified on the S23 Ultra (Android 16, dark), and the pass is recorded in `PLAN.md`:** `:app:assembleDebug` builds and `:app:testDebugUnitTest` is **308/308** with 0 failures and 0 errors. Both-mode health and vaccine saves each wrote **two rows with an identical timestamp**. The medication dropdown lists the shipped names plus `Type another name…`. The last-dose hint names each child's last recorded amount while leaving the dose field **empty**. History shows the fever reading in `feverOnCard` with separate Medication and Dose rows. Trends' Health tab keeps its honest Phase 12 sentence. System back closes both sheets, and `logcat -b crash` is empty.
+- The device's own database was read before and after the install: `user_version` 1 → 2, 22 → 24 columns, **69 rows before and after**, and the two legacy health rows still read their original reading and medicine text with `doseAmount = NULL` rather than `0`.
 - **`PLAN.md` read two ways at once.** The Status table's Phase-11 row said **308 tests green** while the Verified line under the same table said **311/311**, and Phases 0-2 had carried no evidence at all since their body sections were collapsed into that table. The table's counts are now named for what they are — the suite size when each phase landed, with the three `HistoryFilterTest` cases named as the delta — and a **Phases 0-2 evidence** section points at the research notes, the scaffold and domain commits (the "feat: scaffold Compose app, get a green debug build" commit, the "feat(domain): event model, relative-time/duration formatting, day grouping" commit, the "feat(domain): unit system with exact conversions and compound lb/oz formatting" commit) and the theme files, so those three phases are traceable again without un-collapsing the table.
 
 #### Phase 12 — Trends, found on the phone after 338 tests were green
@@ -2057,7 +2077,7 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
 
 ### Changed
 
-- **The Activity Growth card is per child in Both mode, and every value says what it is.** The summary is now one column per child headed by the child's name, one measurement per line (`W 5.4 kg` / `L 66 cm` / `H 42 cm`), and the W/L/H codes appear wherever a growth value is shown — the card summary, its entry rows, the overlay list, the chart's list — because a bare "42 cm" cannot be told from a length or a head circumference. A combined headline had no owner: "6 kg" in Both mode was one child's weight dressed up as the twins'.
+- **The Activity Growth card is per child in Both mode, and every value says what it is.** The summary is now one column per child headed by the child's name, one measurement per line (`W 6 kg` / `L 66 cm` / `H 42 cm`), and the W/L/H codes appear wherever a growth value is shown — the card summary, its entry rows, the overlay list, the chart's list — because a bare "42 cm" cannot be told from a length or a head circumference. A combined headline had no owner: "6 kg" in Both mode was one child's weight dressed up as the twins'.
 - **`See all ›` shows as soon as an activity has one entry, for EVERY card**, not only when an entry was off-card. The old rule left the link invisible exactly when the full list was wanted, and it was the reason the Growth card had no route to its own data. It opens the same entry-list overlay as the other cards.
 - **The percentile chart moved into Trends**, as one tab of a per-activity tab row over every type in `EVENT_DISPLAY_ORDER`. Growth is functional; the rest say honestly that their charts arrive in Phase 12, so nothing is faked. This brings Trends' shell forward from Phase 12 while its feed, diaper, solids and sleep charts stay there. `GrowthScreen` is now `GrowthChartPane` (the tab's content, with no Close button of its own), `HomeViewModel.openGrowth`/`dismissGrowth`/`openAllFor` are gone, `ui/Placeholders.kt` is deleted, and Trends gained its own scroll state so it fades like the other destinations.
 - **The chart's highlight box is one per child in Both mode.** It used to be whichever measurement was newest in scope, ties broken by child name — so both twins measured on the same day meant the first twin's number, picked alphabetically, shown as if it spoke for both.
@@ -2074,7 +2094,7 @@ the two candidate fixes are written up under Phase 13.5 in `PLAN.md`.
 - **The Trends pane overlapped the chips and its end could not be scrolled to.** It used `fillMaxSize()` inside the screen's `Column`, claiming the whole height instead of the space below the chips. It now takes the remaining height with `weight(1f)`; the last content ends at y=1919, clear of the navigation bar at y=2095. Both found by looking at the screen, not by the build.
 - **The chart's y-axis could be reduced to two gridlines.** `yTicks` rounded the ideal step (span / 4) up to the next "nice" value, and the ladder's jump from 5 to 10 gave a head circumference spanning ~31-52 cm a 10-unit step and only two lines. The chooser now takes the smallest round step that fits within six ticks, so the axis reads as a scale at any span. Found by the asset-driven chart test, not by the build.
 - The kg box in a measurement sheet now shows 10 g, not 100 g. `formatWeight`'s one decimal is right for a card but wrong for the sheet where the number is entered: 6350 g displayed as "6.4" kg and a parent could neither see nor correct the 50 g between them. Inches gained a second decimal for the same reason — 0.01 in is 0.254 mm, so the box is now finer than the millimetre stored behind it.
-- **A measurement taken before term no longer gets a percentile.** A 30-week baby's 1.37 kg plotted at "day 0" of a term-baby chart sits far below the 2nd percentile, which reads as a growth failure rather than as immaturity. It now shows the value, no percentile, and the reason.
+- **A measurement taken before term no longer gets a percentile.** A pre-term baby's birth weight plotted at "day 0" of a term-baby chart sits far below the 2nd percentile, which reads as a growth failure rather than as immaturity. It now shows the value, no percentile, and the reason.
 
 ## [2026-10-14]
 

@@ -309,3 +309,30 @@ thing protecting it. One rewrite, done at a moment when nobody else holds a clon
   release. The digest in `CHANGELOG.md` and `PLAN.md` is that rebuild's.
 - **This is the last time it should be needed.** The name is now nowhere in tracked content or history; the
   line in `AGENTS.md` exists so a future pass does not put it back.
+
+## ADR-0006 — Identifiers leave the repository, including its history
+
+**Decision.** The handset serial and the two Firebase uids are substituted everywhere in tracked content — the
+serial to `<handset>`, the uids to `REPLACE_WITH_FIRST_UID` / `REPLACE_WITH_SECOND_UID` in a committed
+`firebase/firestore.rules.example` — and the same substitution is applied to every commit's tree and message
+with `git-filter-repo`. The real rules file is gitignored from now on, and is the only place the uids live.
+
+**Why.** A Firebase uid identifies an account; the rules file's own header says so, and the console uses it as
+the gate. A device serial identifies one physical phone, and it appears in screenshots and support threads for
+years. Neither is a credential — a uid authenticates nothing on its own — but neither belongs in the one
+artefact that travels: clones, backups, forks and screenshots of diffs all carry it further than anyone
+intended. The rule this sets is the one ADR-0005 set for the owner's name, applied to identifiers that
+accumulate silently rather than to a string somebody typed.
+
+**Consequences.**
+
+- **Every commit from Phase 13 onward has a new hash**, and both tag targets moved: `v1.0.0` and `v1.7.1` were
+  repointed, so a hash quoted in an old message, screenshot or issue no longer resolves. Subjects, dates,
+  authors and trees are unchanged, so `git log --oneline` still reads as the same history.
+- **The force-push is not an erasure.** It makes the old commits unreachable on `main`; GitHub serves them by
+  exact SHA until it garbage-collects, which it does not do on request. Deleting and recreating the repository,
+  or asking GitHub support to purge, is the only definitive fix — declined while the repository is private and
+  the only artifact to re-upload is the `1.7.1` APK.
+- **Any other clone must be re-cloned, not pulled.** There is no collaborator clone today.
+- **The uids are read from the password manager and a local, gitignored `firebase/firestore.rules`**, never from
+  the repository. `firebase/firestore.rules.example` is the template and the only copy that is published.
