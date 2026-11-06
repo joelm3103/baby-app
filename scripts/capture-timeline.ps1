@@ -4,7 +4,13 @@
 
 .DESCRIPTION
   Installs the current debug APK, launches the app, screenshots the top of the list and then each
-  scroll position, and writes them to docs/timeline/<date>-<label>/.
+  scroll position, and writes them to docs/<purpose>/<date>-<label>/.
+
+  TWO PURPOSES, because the app needs two kinds of screenshot and they follow different rules:
+    timeline   (default) the evolution record - every frame, including the rejected ones, full resolution,
+               PNGs kept out of git and the README beside them tracked.
+    marketing  the generic set - a handful of clean frames from a wiped install, committed to git. See
+               docs/marketing/README.md for the hygiene rules a marketing frame has to pass.
 
   The screenshot history exists because a green build says nothing about how the app looks, and
   because the options that got rejected are as informative as the ones that shipped. Full resolution
@@ -16,9 +22,12 @@
 .EXAMPLE
   powershell -NoProfile -File scripts/capture-timeline.ps1 -Label tinted-sections
   powershell -NoProfile -File scripts/capture-timeline.ps1 -Label phase6-sheets -Scrolls 8
+  powershell -NoProfile -File scripts/capture-timeline.ps1 -Label marketing-dark -Purpose marketing -Scrolls 0
+  powershell -NoProfile -File scripts/capture-timeline.ps1 -Label check -DryRun   # no phone needed
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Label,
+  [ValidateSet("timeline", "marketing")][string]$Purpose = "timeline",
   [int]$Scrolls = 5,
   [string]$Serial = "",
   [switch]$SkipInstall,
@@ -34,6 +43,18 @@ $apkDir = Join-Path $repo "app\build\outputs\apk\debug"
 $apk = Get-ChildItem -Path $apkDir -Filter "BabyLog-*.apk" -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime | Select-Object -Last 1 -ExpandProperty FullName
 $pkg = "app.babylog"
+$outDir = Join-Path $repo ("docs\" + $Purpose + "\" + (Get-Date -Format "yyyy-MM-dd") + "-" + $Label)
+
+# The dry run resolves paths and sends nothing, so it must not require a phone: it comes BEFORE the adb
+# check and the device enumeration. It prints the directory the capture would use, which is the only way
+# to prove the -Purpose switch routes correctly without a device in hand.
+if ($DryRun) {
+  Write-Host "dry run : resolving paths only, sending nothing to the phone"
+  Write-Host "purpose : $Purpose"
+  Write-Host "output  : $outDir"
+  Write-Host "apk     : $apk (exists: $(Test-Path $apk))"
+  exit 0
+}
 
 if (-not (Test-Path $adb)) { throw "adb not found at $adb - set the Android SDK path." }
 
@@ -56,13 +77,6 @@ if (-not $Serial) {
 if ($devices -notcontains $Serial) { throw "Serial '$Serial' is not attached. Attached: $($devices -join ', ')" }
 Write-Host "device  : $Serial"
 
-if ($DryRun) {
-  Write-Host "dry run : resolving device only, sending nothing to the phone"
-  Write-Host "apk     : $apk (exists: $(Test-Path $apk))"
-  exit 0
-}
-
-$outDir = Join-Path $repo ("docs\timeline\" + (Get-Date -Format "yyyy-MM-dd") + "-" + $Label)
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 Write-Host "output  : $outDir"
 
@@ -107,6 +121,11 @@ for ($i = 1; $i -le $Scrolls; $i++) {
 $crash = (& $adb -s $Serial logcat -d) | Select-String -Pattern "FATAL EXCEPTION" | Select-Object -First 1
 if ($crash) { Write-Warning "A FATAL EXCEPTION is in logcat - inspect before trusting these shots." } else { Write-Host "crash   : none" }
 
+$readme = if ($Purpose -eq "marketing") { "docs/marketing/README.md" } else { "docs/timeline/README.md" }
 Write-Host ""
-Write-Host "Add an entry to docs/timeline/README.md with the commit, what changed, and WHY."
-Write-Host "Generated captures stay out of git; see .gitignore."
+if ($Purpose -eq "marketing") {
+  Write-Host "Check every frame at full resolution, crop nothing, and name it against the set list in $readme."
+} else {
+  Write-Host "Add an entry to $readme with the commit, what changed, and WHY."
+}
+Write-Host "Timeline PNGs stay out of git; a marketing set is committed. See .gitignore."

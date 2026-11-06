@@ -17,6 +17,102 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-06]
+
+**In short:**
+
+- **Every BabyLog screenshot now lives in one of two places inside the repo, and the six folders outside it are
+  gone.** `docs/timeline/<date>-<label>/` is the evolution record; `docs/marketing/<date>-<label>/` is the
+  curated set. 27 dated folders were added to the timeline, covering Phases 13.1 to 27, which until today lived
+  in `Z:\babylog-shots`, `babylog-refshots`, `baby-app-shots`, `babylog-shots`, `shots-p26`, `shots-p27` — and,
+  for Phase 22, in this repo's own gitignored `logs/`.
+- **The split was not a decision, it was `$HOME`.** Under Git Bash the domain's mapped home folder wins:
+  `HOMEDRIVE=Z:`/`HOMEPATH=\` outrank `USERPROFILE`, so a helper written as `$HOME/babylog-shots` wrote 76 MB to a
+  network share. The 2026-11-02 scripts say so in their own source. Recorded in `AGENTS.md`.
+- **The timeline's prose is tracked from today; its PNGs still are not.** `docs/timeline/` was ignored
+  wholesale, so `README.md` — the one part a phone cannot regenerate — was one disk failure from gone. The
+  ignore is now file-by-file, and `index.html` stays ignored because it is that README rendered.
+- **A marketing set is committed**, because the selection of frames is the asset and no phone can regenerate it.
+  `docs/marketing/README.md` carries the hygiene it has to pass: wiped install, children renamed, Do Not
+  Disturb on, no real name or real log in any frame.
+- **`scripts/capture-timeline.ps1` gained `-Purpose timeline|marketing` and a `-DryRun` that needs no phone**,
+  so the routing can be proved without a device.
+- **103 MB of things that were never screenshots went with it**: 4 pulled APKs (59 MB), 8 ad-hoc helper
+  scripts, 2 pass notes, and 7 stray headless-Chrome profile dirs (44 MB) — 128 of `logs/`' 189 “PNGs” were
+  browser extension icons, which is how a `find -name '*.png'` passed them off as evidence. `logs/` fell from
+  126 MB to 26 MB and is now text and uiautomator dumps, which is what `AGENTS.md` always said it was.
+- **Every file was counted against its source before anything was deleted.** 27 mappings, each reconciled; the
+  table is in `logs/screenshot-migration.txt` (gitignored) and the totals are under *Verification* below.
+- **No application code changed, so no rung moved and no APK is implied.**
+
+### Versions
+
+- **No rung moved.** `1.7.1` / versionCode 36 is still the delivered build. This date touched documentation, a
+  PowerShell script and the layout of screenshot folders; nothing in `app/src` differs, so there is nothing to
+  install and nothing to tag.
+
+### Added
+
+- **`docs/marketing/`** — the promotional set: a README with the ten-frame list, the hygiene rules, the capture
+  command, and the note that light mode is a second set rather than a mixture.
+- **27 dated folders in `docs/timeline/`**: `2026-10-23-glyph-reach`, `2026-10-23-time-temperature`,
+  `2026-10-23-time-temperature-closeout`, `2026-10-24-fever-bands-closeout`, `2026-10-24-reminders-reference`,
+  `2026-10-24-twelve-hour-default-closeout`, `2026-10-25-diaper-reference`, `2026-10-25-glyph-reach-options`,
+  `2026-10-26-phase13.5`, `2026-10-26-phase15`, `2026-10-28-huckleberry-import`, `2026-10-28-phase15-patch`,
+  `2026-10-28-reminder-sheet`, `2026-10-29-phase16`, `2026-10-30-phase17`, `2026-10-31-phase18`,
+  `2026-11-02-phase19`, `-phase19-close`, `-phase20`, `-phase21`, `-phase22`, `2026-11-02-soft-art`,
+  `2026-11-03-phase22-band`, `2026-11-04-phase23`, `2026-11-04-phase24`, `2026-11-05-phase26`,
+  `2026-11-05-phase27` — **410 screenshots** in total.
+- **`docs/timeline/evidence/uiautomator/`** gains ten dated folders (Phases 13.5, 15, the Huckleberry import,
+  15's patch pass, 19, 19-close, 20, 21, 26, 27) and **`evidence/databases/`** three (Phase 15, the import, 15's
+  patch pass) — **294 dumps** and 30 pulled `.db` files that produced the counts quoted in `PLAN.md`.
+- **Table rows 18-39 and one `Changed:`/`Why:` line per stage** in `docs/timeline/README.md`, sourced from this
+  file rather than re-derived, plus a note that Phase 25 (*Ship*) has no capture of its own.
+
+### Changed
+
+- **`.gitignore`** ignores `docs/timeline/` file by file now: images, `.db` files and `index.html` stay out,
+  `README.md` and `evidence/**/*.md` are tracked. `docs/marketing/` is deliberately not ignored, with the reason
+  written beside it.
+- **`scripts/capture-timeline.ps1`** takes `-Purpose timeline|marketing` and resolves `docs/<purpose>/<date>-<label>/`;
+  `-DryRun` moved above the `adb devices` check so it prints the directory it would write and exits without a
+  phone. Its closing hint names the README that actually needs the entry.
+- **`AGENTS.md`** replaces “a folder beside the repo, not committed” with the two homes and their git policies,
+  adds the marketing hygiene rule, adds the `$HOME`/`Z:` warning that explains this entry, and lists both
+  folders under *Where things are*.
+
+### Removed
+
+- **`C:\HermesWork\projects\babylog-refshots`, `baby-app-shots`, `babylog-shots`, `shots-p26`, `shots-p27` and
+  `Z:\babylog-shots`** — deleted after reconciliation, not before.
+- **From `Z:\babylog-shots`:** `agents21.py`, `closeout_pass.py`, `fix21.py`, `fixpass.py`, `label.py`,
+  `plan21.py`, `plan21b.py`, `dump.sh`, `passtable.md`, `section.md`, and four pulled APKs
+  (`installed-130`, `installed-130b`, `installed-140`, `installed-base`).
+- **From `logs/`:** the 7 `profile*` Chrome dirs, 8 throwaway profiler files (`shot.js`, `thumbs.js`,
+  `components.js`, `pixels.js`, `preview.py`, `inspect.html`, `preview.html`, and `soft-art`'s pair), and the
+  61 device screenshots that have moved to the timeline. Every logcat file and uiautomator dump stayed put.
+- **`babylog-refshots/emulator.log`**, which was a log rather than evidence.
+
+### Verification
+
+- **Reconciliation, run before any deletion** (`logs/screenshot-migration.txt`): 27 mappings, every source
+  count equal to its destination count, `RECONCILED` at the end. Two files were caught by it and fixed rather
+  than lost — `babylog-before.db` and `babylog-predrain.db`, which sat at the top level of Phase 15's patch
+  folder instead of inside a `dbpull*` directory and matched no copy pattern.
+- **`-DryRun`, with no phone attached:**
+  `scripts/capture-timeline.ps1 -Label smoke -DryRun` printed `output : …\docs\timeline\2026-11-06-smoke`;
+  `-Purpose marketing` printed `…\docs\marketing\2026-11-06-smoke`; `-Purpose promo` failed at parameter binding
+  before any adb call.
+- **The ignore rules, checked with `git add -n`:** `docs/timeline/README.md`, `docs/timeline/evidence/README.md`
+  and `docs/marketing/README.md` add; `docs/timeline/index.html` and every dated folder are refused.
+- **All 166 relative links in the timeline README resolve to a file**, and all 39 sections of `index.html`
+  point at an image that exists.
+- **`docs/timeline` before/after:** 39 MB / 12 dated folders → **121 MB / 39 dated folders**; `logs/` 126 MB →
+  **26 MB**; the four APKs and seven Chrome profile dirs are **103 MB** that no longer exist. The whole tree is
+  gitignored, so none of it enters the repository — but `C:\HermesWork\projects` is a symlink into the Syncthing
+  folder, so the timeline does sync, and 121 MB of PNGs is now part of that sync.
+- **No test run is claimed**: no Kotlin file changed, and a green build would prove nothing about a folder layout.
+
 ## [2026-11-05]
 
 **In short:**

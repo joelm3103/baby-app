@@ -3570,3 +3570,54 @@ why it survived: `a bottle row without an amount falls back rather than showing 
 **Also seen, out of scope and not fixed:** on Trends, a bottle series with no volume in the window draws
 its y-axis as `0.1 / 0 / 0` — three tiers of which two read `0`. Nothing in Phase 14 touches the axis
 maths Phase 12 signed off, so this is recorded rather than changed.
+
+---
+
+## 2026-11-06 — Screenshot homes consolidated (no phase, no version)
+
+**Not a phase, and it moves no rung.** No application code changed; this records where screenshots live and why
+they did not live there before. `CHANGELOG.md`'s 2026-11-06 section is the deliverable's record.
+
+### The finding that explains the mess
+
+`Z:\babylog-shots` was not chosen. It is where `$HOME` points. This machine is on a domain with a mapped home
+folder, so Windows sets `HOMEDRIVE=Z:`, `HOMEPATH=\` and `HOMESHARE=\10.10.0.10\Home_Folders$\joel.manick`
+while `USERPROFILE` still says `C:\Users\joel.manick`. Git Bash prefers the former, so `$HOME` is `/z/` — and the
+2026-11-02 helpers wrote `D="$HOME/babylog-shots/phase21"` and `BASE = "Z:/babylog-shots"` on that assumption.
+Phases 19-21's only device evidence sat on a network share for four days, 76 MB of it, with 59 MB of pulled APKs
+beside it.
+
+Six homes existed in total: `Z:\babylog-shots`; `babylog-refshots`, `baby-app-shots`, `babylog-shots`,
+`shots-p26` and `shots-p27` under `C:\HermesWork\projects`; and, for Phase 22, the repo's own gitignored `logs/`.
+
+### The rule now
+
+- **`docs/timeline/<date>-<label>/`** — evolution. Every frame, rejected options included, full resolution. PNGs
+  and `.db` files gitignored; `README.md` and `evidence/**/*.md` tracked, because the prose is the part no phone
+  can regenerate. `index.html` is that README rendered and stays ignored.
+- **`docs/marketing/<date>-<label>/`** — the generic set, **committed**, because the selection of frames is the
+  asset. Only safe because of its hygiene rule: wiped install, children renamed `Baby A`/`Baby B`, Do Not
+  Disturb on. A frame carrying a real twin's name is a photograph of a medical record.
+- **`logs/`** — text only: logcat and uiautomator dumps. A screenshot in there was already a warning sign.
+- **`scripts/capture-timeline.ps1 -Purpose timeline|marketing`** writes both; `-DryRun` proves the routing with
+  no phone attached, which it could not before because the dry run sat *after* device enumeration.
+
+### What the sweep found, beyond the six folders
+
+- **`logs/` held 189 "PNGs" and 128 of them were Chrome extension icons** inside seven stray headless-Chrome
+  `profile*` directories. A `find -name '*.png'` over `logs/` counted them as device evidence, which is how a
+  folder of throwaway run logs came to look like a screenshot archive. `logs/` is 126 MB → 26 MB after removing
+  them and the 61 real shots.
+- **The timeline's own README was untracked.** `docs/timeline/` was ignored wholesale, so the write-up of every
+  rejected option — the thing this repository's design contract is argued from — existed on one disk only.
+- **Two database files escaped the first copy pass**: `babylog-before.db` and `babylog-predrain.db` sat at the
+  top level of Phase 15's patch folder rather than inside a `dbpull*` directory. The per-folder reconciliation
+  caught them (69 source files against 67 moved) and is the reason deletion happens only after it passes.
+
+### The bill
+
+`docs/timeline/` is 121 MB across 39 dated folders, and it sits inside `C:\HermesWork\projects`, which is a
+symlink into `Documents\Syncthing\Hermes-Shared\projects` — so those PNGs now sync to every Syncthing peer.
+That cost was accepted rather than overlooked: keeping the evidence somewhere it is *not* backed up is what
+`Z:\babylog-shots` already was, and it is gitignored either way. If it ever needs to shrink, the
+`2026-11-02-phase21` (60) and `2026-11-02-phase22` (29) folders are the ones to argue about, not the closeouts.

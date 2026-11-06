@@ -107,7 +107,21 @@ Rules learned the hard way:
   offers today's date and will happily overwrite the backup a previous pass made.
 - **`adb shell` mangles `/sdcard/...` into a Windows path under Git Bash.** Prefix the command with
   `MSYS_NO_PATHCONV=1`, or the dump lands in `C:/Program Files/Git/sdcard/` and reads back 68 bytes.
-- **Screenshots are captured by `scripts/capture-timeline.ps1`** into a folder beside the repo, not committed.
+- **Screenshots have exactly two homes, and a folder beside the repo is neither of them** (2026-11-06).
+  `docs/timeline/<date>-<label>/` is the evolution record: one folder per device pass, every frame kept
+  including the rejected ones, PNGs gitignored and `docs/timeline/README.md` tracked — the README is the part
+  a phone cannot regenerate. `docs/marketing/<date>-<label>/` is the curated set and **is** committed, because
+  the selection of frames is the asset; see `docs/marketing/README.md` for the hygiene a marketing frame must
+  pass (wiped install, children renamed, Do Not Disturb on — no real twin's name in a frame that leaves this
+  laptop). uiautomator dumps and pulled databases go to `docs/timeline/evidence/`, never into a dated folder.
+  `scripts/capture-timeline.ps1 -Purpose timeline|marketing` writes both; `-DryRun` resolves the path with no
+  phone attached.
+- **`$HOME` is not this Windows profile.** Under Git Bash `HOMEDRIVE=Z:`/`HOMEPATH=\` from the domain's
+  mapped home folder outrank `USERPROFILE`, so `$HOME` is `Z:\` and `mkdir $HOME/anything` writes to a network
+  share. That is how Phases 19-21's only device evidence ended up in `Z:\babylog-shots`, 76 MB away from the
+  repo, with 59 MB of pulled APKs beside it. Never build an output path from `$HOME`; use the repo root (as
+  `capture-timeline.ps1` does) or an explicit `C:/…` path.
+
 - **A pass now installs a RELEASE-signed build.** `1.0.0` was the first release-signed APK, so a debug build
   has a different certificate and `adb install -r` answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — which is also
   why the artifact is named `BabyLog-<version>.apk` in both directories rather than `app-release` / `app-debug`.
@@ -649,6 +663,9 @@ work starts; it stayed 25 when 26 landed ahead of it.
 | `firebase/firestore.rules` | Phase 13 security rules — pasted into the console by hand, **not** deployed by a tool |
 | `docs/firebase-setup.md` | Phase 13's console runbook: the project, the two accounts, the four `firebase.properties` values, and what each misconfiguration looks like on screen |
 | `docs/release-signing.md` | Phase 16's runbook: where the key lives, the certificate's fingerprints, how to build and verify, upload to App Distribution, and cut a tag |
+| `docs/timeline/` | The evolution record: `README.md` (tracked) and one `<date>-<label>/` folder per device pass with its PNGs (ignored), plus `evidence/` for uiautomator dumps and pulled databases |
+| `docs/marketing/` | The curated promotional set, **committed**: `README.md` with the shot list and the hygiene rules, and one `<date>-<label>/` folder per set |
+
 | `docs/DECISIONS.md` | ADRs — why a choice was made, one record per hard-to-reverse decision, starting with release-key custody and the manual delivery channel |
 
 ## Time and temperature preferences (owner override, 2026-10-23)
