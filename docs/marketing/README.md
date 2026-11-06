@@ -14,19 +14,31 @@ asset. It is only safe to commit because of the rule below — nothing in here b
 
 ## The rule this folder lives or dies by
 
-**No real child, no real log, no real notification.** Every frame is captured on a wiped install:
+**No real child, no real log, no real notification.** Every frame is captured on an install that has never
+held a real entry:
 
-1. Settings → Data → *Delete all data* (this clears the log and the outbox; it does not clear the marketing
-   folder, which is on this laptop).
-2. Rename the two seeded children to neutral names — `Baby A`, `Baby B`. A marketing shot carrying a real
-   twin's name is a photograph of a medical record, and it cannot be edited out afterwards.
+1. Start from an install with no log on it. A fresh install is already empty; a device that has been logged
+   into before is cleared with Settings → Data → **Reset local data** (the row whose value reads *Erases this
+   log*) — and then only if it is not the family phone, for the reason below. `Delete all data` is not a
+   control this app has, and the reset is not the first step of a capture on a clean device.
+2. Rename the two seeded children to neutral names — `Baby A`, `Baby B`. A fresh install seeds
+   `First Twin` / `Second Twin` (`ChildRepository.seedIfEmpty`), so nothing real is present by default; the
+   rename is for the look, not the safety. A marketing shot carrying a real twin's name is a photograph of a
+   medical record, and it cannot be edited out afterwards.
 3. Log four or five entries so the cards have something honest to show (a 120 ml bottle, two diapers, a 37.4 °C
    reading, a solids meal). Values may be invented; they just have to look plausible and be consistent.
 4. Turn on Do Not Disturb, so no notification icon, no banner and no caller lands in the frame.
 5. Clear the app from Recents and launch it fresh, so no sheet is open and no keyboard is up.
 
-A set that fails any of those is **deleted and re-captured**, never cropped or retouched. The status bar clock
-and battery are the only unavoidable personal-ish detail, and they are generic.
+**Where — and this is the rule that matters more than the other five.** Never capture on the phone that holds
+the real log. `Reset local data` runs `sync.withoutInboundApply { wipePhone(); sync.drainUntilIdle() }`: the
+deleted rows are queued as tombstones and drained to Firestore, so a reset on a signed-in phone empties the
+other parent's copy too. A marketing set is not worth the family's log. Capture on an emulator —
+`pixel_api36` exists on this machine — or on a spare handset.
+
+A set that fails any of those is **deleted and re-captured**, never cropped or retouched. Some chrome cannot
+be removed and is not a defect: the clock and the battery, and on an emulator its own status and navigation
+bars plus the USB-debugging icon. Prefer a handset if the set is going anywhere public.
 
 ## The set
 
@@ -51,16 +63,43 @@ Capture it as its own `<date>-<label>`.
 
 ## How to capture
 
+Install the build you are photographing, then let the script take the first frame:
+
 ```powershell
+$ADB = "C:/Users/$env:USERNAME/AppData/Local/Android/Sdk/platform-tools/adb.exe"   # native path, not /c/…
+& $ADB install -r app/build/outputs/apk/release/BabyLog-1.7.1.apk
 powershell -NoProfile -File scripts/capture-timeline.ps1 `
-  -Label marketing-dark -Purpose marketing -Scrolls 0
+  -Label marketing-dark -Purpose marketing -Scrolls 0 -SkipInstall
 ```
 
 `-Purpose marketing` writes to `docs/marketing/<date>-<label>/` instead of `docs/timeline/…`; `-Scrolls 0`
-takes the top of the screen only, because a marketing frame is one screen and not a survey. The remaining
-frames are taken with `adb exec-out screencap -p` while driving the app by hand, then renamed to the table
-above with their `NN-` prefix — `Save-Shot`'s `01-top` name is a timeline name and says nothing to a reader
-here.
+takes the top of the screen only, because a marketing frame is one screen and not a survey.
+
+**`-SkipInstall` is not optional when the device already carries a release build.** Without it the script
+installs the newest APK in `app\build\outputs\apk\debug` — on this machine a stale debug `1.7.0` — over the
+release-signed build that is already there (the artifact is named `BabyLog-<versionName>.apk` in both
+directories). The two are signed with different certificates, so `adb install -r` answers
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` and the script stops with `APK install failed`. Install the build you
+actually want to photograph, keep it installed, and pass `-SkipInstall`.
+
+**The script captures frame 01 only.** `Save-Shot "01-top"` is a timeline name and says nothing to a reader
+here, so rename it to `01-activity-both` from the table. The remaining nine are taken by hand while you drive
+the app, renamed to the table above with their `NN-` prefix:
+
+```bash
+# Git Bash, byte-exact: `exec-out` sends the PNG straight to the file with no decoding in between.
+"$ADB" exec-out screencap -p > docs/marketing/2026-11-06-marketing-dark/06-bottle-sheet.png
+```
+
+```powershell
+# PowerShell instead decodes a native command's stdout as TEXT, which corrupts the PNG — so write on the
+# device and pull the bytes back. That is exactly what Save-Shot does, and why.
+& $ADB shell screencap -p /sdcard/shot.png
+& $ADB pull /sdcard/shot.png docs\marketing\2026-11-06-marketing-dark\06-bottle-sheet.png
+```
+
+In Git Bash an unquoted `/sdcard/…` is rewritten into a Windows path before `adb` ever sees it, so prefix the
+call with `MSYS_NO_PATHCONV=1` — under PowerShell the same path needs no such guard.
 
 Check each file at full resolution before committing it. Two defects have shipped past a green build in this
 repo and both were visible in a screenshot: a 4dp bar's corner wedge, and a fever number that measured 5.20:1

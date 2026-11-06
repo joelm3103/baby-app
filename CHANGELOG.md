@@ -93,6 +93,28 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   61 device screenshots that have moved to the timeline. Every logcat file and uiautomator dump stayed put.
 - **`babylog-refshots/emulator.log`**, which was a log rather than evidence.
 
+### Fixed
+
+- **The marketing capture instructions could be followed into the family's log** (same day as they landed,
+  `6164748`). Four defects, all in `docs/marketing/README.md`:
+  - it named **`Delete all data`**, a control the app does not have — the row is **`Reset local data`**
+    (`SettingsScreen.kt:497`), and the text now says so;
+  - it offered that reset as the ordinary first step of a capture. It is not: `SettingsViewModel.resetLocal()`
+    runs `sync.withoutInboundApply { wipePhone(); sync.drainUntilIdle() }`, so the deletions are queued as
+    tombstones and **drained to Firestore** — on a signed-in phone that empties the other parent's copy too. A
+    kill-rule now stands above the hygiene list: capture on an emulator (`pixel_api36` exists here) or a spare
+    handset, never on the phone that holds the real log;
+  - the documented command omitted **`-SkipInstall`**, so it would have installed the stale debug `1.7.0` from
+    `app\build\outputs\apk\debug` over the release-signed `BabyLog-1.7.1.apk` and failed `APK install failed`
+    (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`: the two are signed with different certificates);
+  - it implied the script produces the set, when it captures **frame 01 only** (`Save-Shot "01-top"`). The
+    other nine are by hand, and the note now gives both forms honestly: `exec-out screencap -p > file.png` is
+    byte-exact in Git Bash (with `MSYS_NO_PATHCONV=1` for a `/sdcard/…` argument), while PowerShell decodes a
+    native command's stdout as text and needs `screencap` on the device plus `adb pull`.
+  Also corrected: "the clock and battery are the only unavoidable personal detail" now admits an emulator's own
+  status and navigation bars and the USB-debugging icon, and `AGENTS.md`'s marketing bullet carries the
+  kill-rule clause.
+
 ### Verification
 
 - **Reconciliation, run before any deletion** (`logs/screenshot-migration.txt`): 27 mappings, every source

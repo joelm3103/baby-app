@@ -112,8 +112,10 @@ Rules learned the hard way:
   including the rejected ones, PNGs gitignored and `docs/timeline/README.md` tracked — the README is the part
   a phone cannot regenerate. `docs/marketing/<date>-<label>/` is the curated set and **is** committed, because
   the selection of frames is the asset; see `docs/marketing/README.md` for the hygiene a marketing frame must
-  pass (wiped install, children renamed, Do Not Disturb on — no real twin's name in a frame that leaves this
-  laptop). uiautomator dumps and pulled databases go to `docs/timeline/evidence/`, never into a dated folder.
+  pass (children renamed, Do Not Disturb on — no real twin's name in a frame that leaves this laptop), and
+  never capture it by resetting the family phone: `Reset local data` drains its tombstones to Firestore and
+  empties the other parent's copy too, so an emulator or a spare handset is the only safe device.
+  uiautomator dumps and pulled databases go to `docs/timeline/evidence/`, never into a dated folder.
   `scripts/capture-timeline.ps1 -Purpose timeline|marketing` writes both; `-DryRun` resolves the path with no
   phone attached.
 - **`$HOME` is not this Windows profile.** Under Git Bash `HOMEDRIVE=Z:`/`HOMEPATH=\` from the domain's
