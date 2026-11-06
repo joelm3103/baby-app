@@ -114,6 +114,12 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   Also corrected: "the clock and battery are the only unavoidable personal detail" now admits an emulator's own
   status and navigation bars and the USB-debugging icon, and `AGENTS.md`'s marketing bullet carries the
   kill-rule clause.
+- **A review of that fix found the rule still had a hole: signing in** (same day). An emulator or spare handset
+  that is signed into the family's account pulls the log *down* from Firestore, so the frames would carry real
+  data however empty the install looked — the README now says stay signed out, in the kill-rule and in step 1.
+  Three followable-as-written defects also fixed: the Git Bash example used a `$ADB` only defined in the
+  PowerShell block, both examples hard-coded a dated destination that `adb pull` cannot create, and the
+  ten-frame procedure showed a command for one frame and left the reader to infer the rest.
 
 ### Verification
 

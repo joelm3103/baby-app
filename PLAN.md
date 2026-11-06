@@ -3629,5 +3629,7 @@ data`), offered that reset as an ordinary first step, and omitted `-SkipInstall`
 `SettingsViewModel.resetLocal()` drains its tombstones to Firestore, so that step on the family phone would have
 emptied the other parent's log — and the missing flag would have installed a stale debug build over the
 release-signed one. Corrected in `docs/marketing/README.md` with a kill-rule (emulator or spare handset, never
-the phone holding the real log), a working command, and the honest note that the script captures frame 01 only.
+the phone holding the real log, **and never signed in** — a signed-in install pulls the log back down from
+Firestore, which no amount of local wiping undoes), a working command, and the honest note that the script
+captures frame 01 only.
 No rung moved; nothing outside `docs/`, `AGENTS.md` and the records changed.
