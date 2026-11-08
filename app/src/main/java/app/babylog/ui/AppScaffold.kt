@@ -65,6 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.babylog.data.repo.EventDraft
+import app.babylog.data.sync.ManualSyncOutcome
+import app.babylog.data.sync.SyncState
 import app.babylog.di.AppContainer
 import app.babylog.domain.ChildSelection
 import app.babylog.domain.ReminderConfig
@@ -253,6 +255,7 @@ fun AppScaffold(container: AppContainer) {
     val syncState by settingsVm.syncState.collectAsState()
     val syncMessage by settingsVm.syncMessage.collectAsState()
     val pendingWrites by settingsVm.pendingWrites.collectAsState()
+    val manualSyncInProgress by settingsVm.manualSyncInProgress.collectAsState()
 
     // The bundled medicine names, read once from the asset. Small (~2 KB) and only needed by the health
     // sheet, but parsed up front so the first tap on Medication is not the moment a file read happens.
@@ -480,6 +483,28 @@ fun AppScaffold(container: AppContainer) {
             when (destination) {
                 Destination.ACTIVITY -> ActivityScreen(
                     state = state,
+                    syncRefreshing = manualSyncInProgress,
+                    onSyncNow = {
+                        scope.launch {
+                            val outcome = settingsVm.syncManually()
+                            val result = when (outcome) {
+                                ManualSyncOutcome.SYNCED ->
+                                    settingsVm.syncMessage.value ?: "Up to date."
+                                ManualSyncOutcome.COOLDOWN ->
+                                    "Please wait before syncing again."
+                                ManualSyncOutcome.ALREADY_RUNNING ->
+                                    "Sync is already running."
+                                ManualSyncOutcome.NOT_SIGNED_IN -> when (syncState) {
+                                    SyncState.NotConfigured ->
+                                        "Sync isn't set up in this build."
+                                    is SyncState.Refused ->
+                                        "Sign in with one of the two family accounts to sync."
+                                    else -> "Sign in from Settings to sync across devices."
+                                }
+                            }
+                            snackbarHostState.showSnackbar(result)
+                        }
+                    },
                     onSelectChild = home::select,
                     onOpenSheet = home::openSheet,
                     onOpenVaccine = home::openVaccineRecord,

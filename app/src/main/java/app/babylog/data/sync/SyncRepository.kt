@@ -26,6 +26,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+private const val MANUAL_SYNC_COOLDOWN_MS = 30_000L
+
+enum class ManualSyncOutcome { SYNCED, COOLDOWN, ALREADY_RUNNING, NOT_SIGNED_IN }
+
 /** What the Sync card in Settings renders. */
 sealed interface SyncState {
     /** This build was given no Firebase configuration: a single-phone logger, and it says so. */
@@ -73,6 +77,7 @@ class SyncRepository(
     private val settings: SettingsRepository,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.systemUTC(),
+    private val elapsedRealtimeMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     /**
      * Whether the phone has a network, for the one sentence a failed drain can honestly say.
      *
@@ -104,10 +109,15 @@ class SyncRepository(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _manualSyncInProgress = MutableStateFlow(false)
+    val manualSyncInProgress: StateFlow<Boolean> = _manualSyncInProgress.asStateFlow()
+
     /** Drives "N waiting to sync" and lets the user see the drain actually drained. */
     val pendingWrites: Flow<Int> = outboxDao.observeCount()
 
     private val drainLock = Mutex()
+    private val manualSyncLock = Mutex()
+    private var lastManualSyncAt: Long? = null
     private var listenerJob: Job? = null
 
     private fun initialState(): SyncState = when {
@@ -168,6 +178,30 @@ class SyncRepository(
         val result = drainLock.withLock { drainer.drain() }
         _message.value = messageFor(result)
         return result
+    }
+
+    /** A user pull is rate-limited separately; startup, sign-in and write-triggered drains use [syncNow]. */
+    suspend fun syncManually(): ManualSyncOutcome {
+        if (_state.value !is SyncState.SignedIn) return ManualSyncOutcome.NOT_SIGNED_IN
+        if (!manualSyncLock.tryLock()) {
+            _message.value = "Sync is already running."
+            return ManualSyncOutcome.ALREADY_RUNNING
+        }
+        try {
+            val now = elapsedRealtimeMillis()
+            val last = lastManualSyncAt
+            if (last != null && now - last < MANUAL_SYNC_COOLDOWN_MS) {
+                _message.value = "Please wait before syncing again."
+                return ManualSyncOutcome.COOLDOWN
+            }
+            lastManualSyncAt = now
+            _manualSyncInProgress.value = true
+            syncNow()
+            return ManualSyncOutcome.SYNCED
+        } finally {
+            _manualSyncInProgress.value = false
+            manualSyncLock.unlock()
+        }
     }
 
     /**

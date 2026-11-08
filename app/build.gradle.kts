@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.7.1"
+val appVersionName = "1.7.2"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -132,7 +132,10 @@ android {
         // after a dot and in the meta colour, so a note is visible without opening the record. Polish
         // only — no new stored byte, no new control, no schema change — so a PATCH rung, and code 36 so
         // the pass installs in place over 1.7.0.
-        versionCode = 36
+        // 1.7.2 is Phase 28, pull-to-sync: the existing sync can now be requested from Today, with a
+        // cooldown on repeated pulls. This is another entry point to an existing capability, so PATCH;
+        // code 37 installs it in place over 1.7.1.
+        versionCode = 37
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app

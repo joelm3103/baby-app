@@ -213,6 +213,8 @@ class SettingsViewModel(
 
     val syncState: StateFlow<SyncState> = sync.state
 
+    val manualSyncInProgress: StateFlow<Boolean> = sync.manualSyncInProgress
+
     /** What the last sign-in or drain did, in one sentence. */
     val syncMessage: StateFlow<String?> = sync.message
 
@@ -230,6 +232,8 @@ class SettingsViewModel(
     fun signOut() = sync.signOut()
 
     fun syncNow() = viewModelScope.launch { sync.syncNow() }
+
+    suspend fun syncManually() = sync.syncManually()
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { settings.setTheme(mode) }
 

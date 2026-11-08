@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,8 @@ import java.time.ZoneId
 @Composable
 fun ActivityScreen(
     state: HomeUiState,
+    syncRefreshing: Boolean = false,
+    onSyncNow: () -> Unit = {},
     onSelectChild: (app.babylog.domain.ChildSelection) -> Unit,
     onOpenSheet: (app.babylog.domain.EventType) -> Unit,
     onOpenVaccine: () -> Unit,
@@ -53,88 +56,94 @@ fun ActivityScreen(
     val now = rememberNow(anyRunning = state.anyRunning)
     val colors = BabyLogTheme.colors
 
-    LazyColumn(
-        state = listState,
+    PullToRefreshBox(
+        isRefreshing = syncRefreshing,
+        onRefresh = onSyncNow,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
     ) {
-        item {
-            ScreenHeader(
-                title = "Today",
-                children = state.children,
-                selection = state.selection,
-                onSelectChild = onSelectChild,
-                onOpenSettings = onOpenSettings,
-                today = today,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-
-        // Above the cards, because it answers the question the screen is opened with: what is coming.
-        if (upcoming.isNotEmpty()) {
-            item(key = "upcoming-reminders") {
-                UpcomingRemindersCard(
-                    reminders = upcoming,
-                    onOpen = onOpenReminder,
-                    zone = zone,
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(Spacing.cardGap),
+        ) {
+            item {
+                ScreenHeader(
+                    title = "Today",
+                    children = state.children,
+                    selection = state.selection,
+                    onSelectChild = onSelectChild,
+                    onOpenSettings = onOpenSettings,
+                    today = today,
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
-        }
 
-        if (state.children.isEmpty()) {
-            // Phase 15 fix: this used to read "Setting up…", a load placeholder that became permanent once
-            // a reset could leave the app with no children. It is now a real empty state.
-            item(key = "no-children") {
-                NoChildrenCard(onOpenSettings = onOpenSettings)
+            // Above the cards, because it answers the question the screen is opened with: what is coming.
+            if (upcoming.isNotEmpty()) {
+                item(key = "upcoming-reminders") {
+                    UpcomingRemindersCard(
+                        reminders = upcoming,
+                        onOpen = onOpenReminder,
+                        zone = zone,
+                    )
+                }
             }
-        }
 
-        // No children means no cards. Rendering them anyway put six dead action buttons on the screen and
-        // spelled them "+ Log feed for " with the name missing — plus a sheet title reading "for " — which
-        // is the empty state promising work it cannot do. Found on <handset> during the 0.18.1 pass.
-        if (state.children.isEmpty()) return@LazyColumn
-
-        // Everything hidden is a state the parent chose and can undo, so it says how rather than leaving a
-        // blank screen under the header that reads like a failed load.
-        if (state.shownCards.isEmpty()) {
-            item(key = "all-hidden") {
-                AllActivitiesHiddenCard(onOpenSettings = onOpenSettings)
+            if (state.children.isEmpty()) {
+                // Phase 15 fix: this used to read "Setting up…", a load placeholder that became permanent once
+                // a reset could leave the app with no children. It is now a real empty state.
+                item(key = "no-children") {
+                    NoChildrenCard(onOpenSettings = onOpenSettings)
+                }
             }
-            return@LazyColumn
-        }
 
-        items(state.shownCards, key = { it.type.name }) { card ->
-            ActivityCard(
-                card = card,
-                units = state.units,
-                foodNames = state.foodNames,
-                childLabel = state.childLabel,
-                childInitials = badgesFor(state.children),
-                childNames = state.children.associate { it.id to it.name },
-                childIds = state.childIds,
-                // The initial is worth its space only when a row could belong to either child.
-                showChildBadge = state.childIds.size > 1,
-                now = now,
-                zone = zone,
-                onOpenSheet = onOpenSheet,
-                onOpenVaccine = onOpenVaccine,
-                onQuickDiaper = onQuickDiaper,
-                onQuickBottle = onQuickBottle,
-                bottlePresets = state.bottlePresets,
-                onStartSleep = onStartSleep,
-                onStop = onStop,
-                onSeeAll = { onSeeAll(card.type) },
-                onEditEntry = onEditEntry,
-                onDeleteEntry = onDeleteEntry,
-                reminderChips = reminderChips[card.type].orEmpty(),
-                // Only the four reminder-capable cards get a menu at all.
-                onReminderAction = if (card.type in app.babylog.domain.REMINDER_TYPES) {
-                    { action, childId -> onReminderAction(card.type, action, childId) }
-                } else {
-                    null
-                },
-            )
+            // No children means no cards. Rendering them anyway put six dead action buttons on the screen and
+            // spelled them "+ Log feed for " with the name missing — plus a sheet title reading "for " — which
+            // is the empty state promising work it cannot do. Found on <handset> during the 0.18.1 pass.
+            if (state.children.isEmpty()) return@LazyColumn
+
+            // Everything hidden is a state the parent chose and can undo, so it says how rather than leaving a
+            // blank screen under the header that reads like a failed load.
+            if (state.shownCards.isEmpty()) {
+                item(key = "all-hidden") {
+                    AllActivitiesHiddenCard(onOpenSettings = onOpenSettings)
+                }
+                return@LazyColumn
+            }
+
+            items(state.shownCards, key = { it.type.name }) { card ->
+                ActivityCard(
+                    card = card,
+                    units = state.units,
+                    foodNames = state.foodNames,
+                    childLabel = state.childLabel,
+                    childInitials = badgesFor(state.children),
+                    childNames = state.children.associate { it.id to it.name },
+                    childIds = state.childIds,
+                    // The initial is worth its space only when a row could belong to either child.
+                    showChildBadge = state.childIds.size > 1,
+                    now = now,
+                    zone = zone,
+                    onOpenSheet = onOpenSheet,
+                    onOpenVaccine = onOpenVaccine,
+                    onQuickDiaper = onQuickDiaper,
+                    onQuickBottle = onQuickBottle,
+                    bottlePresets = state.bottlePresets,
+                    onStartSleep = onStartSleep,
+                    onStop = onStop,
+                    onSeeAll = { onSeeAll(card.type) },
+                    onEditEntry = onEditEntry,
+                    onDeleteEntry = onDeleteEntry,
+                    reminderChips = reminderChips[card.type].orEmpty(),
+                    // Only the four reminder-capable cards get a menu at all.
+                    onReminderAction = if (card.type in app.babylog.domain.REMINDER_TYPES) {
+                        { action, childId -> onReminderAction(card.type, action, childId) }
+                    } else {
+                        null
+                    },
+                )
+            }
         }
     }
 }
