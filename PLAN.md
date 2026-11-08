@@ -49,7 +49,7 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 707 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 710 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
@@ -61,6 +61,7 @@ everything after it is additive.**
 | 24 — Bottle calculator | **DONE, device-verified** — `1.6.0` / versionCode 34; the bottle amount is entered on the sheet's OWN pad — 1-9, the point, a backspace and `÷ × − +` — and `=` puts the answer back into the field, so `7×2` becomes `14` where the parent typed it and 14 is what is stored. No software keyboard opens over the amount, and the `= 4 oz` preview line the first build printed underneath is gone. A formula list was built and removed before landing; see the phase section. **684 tests green** (7 new) |
 | 26 — Left behind and the wastage report | **DONE, device-verified** — `1.7.0` / versionCode 34→35; the bottle calculator is withdrawn and a bottle gains an optional `leftBehindMl` beside the amount, so the sheet asks for the pour and the leftover and stores what was drunk; schema v5 with `MIGRATION_4_5` and nothing back-filled; Summary's Bottle card gains `Left behind` and `Wasted`, Trends' Bottle tab gains a `Left behind` card; **703 tests green**. ADR-0004. The pass on `<handset>` installed in place over `1.6.0`, survived the migration with its log intact, and found one defect — the `Consumed` line composed outside the sheet's content lambda and drew behind it — fixed and re-verified |
 | 27 — The note on the row | **RELEASED** (`v1.7.1`, 2026-11-05) — **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
+| 28 — Pull-to-sync | **DONE, device-verified** — `1.7.2` / versionCode 37; a pull on Today requests a drain through the existing `syncNow()` path, with a manual-only 30-second cooldown on a monotonic clock and overlapping pulls ignored; startup, sign-in, write-triggered sync, Settings → Sync now and the inbound listener are unchanged; **710 tests green** (3 new). No schema, Firestore-rule or listener change. The pass installed the release-signed APK in place, drove a pull, a repeat pull and system `BACK` out of the bottle sheet, and read zero `FATAL EXCEPTION`; the second phone was not attached, so cross-device arrival is still the standing gap |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
 
 
@@ -175,15 +176,16 @@ was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-05): `:app:testDebugUnitTest` succeeded on the Phase 27 tree. The suite is
-**707/707**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(71 files). Both phases of the day are installed and device-verified on `<handset>`: `1.7.1` / versionCode 36
-in place over `1.7.0` / 35, which went in place over the delivered `1.6.0` — no uninstall, and the log survived
-the v4 → v5 migration with every row intact. 26 of the tests came from Phase 26 — nine `BottleAmountTest`, eight
-`WastageTest`, the migration case, two `TotalsTest`, two `SyncDocumentsTest`, and one each in `CardSummaryTest`,
-`EventDraftTest`, `MappersTest` and `BackupTest` — while Phase 24's seven `BottleMathTest` went with the
-calculator they tested; Phase 27 added four in `CardSummaryTest` for the row's note. The previous close-out,
-for the record:
+Verified (current state, 2026-11-07): `:app:testDebugUnitTest` succeeded on the Phase 28 tree, run with
+`--rerun-tasks --no-build-cache` so the count is a fresh execution rather than an `UP-TO-DATE` one. The suite is
+**710/710**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(71 files). Phase 28 added three in `SyncRepositoryTest` — the manual cooldown blocking a pull while automatic
+sync still drains, the cooldown expiring at exactly 30 seconds, and overlapping pulls coalescing — so that class
+now holds 30. `1.7.2` / versionCode 37 is installed and device-verified on `<handset>` in place over `1.7.1` /
+36, which went in place over `1.7.0` / 35 and the delivered `1.6.0` — no uninstall, and the log survived the
+v4 → v5 migration with every row intact. The previous close-out, for the record:
+`:app:testDebugUnitTest` succeeded on the Phase 27 tree at 707/707 in 71 files, the last four from
+`CardSummaryTest`; and before that
 `:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
 Phase 24 tree. `1.6.0` / versionCode 34, signed `CN=BabyLog`, SHA-1
 `0766ee2f85c2ed2c8e2fc5b6b05b908dd4545f4f`, and installed on `<handset>`, where the sheet's pad was driven
@@ -3049,6 +3051,55 @@ under ADR-0003 — is now the only thing standing between a published build and 
 entries), not in the reminder chips, and not on the Both-mode card headline. One row, one line.
 
 ---
+
+## Phase 28 — Pull-to-sync — `1.7.2` / versionCode 37
+
+**As built — 2026-11-07.**
+
+A parent who had just logged a feed on the other phone had no way to ask for it. Sync existed and ran on its
+schedule, but the screen that shows the log offered no gesture to say *now*. This phase adds one without adding
+load: a pull on Today requests the drain the app already had.
+
+- **`PullToRefreshBox` (Material 3) wraps the existing Activity list** in `ActivityScreen`, so the gesture and the
+  indicator come from the library rather than a hand-rolled offset. `AppScaffold` owns the wiring because the
+  snackbar host is there: it passes `manualSyncInProgress` as `isRefreshing`, calls
+  `SettingsViewModel.syncManually()`, and reports the outcome in the shared snackbar.
+- **Only the manual path is rate-limited.** `SyncRepository.syncManually()` returns a `ManualSyncOutcome` and gates
+  on its own `tryLock`, a monotonic `elapsedRealtimeMillis` clock and a 30-second cooldown; the drain itself is
+  the existing `syncNow()` under the existing `drainLock`. Startup, sign-in, the after-write `requestDrain()`, the
+  Settings row and the inbound listener are untouched — a pull cannot slow the automatic path down, and the
+  automatic path is not what needed a limit.
+- **`elapsedRealtimeMillis` is injected**, so the cooldown is provable on the JVM instead of slept through.
+- **A failed pull says which failure it was.** Signed out, a build with no Firebase configuration, and an account
+  that is not one of the two family accounts get three different sentences instead of one that would be untrue
+  for two of them.
+- **Nothing else moved.** No schema change, no new Firestore rule, no second listener, no new dependency — a PATCH
+  rung, which is why it is `1.7.2` and code 37.
+- **Three tests** in `SyncRepositoryTest`: the cooldown blocks a pull while automatic sync still drains (so the
+  limit cannot leak into the automatic path), the cooldown expires at exactly 30 seconds, and overlapping pulls
+  coalesce into one drain with `ALREADY_RUNNING` for the second.
+
+### Device pass — 2026-11-07 — `<handset>` (SM-S918U1), `1.7.2` / code 37
+
+Installed with `adb install -r` of the **release-signed** `BabyLog-1.7.2.apk`, not `app-debug.apk`: since `1.0.0`
+the installed app carries the release certificate, so a debug APK answers `INSTALL_FAILED_UPDATE_INCOMPATIBLE` and
+the only way to make it fit is an uninstall that discards the log. Screenshots are in
+`docs/timeline/2026-11-07-phase28/`; the `uiautomator` dumps are in `docs/timeline/evidence/`.
+
+| Check | What the phone showed |
+|---|---|
+| Install in place | `Streamed Install … Success`; `dumpsys package app.babylog` reads `versionCode=37`, `versionName=1.7.2`; `firstInstallTime` still `2026-10-29 13:16:03` |
+| The log survives the update | Today drew the same nine bottle rows as before the install, seven in the card and two in the list |
+| Foreground before every gesture | `topResumedActivity=app.babylog/.MainActivity`, asserted again before each swipe and tap; one attempt refused while WhatsApp held the foreground |
+| Refresh indicator | visible mid-pull above the child chips — the circular spinner in `04-pull-in-progress.png`, captured during a 2.5 s drag |
+| A pull while inside the cooldown | `Please wait before syncing again.` |
+| A pull after the cooldown expired | `Up to date.` — the drain ran and had nothing queued to send |
+| System `BACK` out of an open sheet | the bottle sheet opened from `+ Log feed for both` closed and Today returned with its nav tabs; the nine bottle rows were identical before and after, so the sheet's seeded amount wrote nothing |
+| Taps taken from dumps | the card button at `540,1329`, parsed from a fresh `uiautomator` dump; no coordinate was estimated from a screenshot |
+| Crashes | `logcat -b crash -d` empty — zero `FATAL EXCEPTION` lines across the install, the sheet, `BACK` and three pulls |
+
+**Not verified:** the second phone was not attached, so an event logged elsewhere arriving without a pull is still
+unseen on this hardware — the same standing gap Phases 25 and 27 carry. Only the one handset's log was driveable.
 
 ## Changing this app after v1 ships
 

@@ -49,6 +49,15 @@ Twelve `uiautomator dump` files: `ui-home`, `ui-home2`, `ui-settings`, `ui-summa
 These are how every tap coordinate in that sweep was obtained — a dump, never a guess — and they are the
 only machine-readable record of what the screen *said*, down to a button's `content-desc`.
 
+## `uiautomator/2026-11-07-phase28/` — the tree behind the pull-to-sync pass
+
+Four dumps from the Phase 28 device pass on `1.7.2` / versionCode 37: `p28-a` (Today before any gesture),
+`p28-after-back` (Today after system `BACK` closed the bottle sheet), and `p28-pull1` / `p28-pull2` (the two
+pulls). The pair is the proof that `BACK` wrote nothing — the same nine `oz` rows appear in `p28-a` and
+`p28-after-back` — and the pulls carry the snackbar text the screen showed, `Please wait before syncing again.`
+then `Up to date.` after the cooldown had run out. The card's `+ Log feed for both` button was tapped at
+`540,1329`, taken from `p28-a` rather than estimated.
+
 ## `release/` — the build the passes used
 
 `babylog-0.9.0-debug-configured.apk` (19 MB) is the configured `0.9.0` debug build the Phase 13 device

@@ -17,6 +17,32 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-07]
+
+**In short:**
+
+- **A pull on Today can request sync, and the device pass confirmed the success response and 30-second cooldown.**
+
+### Versions
+
+- `1.7.2` / versionCode 37 — Phase 28 pull-to-sync; PATCH because it adds an entry point to existing sync.
+
+### Added
+
+- **Pull-to-sync on the Activity (Today) screen.** A pull asks the existing sync manager to send queued changes and displays refreshing and result feedback.
+  - Repeated pull requests are limited to one per 30 seconds; overlapping manual pulls are ignored.
+  - Automatic sync triggers, Settings → Sync now, and the existing inbound listener are unchanged.
+  - Three `SyncRepositoryTest` cases pin the cooldown, its expiry at 30 seconds and the coalesced overlap;
+    the suite is **710/710** in 71 files, read from `app/build/test-results/testDebugUnitTest/*.xml`.
+- **Device pass, 2026-11-07.** The release-signed `BabyLog-1.7.2.apk` was installed in place on `<handset>`; `versionCode=37`, `versionName=1.7.2`,
+  and `firstInstallTime` still read `2026-10-29 13:16:03`, so it was an update and not a reinstall. The nine bottle rows
+  of the existing log were still on Today.
+  - The refresh indicator was seen mid-pull, captured in `docs/timeline/2026-11-07-phase28/04-pull-in-progress.png`.
+  - One pull answered `Please wait before syncing again.` and the next, once the 30 seconds had run, `Up to date.`
+  - System `BACK` out of an open bottle sheet returned to Today and wrote nothing — the same nine rows before and after.
+  - `logcat -b crash -d` held zero `FATAL EXCEPTION` lines. The second phone was not attached, so an event logged
+    elsewhere arriving without a pull is still unverified.
+
 ## [2026-11-06]
 
 **In short:**

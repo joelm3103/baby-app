@@ -555,6 +555,13 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   network call, so a connectivity check is what stops a reset on a plane from queuing deletions that never
   leave. *Delete all server data* is the deliberate escape and is offered only while signed in.
 
+- **Pull-to-sync throttles the GESTURE, never the drain** (Phase 28). `SyncRepository.syncManually()` owns the
+  30-second cooldown, a monotonic `elapsedRealtimeMillis` clock and a `tryLock` that rejects an overlapping pull;
+  the drain underneath is the same `syncNow()` startup, sign-in, `requestDrain()` and Settings already call. Do not
+  move the limit into `syncNow()`: an automatic path that shares the cooldown is a queue that silently waits, and a
+  pull must never be able to slow down the sync that runs without one. A pull REQUESTS a drain — it does not
+  attach a second listener.
+
 - **The food catalogue is published, not row-synced (ADR-0002).** `reference/food_catalogue` is one owner-written
   document, read-only to clients; it wins over the bundled `foods/foods.json` asset, and stable ids preserve
   old meals across a rename. `foods_pending/{id}` carries parent additions through the outbox to both phones;
@@ -568,7 +575,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-707 unit tests through Phase 27 (`1.7.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+710 unit tests through Phase 28 (`1.7.2`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -613,6 +620,7 @@ only, and `1.0.0` is the first release.
 | | | 25 Ship | uses delivered release |
 | | | 26 left-behind field | `1.7.0` |
 | | | 27 note on the row | `1.7.1` |
+| | | 28 pull-to-sync | `1.7.2` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -642,7 +650,8 @@ field that can work out `7×2` is a capability the app did not have — **Phase 
 `1.7.0`**, which withdraws Phase 24's calculator a version later and adds the recorded leftover and the wastage
 report, a MINOR because a fact the app never kept plus a report it never had is more than a fix — **Phase 27 is
 the note on the row on `1.7.1`**, a PATCH because a note the app had been storing all along is now drawn and
-nothing about what it stores or asks for changed — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
+nothing about what it stores or asks for changed — **Phase 28 is pull-to-sync on `1.7.2`**, a PATCH because it
+adds a gesture in front of the drain the app already runs and changes no stored byte — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
 work starts; it stayed 25 when 26 landed ahead of it.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`

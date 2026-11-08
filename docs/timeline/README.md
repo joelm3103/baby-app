@@ -48,6 +48,9 @@ Device: Samsung Galaxy S23 Ultra, Android 16, dark mode. Screenshots include the
 | 37 | The bottle calculator (Phase 24) | `2a6bac4` | [p24-01-sum-preview-dark](2026-11-04-phase24/p24-01-sum-preview-dark.png) [p24b-02-resolved](2026-11-04-phase24/p24b-02-resolved.png) +10 |
 | 38 | Left behind, and what was wasted (Phase 26) | `8ad2785` | [02-sheet](2026-11-05-phase26/02-sheet.png) [14-note-row](2026-11-05-phase26/14-note-row.png) +17 |
 | 39 | A note on the entry row (Phase 27) | `f243d2e` | [r03-sheet-dark](2026-11-05-phase27/r03-sheet-dark.png) [r05-light-activity](2026-11-05-phase27/r05-light-activity.png) +5 |
+| 40 | Pull-to-sync on Today (Phase 28) | `0e7f812` | [01-activity](2026-11-07-phase28/01-activity.png) [02-bottle-sheet](2026-11-07-phase28/02-bottle-sheet.png) [03-after-back](2026-11-07-phase28/03-after-back.png) [04-pull-in-progress](2026-11-07-phase28/04-pull-in-progress.png) [05-pull-success](2026-11-07-phase28/05-pull-success.png) [06-cooldown](2026-11-07-phase28/06-cooldown.png) |
+
+Stage 40 was added the day its pass ran, 2026-11-07, on the branch that built `1.7.2`.
 
 Stages 18-39 were added on 2026-11-06 by one migration: the screenshots existed, in six folders outside this
 repo and in the repo's own `logs/`, and none of them was here. Every file that travelled was counted against its
@@ -697,6 +700,21 @@ whitespace is not a note, so no row ends in a dangling `·`.
 
 ![r03-sheet-dark.png](2026-11-05-phase27/r03-sheet-dark.png)
 ![r05-light-activity.png](2026-11-05-phase27/r05-light-activity.png)
+
+### 40 - Pull-to-sync on Today (Phase 28, `1.7.2` / code 37)
+
+**Changed:** A pull on Today asks the app to sync now. The refresh indicator appears above the child chips while
+the list is dragged, a pull inside the manual cooldown answers `Please wait before syncing again.`, and a pull
+after it answers `Up to date.` when the queue is empty.
+
+**Why:** A parent who logged a feed on the other phone had no way to ask for it, and the one thing a gesture must
+not do is let a repeated pull hammer Firestore — so the limit lives only on the pull, on a monotonic clock, and
+the drain underneath is the one startup, sign-in and every write already call. `02`-`03` are the system `BACK`
+check: the sheet closes, Today returns, and the log is byte-for-byte the same nine rows afterwards.
+
+![01-activity.png](2026-11-07-phase28/01-activity.png)
+![04-pull-in-progress.png](2026-11-07-phase28/04-pull-in-progress.png)
+![06-cooldown.png](2026-11-07-phase28/06-cooldown.png)
 
 ## Adding an entry
 
