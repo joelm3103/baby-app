@@ -19,11 +19,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -54,6 +56,7 @@ class SyncRepositoryTest {
     private lateinit var repo: SyncRepository
     private lateinit var tempDir: File
     private val t0 = 1_760_000_000_000L
+    private var elapsedMillis = 0L
 
     @Before
     fun setUp() {
@@ -79,6 +82,7 @@ class SyncRepositoryTest {
             settings = settings,
             scope = scope,
             clock = clock(),
+            elapsedRealtimeMillis = { elapsedMillis },
         )
     }
 
@@ -506,6 +510,53 @@ class SyncRepositoryTest {
         assertEquals("Waiting for a network connection — 3 changes queued.", subject.message.first())
     }
 
+    @Test
+    fun `manual sync is blocked during the cooldown but automatic sync still drains`() = runBlocking {
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        elapsedMillis = 30_000L
+        assertEquals(ManualSyncOutcome.SYNCED, repo.syncManually())
+
+        queueOneBottle()
+        elapsedMillis += 1_000L
+
+        assertEquals(ManualSyncOutcome.COOLDOWN, repo.syncManually())
+        assertEquals("Please wait before syncing again.", repo.message.first())
+        assertEquals(1, db.outboxDao().pending().size)
+        repo.requestDrain()
+        settle()
+        assertTrue(db.outboxDao().pending().isEmpty())
+        assertEquals(setOf("e1"), gateway.eventWrites.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `manual sync cooldown expires after thirty seconds`() = runBlocking {
+        repo.signIn("parent-one@example.com", "secret")
+        settle()
+        elapsedMillis = 30_000L
+        assertEquals(ManualSyncOutcome.SYNCED, repo.syncManually())
+        elapsedMillis += 29_999L
+        assertEquals(ManualSyncOutcome.COOLDOWN, repo.syncManually())
+        elapsedMillis += 1L
+        assertEquals(ManualSyncOutcome.SYNCED, repo.syncManually())
+    }
+
+    @Test
+    fun `overlapping manual sync requests coalesce into one drain`() = runBlocking {
+        val subject = repoWith(NetworkStatus.AlwaysOnline, writeTimeoutMs = 60)
+        subject.signIn("parent-one@example.com", "secret")
+        settle()
+        queueOneBottle()
+        gateway.hangForever = true
+        elapsedMillis = 30_000L
+
+        val first = launch { subject.syncManually() }
+        withTimeout(5_000) { subject.manualSyncInProgress.first { it } }
+        assertEquals(ManualSyncOutcome.ALREADY_RUNNING, subject.syncManually())
+        first.cancelAndJoin()
+        assertEquals(0, gateway.writeCount)
+    }
+
     // ---- helpers ------------------------------------------------------------
 
 
@@ -539,6 +590,7 @@ class SyncRepositoryTest {
         scope = scope,
         clock = clock(),
         network = network,
+        elapsedRealtimeMillis = { elapsedMillis },
     )
 
     /** One bottle, already logged, already queued. */
