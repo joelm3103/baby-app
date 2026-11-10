@@ -10,6 +10,7 @@ import app.babylog.domain.EventType
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.ReminderKey
 import app.babylog.domain.ThemeMode
+import app.babylog.domain.TimeInputMode
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.babylog.domain.NightWindow
@@ -70,6 +71,34 @@ class SettingsRepositoryTest {
         settings.setUnitSystem(app.babylog.domain.UnitSystem.IMPERIAL)
         assertEquals(app.babylog.domain.TimeFormat.TWELVE_HOUR, settings.timeFormat.first())
         assertEquals(app.babylog.domain.TemperatureUnit.FAHRENHEIT, settings.units.first().temperature)
+    }
+
+    // ---- Phase 29: the time dialog's input mode ----------------------------
+
+    @Test
+    fun `the time dialog opens on the wheels, not the dial`() = runBlocking {
+        // The owner's ask: the scrollable wheels are the default, and a stored `DIAL` here would put the
+        // clock back in front of a parent on every logging sheet.
+        assertEquals(TimeInputMode.WHEEL, settings.timeInputMode.first())
+    }
+
+    @Test
+    fun `a chosen time input round-trips, so the dialog opens where it was left`() = runBlocking {
+        settings.setTimeInputMode(TimeInputMode.TEXT)
+        assertEquals(TimeInputMode.TEXT, settings.timeInputMode.first())
+
+        settings.setTimeInputMode(TimeInputMode.DIAL)
+        assertEquals(TimeInputMode.DIAL, settings.timeInputMode.first())
+    }
+
+    @Test
+    fun `a reset puts the time dialog back on the wheels`() = runBlocking {
+        settings.setTimeInputMode(TimeInputMode.TEXT)
+
+        settings.clearForReset()
+
+        // A reset returns the app to first-run state, and first run opens on the wheels.
+        assertEquals(TimeInputMode.WHEEL, settings.timeInputMode.first())
     }
 
     // ---- hidden activities -------------------------------------------------

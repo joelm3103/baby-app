@@ -1,5 +1,6 @@
 package app.babylog.ui.home
 
+import app.babylog.domain.TimeInputMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -32,6 +33,16 @@ class WheelTimePickerTest {
         TimeInputMode.entries.forEach { mode ->
             assertEquals(true, nextTimeInputMode(mode) != mode)
         }
+    }
+
+    @Test
+    fun everyModeHasADistinctChipLabel() {
+        // Phase 29 puts these three on Settings → Units → `Time input`. Two modes sharing a chip is a row
+        // where tapping one of them selects the other, which is indistinguishable from a dead chip.
+        val labels = TimeInputMode.entries.map { it.label }
+        assertEquals(TimeInputMode.entries.size, labels.toSet().size)
+        assertEquals(0, labels.count { it.isBlank() })
+        assertEquals(listOf("Clock", "Wheels", "Keypad"), labels)
     }
 
     @Test
