@@ -50,6 +50,8 @@ Device: Samsung Galaxy S23 Ultra, Android 16, dark mode. Screenshots include the
 | 39 | A note on the entry row (Phase 27) | `f243d2e` | [r03-sheet-dark](2026-11-05-phase27/r03-sheet-dark.png) [r05-light-activity](2026-11-05-phase27/r05-light-activity.png) +5 |
 | 40 | Pull-to-sync on Today (Phase 28) | `0e7f812` | [01-activity](2026-11-07-phase28/01-activity.png) [02-bottle-sheet](2026-11-07-phase28/02-bottle-sheet.png) [03-after-back](2026-11-07-phase28/03-after-back.png) [04-pull-in-progress](2026-11-07-phase28/04-pull-in-progress.png) [05-pull-success](2026-11-07-phase28/05-pull-success.png) [06-cooldown](2026-11-07-phase28/06-cooldown.png) |
 
+| 41 | The time dialog remembers its input (Phase 29) | `feat/phase29-time-input-preference` | [01-dialog-default](2026-11-10-phase29/01-dialog-default.png) [02-switched-to-keypad](2026-11-10-phase29/02-switched-to-keypad.png) [03-reopened-on-keypad](2026-11-10-phase29/03-reopened-on-keypad.png) [04-settings-units-keypad](2026-11-10-phase29/04-settings-units-keypad.png) [05-settings-units-clock](2026-11-10-phase29/05-settings-units-clock.png) [06-dialog-dial-from-settings](2026-11-10-phase29/06-dialog-dial-from-settings.png) [07-switched-back-to-wheels](2026-11-10-phase29/07-switched-back-to-wheels.png) [08-settings-units-wheels](2026-11-10-phase29/08-settings-units-wheels.png) |
+
 Stage 40 was added the day its pass ran, 2026-11-07, on the branch that built `1.7.2`.
 
 Stages 18-39 were added on 2026-11-06 by one migration: the screenshots existed, in six folders outside this
@@ -731,3 +733,9 @@ check: the sheet closes, Today returns, and the log is byte-for-byte the same ni
 **The PNGs are gitignored; this README is tracked.** A phone can regenerate any screenshot, and nothing can
 regenerate the paragraph explaining which two treatments were rejected first — which is why the file-level
 ignore keeps the text and drops the images. `index.html` beside it is the rendered view and is ignored too.
+
+Stage 41 was added the day its pass ran, 2026-11-10, on the branch that built `1.8.0`: the eight frames are the
+dialog opening on the wheels, the switch carrying it to the keypad, the reopened dialog still on the keypad, the
+Settings row reading `Keypad`, the row set to `Clock` and the dialog opening on the dial, then the switch returning
+the phone to `Wheels` with the Settings row following it. Nothing was captured for a rejected option this time —
+the design asked for was built and kept.

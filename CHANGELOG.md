@@ -17,6 +17,43 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-10]
+
+**In short:**
+
+- **The time dialog opens on the wheels, and remembers whichever of its three inputs the parent last used.**
+
+### Versions
+
+- `1.8.0` / versionCode 38 — Phase 29 time input preference; MINOR because a stored display preference is a capability the app did not have, and it reverses Phase 21's "nothing is persisted".
+
+### Added
+
+- **A stored `time.inputMode`, defaulting to the wheels.** `TimeOfDayDialog` opens on the mode `SettingsRepository` holds;
+  an absent key reads `WHEEL`, so every installed phone changes behaviour with no migration, and `clearForReset()`
+  returns it to `WHEEL` so a reset is not leaving a display choice behind.
+- **The dialog's own switch now writes that preference**, as well as switching for the session it is open — so reopening
+  `Time` lands where the last one was left instead of back on the clock face.
+- **Settings → Units → `Time input`**, directly under `Time format`, offering `Clock` / `Wheels` / `Keypad`. It reads and
+  writes the same value through `AppRoot`'s one setter, so the row and the dialog cannot disagree about where the next
+  dialog opens.
+- `TimeInputMode` moved from `ui/home` to `domain`, because it is a stored value; the words, the chip label and the
+  drawable stayed in `ui/home/WheelTimePicker.kt`.
+- **Four tests**, 714/714 in 71 files read from `app/build/test-results/testDebugUnitTest/*.xml`: three in
+  `SettingsRepositoryTest` (the `WHEEL` default, a round-trip, and `clearForReset()`) and one in `WheelTimePickerTest`
+  pinning the three chip labels as distinct.
+- **Device pass, 2026-11-10.** The release-signed `BabyLog-1.8.0.apk` was installed in place on `<handset>`;
+  `versionCode=38`, `versionName=1.8.0`, `firstInstallTime` still `2026-10-29 13:16:03`, and Today still held the log.
+  `Time` opened on the wheels; the switch carried the dialog to the keypad and the reopened dialog stayed there; Settings
+  → Units read `Keypad`; setting `Clock` there brought the dial back; the switch then put the phone back on `Wheels`.
+  `logcat -b crash -d` was empty throughout.
+
+### Changed
+
+- **Phase 21's decision is reversed, and both records say so where they were written.** The design-contract line in
+  `AGENTS.md` and the Phase 21 row in `PLAN.md` were amended in place on 2026-11-10 rather than rewritten — the switch
+  is still in the dialog, but the mode it leaves is now stored and the wheels are what a first run opens on.
+
 ## [2026-11-07]
 
 **In short:**

@@ -310,8 +310,16 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   ours (`WheelTimePicker`), because Material3 ships no wheel and hosting the platform `android.widget.TimePicker`
   would have put the OS's chrome inside a BabyLog sheet; the two-field keyboard stays as the third, since it is the
   only input that can type an exact minute without scrolling. The switch is IN THE DIALOG rather than a Settings
-  row (the owner's choice) and nothing is persisted, so it opens on the dial every time. Its button names where the
-  tap LEADS (`Switch to wheels`), never where it is. **One pair of numbers, two objects**: the dialog's
+  row (the owner's choice), and its button names where the tap LEADS (`Switch to wheels`), never where it is.
+  **The switch is now also the stored default, which reverses "nothing is persisted"** (Phase 29, 2026-11-10):
+  `time.inputMode` lives in `SettingsRepository`, an absent key means `WHEEL`
+  — so the dialog opens on the wheels and no existing phone needs a migration — and Settings → Units → `Time input`
+  (`Clock` / `Wheels` / `Keypad`) shows and edits that same value. The switch and the row write it through
+  `AppRoot`'s one `LocalSetTimeInputMode`, so there is one stored value and one writer rather than two preferences
+  that can drift apart. The dialog seeds its own `mode` from `LocalTimeInputMode` ONCE and must never key a
+  `remember` on it: the switch's write recomposes the app, and a keyed read would pull the dialog out from under a
+  parent mid-scroll. `TimeInputMode` itself now lives in `domain` because it is a stored value; its words, its
+  chip label and its drawable stay in `ui/home` with the drawing. **One pair of numbers, two objects**: the dialog's
   `hour`/`minute` are the wheel's value and the hand-off; `TimePickerState` is the Material modes' value, and the
   pair keys it — because `TimePickerState.hour` has no public setter and re-creating the state is the supported way
   to move it. A wheel column reports only a move it was NOT built with: its first emission is the position it was
@@ -575,7 +583,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-710 unit tests through Phase 28 (`1.7.2`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+714 unit tests through Phase 29 (`1.8.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -621,6 +629,7 @@ only, and `1.0.0` is the first release.
 | | | 26 left-behind field | `1.7.0` |
 | | | 27 note on the row | `1.7.1` |
 | | | 28 pull-to-sync | `1.7.2` |
+| | | 29 time input default | `1.8.0` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -651,7 +660,9 @@ field that can work out `7×2` is a capability the app did not have — **Phase 
 report, a MINOR because a fact the app never kept plus a report it never had is more than a fix — **Phase 27 is
 the note on the row on `1.7.1`**, a PATCH because a note the app had been storing all along is now drawn and
 nothing about what it stores or asks for changed — **Phase 28 is pull-to-sync on `1.7.2`**, a PATCH because it
-adds a gesture in front of the drain the app already runs and changes no stored byte — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
+adds a gesture in front of the drain the app already runs and changes no stored byte — **Phase 29 is the time input
+default on `1.8.0`**, a MINOR because the dialog's remembered mode is a stored display preference the app did not
+have, and it reverses Phase 21's "nothing is persisted" — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
 work starts; it stayed 25 when 26 landed ahead of it.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`

@@ -49,19 +49,20 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 710 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 714 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
 | 19 — Settings submenus | **DONE, device-verified** — `1.2.1` / versionCode 29; the eleven settings groups became a category menu, each row summarising its own current value, and each name opens that group alone. Back now means "up one level" before it means "leave Settings", and the rule lives in `SettingsNav` rather than in the handler. No setting moved between groups and no control changed; 620 tests green. **Two defects its own pass found**, both fixed and re-verified on the phone: `2 childs` on the Children row, and a growth-reference value that wrapped to two lines and made its row taller than the rest. Installed in place over `1.2.0` with the log, both children, the presets and the sign-in intact |
 | 20 — Tracking changes | **DONE, device-verified** — `1.3.0` / versionCode 30; bottle presets are one-tap log pills on the card (the Diaper path, borrowed) with the full-width button kept for a custom amount, a Both-mode card and its rows name the child instead of showing `K`, the reminder sheet drops `Notify` and offers `Remove notification`, and a posted reminder is cleared when its activity is logged or its rule goes off; **635 tests green**. Its pass was read-only on purpose — one tap writes a real feed, so that check is the owner's. Was 20 before the Settings redo |
-| 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice) and nothing is persisted, so it opens on the dial every time. The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
+| 21 — Time picker | **DONE, device-verified** — `1.4.0` / versionCode 31; the one time dialog in the app gains a switch between the clock dial and a wheel built here in Compose, keeping the two-field keyboard it shipped with as the third; **645 tests green**. The switch is in the dialog rather than in Settings (the owner's choice); **as shipped that switch remembered nothing and the dialog opened on the dial every time — reversed by Phase 29 on 2026-11-10, see row 29.** The dial's width worry is settled by measurement: complete at font scale 1.0 and 1.3. Was the Filled Soft redesign before the owner asked for this first |
 | 22 — Filled Soft redesign | **DONE, device-verified** — `1.4.1` / versionCode 32; the tiled stroke-glyph watermark is gone, replaced by a per-activity vertical gradient card fill and a two-layer decoration: the activity's illustration as a whole sticker, with scattered silhouettes and hearts spread across the entire card behind it (nine new `ic_soft_*` drawables); **658 tests green**. Two decoration-placement defects were found by measuring the phone's own pixels rather than by looking (a pacifier drawn inside the illustration's silhouette, a heart behind the opaque pill row), and the owner then corrected the design itself on 2026-11-02: the scatter must cover the whole card, not a 76dp band, and the sticker must read as a whole object. The revision was verified on the phone on 2026-11-03 in both themes — every card's geometry read from a `uiautomator` dump and its artwork counted by colour in a `screencap`. **One defect is knowingly open:** on a card with nothing logged the illustration is drawn underneath its first control, because the 48dp band that fixed it was rejected in favour of the previous, more compact cards. See the Phase 22 section |
 | 23 — Update check | **DONE, device-verified** — `1.5.0` / versionCode 33; the app asks GitHub for its newest release when it opens, at most once a day, and Settings → About says what the last answer was (`No release published yet`, `Up to date — checked 3h ago`, `BabyLog 1.5.0 is available`, `Could not reach GitHub. Your log is unaffected.`). One unauthenticated `GET`, a `User-Agent` naming the app and nothing else; a switch in About turns it off and off means no request at all. Nothing is downloaded or installed — the row can name a newer version and open the release page, and the install stays a tap. **677 tests green** (19 new: 10 version/cache, 2 JSON, 7 copy). ADR-0001's delivery amendment and ADR-0003 landed with it |
 | 24 — Bottle calculator | **DONE, device-verified** — `1.6.0` / versionCode 34; the bottle amount is entered on the sheet's OWN pad — 1-9, the point, a backspace and `÷ × − +` — and `=` puts the answer back into the field, so `7×2` becomes `14` where the parent typed it and 14 is what is stored. No software keyboard opens over the amount, and the `= 4 oz` preview line the first build printed underneath is gone. A formula list was built and removed before landing; see the phase section. **684 tests green** (7 new) |
 | 26 — Left behind and the wastage report | **DONE, device-verified** — `1.7.0` / versionCode 34→35; the bottle calculator is withdrawn and a bottle gains an optional `leftBehindMl` beside the amount, so the sheet asks for the pour and the leftover and stores what was drunk; schema v5 with `MIGRATION_4_5` and nothing back-filled; Summary's Bottle card gains `Left behind` and `Wasted`, Trends' Bottle tab gains a `Left behind` card; **703 tests green**. ADR-0004. The pass on `<handset>` installed in place over `1.6.0`, survived the migration with its log intact, and found one defect — the `Consumed` line composed outside the sheet's content lambda and drew behind it — fixed and re-verified |
 | 27 — The note on the row | **RELEASED** (`v1.7.1`, 2026-11-05) — **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
 | 28 — Pull-to-sync | **DONE, device-verified** — `1.7.2` / versionCode 37; a pull on Today requests a drain through the existing `syncNow()` path, with a manual-only 30-second cooldown on a monotonic clock and overlapping pulls ignored; startup, sign-in, write-triggered sync, Settings → Sync now and the inbound listener are unchanged; **710 tests green** (3 new). No schema, Firestore-rule or listener change. The pass installed the release-signed APK in place, drove a pull, a repeat pull and system `BACK` out of the bottle sheet, and read zero `FATAL EXCEPTION`; the second phone was not attached, so cross-device arrival is still the standing gap |
+| 29 — Time input preference | **DONE, device-verified** — `1.8.0` / versionCode 38; `TimeOfDayDialog` opens on a stored `time.inputMode` (absent = `WHEEL`, so the scrollable wheels are the default and no phone needs a migration), the dialog's own switch writes that preference, and Settings → Units → `Time input` (`Clock` / `Wheels` / `Keypad`) shows and edits the same value through the one setter `AppRoot` provides; **714 tests green** (4 new: three in `SettingsRepositoryTest`, one on the chip labels). `TimeInputMode` moved from `ui/home` to `domain` because it is a stored value now. No schema change. This reverses Phase 21's "nothing is persisted". The pass installed the release-signed APK in place over `1.7.2`, watched the dialog open on the wheels, drove its switch to the keypad and saw Settings agree, set `Clock` from Settings and saw the dial come back, then left the phone on `Wheels`; zero `FATAL EXCEPTION` |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
 
 
@@ -176,14 +177,22 @@ was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-07): `:app:testDebugUnitTest` succeeded on the Phase 28 tree, run with
-`--rerun-tasks --no-build-cache` so the count is a fresh execution rather than an `UP-TO-DATE` one. The suite is
-**710/710**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(71 files). Phase 28 added three in `SyncRepositoryTest` — the manual cooldown blocking a pull while automatic
-sync still drains, the cooldown expiring at exactly 30 seconds, and overlapping pulls coalescing — so that class
-now holds 30. `1.7.2` / versionCode 37 is installed and device-verified on `<handset>` in place over `1.7.1` /
+Verified (current state, 2026-11-10): `:app:testDebugUnitTest :app:assembleRelease` succeeded on the Phase 29 tree.
+The suite is
+**714/714**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(71 files). Phase 29 added four: three in `SettingsRepositoryTest` — the stored default is `WHEEL`, a chosen mode
+round-trips, and `clearForReset()` puts it back to `WHEEL` — and one in `WheelTimePickerTest` pinning the three
+chip labels as distinct. The artifact is `BabyLog-1.8.0.apk`, release-signed `CN=BabyLog`, SHA-256
+`7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0`, installed on `<handset>`. `1.8.0` /
+versionCode 38 went in place over `1.7.2` / 37 — `firstInstallTime` still `2026-10-29 13:16:03`, and the log's
+bottle rows were on Today afterwards. The previous close-out, for the record:
+`:app:testDebugUnitTest` succeeded on the Phase 28 tree at 710/710 in 71 files, run with
+`--rerun-tasks --no-build-cache` so the count was a fresh execution; the last three were the manual cooldown
+blocking a pull while automatic sync still drains, the cooldown expiring at exactly 30 seconds, and overlapping
+pulls coalescing, so `SyncRepositoryTest` held 30. `1.7.2` / versionCode 37 was installed and device-verified on
+`<handset>` in place over `1.7.1` /
 36, which went in place over `1.7.0` / 35 and the delivered `1.6.0` — no uninstall, and the log survived the
-v4 → v5 migration with every row intact. The previous close-out, for the record:
+v4 → v5 migration with every row intact. Before that, for the record:
 `:app:testDebugUnitTest` succeeded on the Phase 27 tree at 707/707 in 71 files, the last four from
 `CardSummaryTest`; and before that
 `:app:testDebugUnitTest` and `:app:assembleRelease` succeeded on the
@@ -3100,6 +3109,71 @@ the only way to make it fit is an uninstall that discards the log. Screenshots a
 
 **Not verified:** the second phone was not attached, so an event logged elsewhere arriving without a pull is still
 unseen on this hardware — the same standing gap Phases 25 and 27 carry. Only the one handset's log was driveable.
+
+## Phase 29 — Time input preference — DONE, device-verified (`1.8.0` / versionCode 38)
+
+**As built — 2026-11-10.**
+
+The time dialog had a switch that remembered nothing: `TimeOfDayDialog` hardcoded `TimeInputMode.DIAL` into its
+`remember`, so a parent who had moved to the wheels reopened the sheet and got the clock face back. The owner asked
+for the scrollable wheels to be the default and for a setting that decides it, in the same breath as reporting the
+reversion as a bug — so this phase reverses Phase 21's "nothing is persisted" rather than merely re-picking a
+starting mode.
+
+- **A stored preference, not a remembered one.** `SettingsRepository` gains `time.inputMode`
+  (`stringPreferencesKey("time.inputMode")`, read through `enumOrDefault`), absent meaning `WHEEL`. Absent rather
+  than migrated: every installed phone already has no such key, so the new default applies with no migration step
+  and no window in which the dialog is undecided. The key is added to `clearForReset()`, because a reset that left
+  a display choice behind would be claiming to do something it did not.
+- **One value, two writers, one implementation.** `TimeInputMode` moved from `ui/home` to `domain` — it is a stored
+  value now, and a repository typed against a UI enum would point the wrong way — while `spoken`, the new `label`,
+  `iconRes()` and `nextTimeInputMode` stay in `ui/home/WheelTimePicker.kt` beside the drawing. `AppRoot` provides
+  `LocalTimeInputMode` (read) and `LocalSetTimeInputMode` (the only write, launched on its own scope) next to
+  `LocalTimeFormat`, so the dialog inside all six logging sheets and the Settings row reach the same preference
+  without a single new parameter on `TimeRow`, the sheets, `ReminderSheet`, `SettingsScreen` or `AppScaffold`. The
+  Settings row deliberately does **not** get a `SettingsViewModel.setTimeInputMode`: two writers of one preference is
+  precisely how a row and a dialog come to disagree.
+- **The switch writes what it switches to.** Tapping it advances `mode` — which also keeps the dialog correct for the
+  session it is open, even before the write lands — and persists the mode it landed on. The dialog seeds its own
+  `mode` from the local **once** and never keys the `remember` on it: the write recomposes the app, and a keyed read
+  would yank the dialog out from under a parent mid-scroll. The preference is what the NEXT dialog opens on; the open
+  dialog belongs to the parent.
+- **The row sits under `Time format` in Units**, labelled `Time input`, offering `Clock` / `Wheels` / `Keypad` through
+  the existing `ChipRow` — all three, because a cycle the switch can reach and a default it cannot is a mode the
+  parent can never make permanent. `label` is separate from `spoken` on purpose: `Clock` is read at a glance and
+  `clock face` is read aloud.
+- **No new dialog logic and no schema change.** `WHEEL` already confirms the dialog's `hour`/`minute` pair and
+  `DIAL`/`TEXT` already confirm `TimePickerState`, so opening in a different mode moves no answer — which is why a
+  MINOR rung (`1.8.0`, code 38) is about the stored preference and not about the dialog.
+- **Four tests:** `SettingsRepositoryTest` pins the `WHEEL` default, a round-trip through `TEXT` then `DIAL`, and
+  `clearForReset()` returning to `WHEEL`; `WheelTimePickerTest` pins the three chip labels as non-blank and distinct,
+  because two modes sharing a label is a chip that selects the other one.
+
+### Device pass — 2026-11-10 — `<handset>` (SM-S918U1), `1.8.0` / code 38
+
+Installed with `adb install -r` of the release-signed `BabyLog-1.8.0.apk`. Every tap came from a fresh `uiautomator`
+dump, and the foreground was asserted before the first one. Screenshots are in
+`docs/timeline/2026-11-10-phase29/`; the dumps are in `docs/timeline/evidence/`.
+
+| Check | What the phone showed |
+|---|---|
+| Install in place | `Streamed Install … Success`; `dumpsys package app.babylog` reads `versionCode=38`, `versionName=1.8.0`; `firstInstallTime` still `2026-10-29 13:16:03` |
+| The log survives the update | Today drew the same bottle rows as before the install, and Settings → About reads `1.8.0` |
+| The default is the wheels | `Time` in the bottle sheet opened on `Select time` with `Switch to keyboard` on the button and `Hours` / `Minutes` / `AM or PM` columns centred on `1:47 PM` — the wheels, not the dial (`01-dialog-default.png`) |
+| The switch persists | tapped to keypad (`Enter time`), `OK`, reopened `Time`: the dialog opened on the **keypad** (`03-reopened-on-keypad.png`) |
+| The Settings row agrees with the switch | Settings → Units → `Time input` read `Keypad` after the switch wrote it (`04-settings-units-keypad.png`) |
+| The Settings row drives the dialog | set `Clock`, reopened `Time`: the clock face, with `Switch to wheels` on the button (`06-dialog-dial-from-settings.png`) |
+| Back to wheels, and the row followed | tapped the switch back, then read Settings → Units: `Time input` highlighted `Wheels` (`08-settings-units-wheels.png`) |
+| Crashes | `logcat -b crash -d` empty — zero `FATAL EXCEPTION` lines across install, four dialogs, two sheets and the Settings trip |
+
+**Not verified on the phone:** the reset path. `Reset local data` drains tombstones to Firestore and empties the
+other parent's copy too, so it is not a gesture to run on the family phone for a preference check; the
+`clearForReset()` case in `SettingsRepositoryTest` is what covers it. The second phone was not attached either,
+which is the standing gap Phases 25, 27 and 28 all carry.
+
+**Not done, deliberately:** nothing was written to `docs/DECISIONS.md`. The decision this reverses is recorded in
+`AGENTS.md`'s design contract rather than in an ADR, so it was amended there in place, naming the change and its
+date — the same rule, applied to the document that actually held it.
 
 ## Changing this app after v1 ships
 
