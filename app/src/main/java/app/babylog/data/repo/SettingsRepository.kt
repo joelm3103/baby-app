@@ -2,6 +2,7 @@ package app.babylog.data.repo
 
 import app.babylog.domain.TemperatureUnit
 import app.babylog.domain.TimeFormat
+import app.babylog.domain.TimeInputMode
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -54,6 +55,21 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     suspend fun setTimeFormat(format: TimeFormat) = dataStore.edit { it[KEY_TIME_FORMAT] = format.name }
+
+    /**
+     * Which of the three time inputs the time dialog opens on. **Wheels by default.**
+     *
+     * Phase 29 reverses Phase 21's "nothing is persisted", and the write comes from two places by design: the
+     * dialog's own switch and the Settings → Units → `Time input` row. Both go through
+     * `AppRoot`'s one setter, and both read this one flow, so the two cannot disagree about where the next
+     * dialog opens. An absent key reads WHEEL, so an existing phone changes behaviour with no migration.
+     */
+    val timeInputMode: Flow<TimeInputMode> = dataStore.data.map {
+        enumOrDefault(it[KEY_TIME_INPUT_MODE], TimeInputMode.WHEEL)
+    }
+
+    suspend fun setTimeInputMode(mode: TimeInputMode) =
+        dataStore.edit { it[KEY_TIME_INPUT_MODE] = mode.name }
     suspend fun setTemperatureUnit(unit: TemperatureUnit) = dataStore.edit { it[KEY_TEMPERATURE] = unit.name }
 
     val selectedChild: Flow<ChildSelection> =
@@ -299,6 +315,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun clearForReset() = dataStore.edit { prefs ->
         listOf<Preferences.Key<*>>(
             KEY_LENGTH, KEY_WEIGHT, KEY_VOLUME, KEY_TEMPERATURE, KEY_TIME_FORMAT,
+            // Phase 29: the dialog opens on the wheels again, which is what a first run does.
+            KEY_TIME_INPUT_MODE,
             KEY_SELECTED_CHILD, KEY_THEME,
             KEY_NIGHT_START, KEY_NIGHT_END, KEY_BOTTLE_PRESETS, KEY_MEDICATION_PRESETS,
             // A reset returns the app to first-run state, and first run shows every activity. Without this
@@ -318,6 +336,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         private val KEY_WEIGHT = stringPreferencesKey("units.weight")
         private val KEY_TEMPERATURE = stringPreferencesKey("units.temperature")
         private val KEY_TIME_FORMAT = stringPreferencesKey("time.format")
+        private val KEY_TIME_INPUT_MODE = stringPreferencesKey("time.inputMode")
         private val KEY_VOLUME = stringPreferencesKey("units.volume")
         private val KEY_SELECTED_CHILD = stringPreferencesKey("child.selected")
         private val KEY_THEME = stringPreferencesKey("ui.theme")

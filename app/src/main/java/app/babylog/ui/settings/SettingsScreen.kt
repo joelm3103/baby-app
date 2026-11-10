@@ -2,7 +2,11 @@ package app.babylog.ui.settings
 
 import app.babylog.domain.TimeFormat
 import app.babylog.domain.TemperatureUnit
+import app.babylog.domain.TimeInputMode
+import app.babylog.ui.LocalSetTimeInputMode
 import app.babylog.ui.LocalTimeFormat
+import app.babylog.ui.LocalTimeInputMode
+import app.babylog.ui.home.label
 import androidx.compose.foundation.background
 import android.content.Intent
 import android.net.Uri
@@ -315,6 +319,15 @@ fun SettingsScreen(
                                 selected = LocalTimeFormat.current, accent = selection,
                                 labelOf = { if (it == TimeFormat.TWELVE_HOUR) "12-hour" else "24-hour" },
                                 onSelect = onTimeFormat)
+                            // The same preference the time dialog's switch writes, read here and written
+                            // through the one setter, so the row and the dialog cannot disagree about
+                            // where the next dialog opens. Under Time format because it is the same kind
+                            // of display choice, and all three modes are offered so no mode on the
+                            // dialog's cycle is unreachable as a default.
+                            ChipRow(label = "Time input", options = TimeInputMode.entries,
+                                selected = LocalTimeInputMode.current, accent = selection,
+                                labelOf = { it.label },
+                                onSelect = LocalSetTimeInputMode.current)
                         }
 
                         SettingsSection.DAY_NIGHT -> {

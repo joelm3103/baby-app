@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.7.2"
+val appVersionName = "1.8.0"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -135,7 +135,11 @@ android {
         // 1.7.2 is Phase 28, pull-to-sync: the existing sync can now be requested from Today, with a
         // cooldown on repeated pulls. This is another entry point to an existing capability, so PATCH;
         // code 37 installs it in place over 1.7.1.
-        versionCode = 37
+        // 1.8.0 is Phase 29, the time input preference: the one time dialog remembers which of its three
+        // inputs to open on, and Settings → Units grows a `Time input` row that sets the same value. That
+        // reverses Phase 21's "nothing is persisted" and is a capability the app did not have — a stored
+        // display preference, not a fix — so a MINOR rung, and code 38 installs it in place over 1.7.2.
+        versionCode = 38
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app

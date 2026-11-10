@@ -31,19 +31,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.babylog.R
+import app.babylog.domain.TimeInputMode
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Radius
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 
-/**
- * Which of the three time inputs the dialog is showing.
- *
- * Three rather than two because the text picker was here first and is the only one that can type `07:45`
- * exactly; the dial and the wheel are the two the owner asked to switch between. The dialog's one button
- * cycles all three, so there is no mode that cannot be reached from any other.
- */
-internal enum class TimeInputMode { DIAL, WHEEL, TEXT }
+// [TimeInputMode] itself lives in `domain`, because Phase 29 made it a stored preference; what stays here is
+// the presentation: the words, the chip label and the drawable.
 
 /** The mode the dialog's one button leads to. A cycle, so no mode is stranded. */
 internal fun nextTimeInputMode(mode: TimeInputMode): TimeInputMode = when (mode) {
@@ -63,6 +58,19 @@ internal val TimeInputMode.spoken: String
         TimeInputMode.DIAL -> "clock face"
         TimeInputMode.WHEEL -> "wheels"
         TimeInputMode.TEXT -> "keyboard"
+    }
+
+/**
+ * How a mode is named in Settings.
+ *
+ * Shorter than [spoken] on purpose: a chip is read at a glance and a screen reader is not reading a
+ * sentence, so `Clock`/`Wheels`/`Keypad` is the row and `clock face`/`wheels`/`keyboard` is the button.
+ */
+internal val TimeInputMode.label: String
+    get() = when (this) {
+        TimeInputMode.DIAL -> "Clock"
+        TimeInputMode.WHEEL -> "Wheels"
+        TimeInputMode.TEXT -> "Keypad"
     }
 
 /** The mode's own mark, drawn on the dialog's switch button. */

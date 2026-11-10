@@ -1,6 +1,8 @@
 package app.babylog.ui.home
 
+import app.babylog.ui.LocalSetTimeInputMode
 import app.babylog.ui.LocalTimeFormat
+import app.babylog.ui.LocalTimeInputMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,6 +64,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.babylog.domain.TimeInputMode
 import app.babylog.domain.VolumeUnit
 import app.babylog.domain.clockTime
 import app.babylog.domain.timeOfDayOn
@@ -318,9 +321,15 @@ fun TimeRow(
  * it is the only one that can type an exact minute without scrolling. The button in the title bar carries the
  * mode the tap LEADS TO, so its content description says what will happen rather than what is happening.
  *
- * **Nothing is persisted and the dialog opens on the dial every time.** A remembered mode is a preference the
- * owner declined, and a dialog that opens differently depending on last week's habit is the kind of hidden
- * state this app avoids.
+ * **The mode is remembered, and the wheels are the default** (Phase 29, reversing Phase 21's "nothing is
+ * persisted"). The dialog opens on `LocalTimeInputMode.current`, and its switch WRITES that preference through
+ * `LocalSetTimeInputMode` so the next dialog opens where this one was left — the same value Settings → Units →
+ * `Time input` shows, so the two can never disagree. An absent preference reads `WHEEL` rather than the dial,
+ * which is why an existing phone gets the new behaviour with no migration.
+ *
+ * The dialog's own `mode` is seeded from the preference ONCE and never keyed on it: the switch's write
+ * recomposes the whole app, and a `remember(preference)` here would yank the dialog back out from under a
+ * parent mid-scroll. The preference decides where the NEXT dialog opens; this one is the parent's.
  *
  * **One pair of numbers, two objects.** [hour]/[minute] are the wheel's value and the hand-off between modes;
  * `TimePickerState` is the Material modes' value. Before leaving a Material mode its numbers are copied into
@@ -343,7 +352,12 @@ internal fun TimeOfDayDialog(
 
     var hour by remember { mutableIntStateOf(local.hour) }
     var minute by remember { mutableIntStateOf(local.minute) }
-    var mode by remember { mutableStateOf(TimeInputMode.DIAL) }
+    // Read once, on purpose — see the KDoc above: the write below must not feed back into this dialog.
+    val startMode = LocalTimeInputMode.current
+    var mode by remember { mutableStateOf(startMode) }
+    // The one writer of `time.inputMode`. Settings reads the same preference, so the row and this switch
+    // cannot end up disagreeing about where the dialog opens.
+    val rememberMode = LocalSetTimeInputMode.current
 
     val state = key(hour, minute) {
         rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = is24Hour)
@@ -378,6 +392,8 @@ internal fun TimeOfDayDialog(
                             minute = state.minute
                         }
                         mode = next
+                        // Remembered, so the next dialog opens here rather than back on the dial.
+                        rememberMode(next)
                     },
                 ) {
                     Icon(

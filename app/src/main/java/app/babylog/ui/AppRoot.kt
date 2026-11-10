@@ -2,20 +2,24 @@ package app.babylog.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
 import app.babylog.domain.TimeFormat
+import app.babylog.domain.TimeInputMode
 import app.babylog.domain.UnitPreferences
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import app.babylog.di.AppContainer
 import app.babylog.domain.ThemeMode
 import app.babylog.ui.theme.BabyLogTheme
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppRoot(container: AppContainer) {
     val themeMode by container.settings.theme.collectAsState(initial = ThemeMode.SYSTEM)
     val timeFormat by container.settings.timeFormat.collectAsState(initial = TimeFormat.TWELVE_HOUR)
+    val timeInputMode by container.settings.timeInputMode.collectAsState(initial = TimeInputMode.WHEEL)
     val units by container.settings.units.collectAsState(initial = UnitPreferences())
     val dark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -39,8 +43,20 @@ fun AppRoot(container: AppContainer) {
         runCatching { container.updates.checkIfDue() }
     }
 
+    // The one writer of `time.inputMode`. Kept here rather than in a ViewModel because the two readers are
+    // both deep in composition (the dialog inside six logging sheets, and the Settings row), and a second
+    // writer is exactly how those two would come to disagree about where the next dialog opens.
+    val scope = rememberCoroutineScope()
+
     BabyLogTheme(darkTheme = dark) {
-        CompositionLocalProvider(LocalTimeFormat provides timeFormat, LocalTemperatureUnit provides units.temperature) {
+        CompositionLocalProvider(
+            LocalTimeFormat provides timeFormat,
+            LocalTemperatureUnit provides units.temperature,
+            LocalTimeInputMode provides timeInputMode,
+            LocalSetTimeInputMode provides { mode ->
+                scope.launch { container.settings.setTimeInputMode(mode) }
+            },
+        ) {
             AppScaffold(container)
         }
     }
