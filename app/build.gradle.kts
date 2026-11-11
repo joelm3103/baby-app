@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.8.1"
+val appVersionName = "1.8.2"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -143,7 +143,11 @@ android {
         // when the drain ran, the new `reject` verb for each refusal), and a reminder notification now says the
         // time it was armed for and how overdue it is. Polish on both — no new stored byte, no new control, no
         // schema change, so a PATCH rung, and code 39 installs it in place over 1.8.0.
-        versionCode = 39
+        // 1.8.2 is Phase 31, the About row after an update: a parent who updated FROM that row was told, for
+        // up to a day, that the version they had just installed was available — the stored answer is a
+        // conclusion drawn by an older build and nothing compared it with the running one. A defect with one
+        // fix and no new capability or stored byte, so PATCH; code 40 installs in place over 1.8.1.
+        versionCode = 40
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app

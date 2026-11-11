@@ -47,10 +47,10 @@ import app.babylog.BuildConfig
 import app.babylog.domain.ABOUT_CREDITS
 import app.babylog.domain.Child
 import app.babylog.domain.SOURCE_REPOSITORY_URL
-import app.babylog.data.update.UpdateOutcome
 import app.babylog.data.update.UpdateStatus
 import app.babylog.data.update.releasesPageFor
 import app.babylog.domain.updateStatusLine
+import app.babylog.domain.offersNewerThan
 import app.babylog.domain.aboutVersionLine
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.EVENT_DISPLAY_ORDER
@@ -1047,16 +1047,20 @@ private fun AboutContent(
         onCheckedChange = onSetCheck,
     )
     Text(
-        text = updateStatusLine(status, now),
+        text = updateStatusLine(status, now, BuildConfig.VERSION_NAME),
         style = MaterialTheme.typography.bodySmall,
         color = colors.textSecondary,
         modifier = Modifier.padding(top = 6.dp),
     )
     if (status.enabled) {
+        // The same predicate as the line above, so the two can never describe the same stored answer
+        // differently: a release this build has already installed must leave `Check now` in place, or the
+        // screen offers a page for a version the parent is running and takes away the only way to ask again.
+        val offersRelease = status.offersNewerThan(BuildConfig.VERSION_NAME)
         SecondaryButton(
-            label = if (status.outcome == UpdateOutcome.AVAILABLE) "Open the release" else "Check now",
+            label = if (offersRelease) "Open the release" else "Check now",
             onClick = {
-                if (status.outcome == UpdateOutcome.AVAILABLE) {
+                if (offersRelease) {
                     // A phone with no browser gets nothing rather than a crash, the same rule the repository
                     // button follows.
                     runCatching {
