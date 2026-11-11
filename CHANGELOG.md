@@ -89,6 +89,12 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **Five tests**, 734/734 in 72 files: the version just installed is not offered, a build newer than the stored
   answer is up to date, a genuinely newer release is still offered, the line and the button agree on one answer, and
   only an `AVAILABLE` outcome can offer anything.
+- **Device pass, 2026-11-10.** `v1.8.2` was published first, so the reported state was reachable: the `1.8.1` build
+  ran `Check now` and stored `BabyLog 1.8.2 is available.` with `Open the release`. Installing `BabyLog-1.8.2.apk`
+  in place (`versionCode=40`, `firstInstallTime` still `2026-10-29 13:16:03`) left that stored answer untouched — the
+  age advanced from `checked just now` to `checked 3m ago`, measured from the check before the install — and the row
+  read `Up to date` with `Check now` restored. `Check now` still asked GitHub and stayed up to date.
+  `logcat -b crash -d` was empty.
 
 ### Released
 

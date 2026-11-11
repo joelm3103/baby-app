@@ -52,6 +52,7 @@ Device: Samsung Galaxy S23 Ultra, Android 16, dark mode. Screenshots include the
 
 | 41 | The time dialog remembers its input (Phase 29) | `feat/phase29-time-input-preference` | [01-dialog-default](2026-11-10-phase29/01-dialog-default.png) [02-switched-to-keypad](2026-11-10-phase29/02-switched-to-keypad.png) [03-reopened-on-keypad](2026-11-10-phase29/03-reopened-on-keypad.png) [04-settings-units-keypad](2026-11-10-phase29/04-settings-units-keypad.png) [05-settings-units-clock](2026-11-10-phase29/05-settings-units-clock.png) [06-dialog-dial-from-settings](2026-11-10-phase29/06-dialog-dial-from-settings.png) [07-switched-back-to-wheels](2026-11-10-phase29/07-switched-back-to-wheels.png) [08-settings-units-wheels](2026-11-10-phase29/08-settings-units-wheels.png) |
 
+| 43 | The About row after an update (Phase 31) | `fix/about-row-after-update` | [01-old-build-says-available](2026-11-10-phase31/01-old-build-says-available.png) [02-fixed-build-up-to-date](2026-11-10-phase31/02-fixed-build-up-to-date.png) [03-check-now-still-works](2026-11-10-phase31/03-check-now-still-works.png) |
 Stage 40 was added the day its pass ran, 2026-11-07, on the branch that built `1.7.2`.
 
 Stages 18-39 were added on 2026-11-06 by one migration: the screenshots existed, in six folders outside this
@@ -747,6 +748,33 @@ touched: the test went on Diaper precisely so it could not overwrite one of them
 ![03-diaper-rule-at-830.png](2026-11-10-phase30/03-diaper-rule-at-830.png)
 ![04-pull-refused-cooldown.png](2026-11-10-phase30/04-pull-refused-cooldown.png)
 ![06-shade-due-times.png](2026-11-10-phase30/06-shade-due-times.png)
+
+### 43 - The About row after an update (Phase 31, `1.8.2` / code 40)
+
+**Changed:** The About row compares the version GitHub is offering with the version that is running, so a parent
+who updated *from* that row is told `Up to date — checked 3m ago` instead of `BabyLog 1.8.1 is available` — and
+the button beside it stays `Check now` rather than becoming `Open the release`, which had taken away the only
+control that could ask again.
+
+**Why the frames are in this order:** `01` is the OLD build (`1.8.1`, code 39) after tapping `Check now`, having
+just concluded `BabyLog 1.8.2 is available.` — the stored answer that caused the report. `02` is the fixed build
+installed over it, reading that same stored answer with no new check and saying `Up to date`. `03` is `Check now`
+in the fixed build, which asked GitHub and stayed up to date; the offer path is unchanged and had nothing to offer
+by then. The proof that no check intervened is the age, which advanced from `checked just now` to `checked 3m ago`
+measured from the check that ran BEFORE the install.
+
+**What made this pass possible:** the release was published first (`v1.8.2`), because the failing state is
+"GitHub offers a version the phone already has" and that state cannot be manufactured on a release build — a
+downgrade is refused with `INSTALL_FAILED_VERSION_DOWNGRADE` (the `-d` flag only works for debuggable packages),
+and the previous attempt to force a state by hand is why the same phone's `1.8.1` build was still installed while
+the frames were taken.
+
+**Not reached:** the second handset, which is the one that reported the bug — it was not attached, and the A/B was
+reproduced on the first one instead.
+
+![01-old-build-says-available.png](2026-11-10-phase31/01-old-build-says-available.png)
+![02-fixed-build-up-to-date.png](2026-11-10-phase31/02-fixed-build-up-to-date.png)
+![03-check-now-still-works.png](2026-11-10-phase31/03-check-now-still-works.png)
 
 ## Adding an entry
 

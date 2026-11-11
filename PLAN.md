@@ -64,7 +64,7 @@ everything after it is additive.**
 | 28 — Pull-to-sync | **DONE, device-verified** — `1.7.2` / versionCode 37; a pull on Today requests a drain through the existing `syncNow()` path, with a manual-only 30-second cooldown on a monotonic clock and overlapping pulls ignored; startup, sign-in, write-triggered sync, Settings → Sync now and the inbound listener are unchanged; **710 tests green** (3 new). No schema, Firestore-rule or listener change. The pass installed the release-signed APK in place, drove a pull, a repeat pull and system `BACK` out of the bottle sheet, and read zero `FATAL EXCEPTION`; the second phone was not attached, so cross-device arrival is still the standing gap |
 | 29 — Time input preference | **DONE, device-verified** — `1.8.0` / versionCode 38; `TimeOfDayDialog` opens on a stored `time.inputMode` (absent = `WHEEL`, so the scrollable wheels are the default and no phone needs a migration), the dialog's own switch writes that preference, and Settings → Units → `Time input` (`Clock` / `Wheels` / `Keypad`) shows and edits the same value through the one setter `AppRoot` provides; **714 tests green** (4 new: three in `SettingsRepositoryTest`, one on the chip labels). `TimeInputMode` moved from `ui/home` to `domain` because it is a stored value now. No schema change. This reverses Phase 21's "nothing is persisted". The pass installed the release-signed APK in place over `1.7.2`, watched the dialog open on the wheels, drove its switch to the keypad and saw Settings agree, set `Clock` from Settings and saw the dial come back, then left the phone on `Wheels`; zero `FATAL EXCEPTION` |
 | 30 — Haptics on the pull and the reminder's due time | **DONE, device-verified** — `1.8.1` / versionCode 39; the pull on Today answers with a buzz from `Haptics.report(outcome)` (`confirm` for `SYNCED`, the new `reject` verb — `HapticFeedbackType.Reject`, verified present in Compose UI 1.12.1 — for `COOLDOWN` / `ALREADY_RUNNING` / `NOT_SIGNED_IN`), and a reminder notification now leads with the time its alarm was ARMED for and how overdue it is (`Due 9:41 PM, 20m ago · 3h 5m since the last feed`), carried in the intent as `EXTRA_AT`; **729 tests green** (15 new: 8 dating in `ReminderTextTest`, 5 in the new `SyncHapticsTest`, 2 in `ReminderSchedulerTest`). No schema change. Settings' `Sync now` deliberately does not buzz. The pass installed the release-signed APK in place over `1.8.0` (39 over 38, `firstInstallTime` unchanged), read the new line out of the shade (`Due 8:32 PM · 6h 23m since the last feed`) and out of a fired fixed-time rule (`Reminder for 8:30 PM`), and saw two different platform constants in `dumpsys vibrator_manager` for a refused pull (`constant=17`, 290 ms) and a synced one (`constant=16`, 123 ms); zero `FATAL EXCEPTION`. The late clause (`20m ago`) is unit-tested only — an alarm cannot be made late on a phone that is awake, exact and not rooted
-| 31 — The About row after an update | **BUILT, awaiting the device pass** — `1.8.2` / versionCode 40; the row compared nothing with the installed build, so a parent who updated FROM About was told for up to a day that the version they had just installed was available, and the button that would have asked again had become `Open the release`. `UpdateStatus.offersNewerThan(currentVersion)` now decides both the line and the button, and an `AVAILABLE` the installed build has caught up with reads as up to date with the check's age intact; **734 tests green** (5 new in `UpdateCopyTest`). No schema change, no new stored byte — a PATCH rung |
+| 31 — The About row after an update | **DONE, device-verified** — `1.8.2` / versionCode 40; the row compared nothing with the installed build, so a parent who updated FROM About was told for up to a day that the version they had just installed was available, and the button that would have asked again had become `Open the release`. `UpdateStatus.offersNewerThan(currentVersion)` now decides both the line and the button, and an `AVAILABLE` the installed build has caught up with reads as up to date with the check's age intact; **734 tests green** (5 new in `UpdateCopyTest`). No schema change, no new stored byte — a PATCH rung. The pass went from `1.8.1` to `1.8.2` in place (40 over 39, `firstInstallTime` unchanged), and the A/B was made possible by publishing `v1.8.2` first: the OLD build stored `BabyLog 1.8.2 is available.` / `Open the release`, and the fixed build, reading that same stored answer with no new check (`checked 3m ago`, from before the install), read `Up to date` / `Check now` |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision: RESOLVED 2026-11-10 — the repository is PUBLIC**, so the unauthenticated update check can read a release (verified with an unauthenticated `curl`: `releases/latest` answers `200` / `v1.7.2`). The premise this row carried for weeks — "the repository is PRIVATE, so the unauthenticated update check can never see a release" — was out of date, and was corrected when `v1.8.1` was published. What is left of Ship is delivery to the second phone and a week of use |
 
 
@@ -180,17 +180,19 @@ Test counts in the table are the suite size **when that phase landed**, so they 
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
 Verified (current state, 2026-11-10): `:app:testDebugUnitTest :app:assembleDebug :app:assembleRelease` succeeded on the
-Phase 30 tree.
+Phase 31 tree.
 The suite is
-**729/729**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(72 files). Phase 30 added fifteen: eight in `ReminderTextTest` (the due time leading, a late interval, a late and
-an on-time fixed time, lateness under a minute, a clockwise jump, the never-logged line with a due time, and the
-24-hour form), five in the new `SyncHapticsTest` (one per `ManualSyncOutcome` plus the assertion that the refusal
-is a different buzz from the confirmation), and two in `ReminderSchedulerTest` (the armed alarm carries `EXTRA_AT`,
-and a cancel leaves nothing armed). The artifact is `BabyLog-1.8.1.apk`, SHA-256
-`95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1`, release-signed `CN=BabyLog`, installed on
-`<handset>`: `1.8.1` / 39 went in place over `1.8.0` / 38, `firstInstallTime` still `2026-10-29 13:16:03`, and the
-log's bottle rows were on Today afterwards.
+**734/734**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(72 files). Phase 31 added five, all in `UpdateCopyTest`: the version just installed is not offered, a build newer
+than the stored answer is up to date, a genuinely newer release is still offered, the line and the button agree on
+one answer, and only an `AVAILABLE` outcome can offer anything. The artifact is `BabyLog-1.8.2.apk`, SHA-256
+`1ddd5f09e62b7718d4431d15ff8135eb114593cc6e12113f29b59af0604572f4`, release-signed `CN=BabyLog`, published as
+GitHub release `v1.8.2` (asset digest matches the file) and installed on `SM-S918U1` (`R5CW71AWJSF`): `1.8.2` / 40
+went in place over `1.8.1` / 39, `firstInstallTime` still `2026-10-29 13:16:03`, and the log's rows were on Today
+afterwards.
+Phase 30's close-out, for the record: 729/729 in 72 files, artefact `BabyLog-1.8.1.apk` (SHA-256
+`95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1`), published as `v1.8.1`; installed on the same
+handset, `1.8.1` / 39 in place over `1.8.0` / 38.
 The previous close-out, for the record: `:app:testDebugUnitTest :app:assembleRelease` succeeded on the Phase 29 tree
 at 714/714 in 71 files, with the new `BabyLog-1.8.0.apk` (SHA-256
 `7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0`) installed on `<handset>`: `1.8.0` / 38 went in
@@ -3244,7 +3246,7 @@ sub-minute guard and the backwards-clock guard), not on a frame. The standing se
 precisely so it could not overwrite one — and it was deleted afterwards, so nothing this pass created is still
 armed.
 
-## Phase 31 — The About row after an update — BUILT, awaiting the device pass (`1.8.2` / versionCode 40)
+## Phase 31 — The About row after an update — DONE, device-verified (`1.8.2` / versionCode 40)
 
 **As built — 2026-11-10.** Reported by the owner from the second phone, minutes after updating it from the About
 row: the row went on saying `BabyLog 1.8.1 is available` on a phone that was running 1.8.1, and the button beside
@@ -3273,6 +3275,25 @@ the only escapes were waiting or reinstalling.
 
 **Why a PATCH.** One defect, one fix: no new stored byte, no new control, no schema change, no new request.
 `versionCode` 40 installs in place over 1.8.1.
+
+### Device pass — 2026-11-10 — One UI handset (SM-S918U1), `1.8.2` / code 40
+
+The reported state is the whole test: a stored `AVAILABLE` naming the version that is installed. Publishing `v1.8.2`
+first made it reachable — the `1.8.1` build could ask GitHub and conclude `BabyLog 1.8.2 is available.` — and then the
+fixed build was installed over it.
+
+| Check | What the phone showed |
+|---|---|
+| `1.8.1`, after `Check now` | `BabyLog 1.8.2 is available.` with `Open the release` — the stored answer this bug is about |
+| `1.8.2` installed in place | `Success`; `versionCode=40`, `versionName=1.8.2`, `lastUpdateTime 2026-11-10 21:13:47`, `firstInstallTime` still `2026-10-29 13:16:03` |
+| About, immediately after install, same stored answer | `Up to date — checked just now.` with `Check now` — not `1.8.2 is available`, and the re-check button is back |
+| No new check had run | the age advanced to `checked 3m ago` on re-entry, measured from the 21:12 check that predates the install |
+| `Check now` still works | asked GitHub and stayed `Up to date — checked just now.` |
+| No crash | `logcat -b crash -d` empty, `FATAL EXCEPTION` absent |
+
+**Not verified on the phone:** the case where a genuinely newer release is offered *after* this fix (the offer path
+itself is unchanged code, and `1.8.2` was newest by then), and the second handset — it is the phone that reported the
+bug, so the fix's A/B was reproduced on the first one instead.
 
 ## Changing this app after v1 ships
 

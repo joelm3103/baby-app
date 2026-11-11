@@ -600,7 +600,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-729 unit tests through Phase 30 (`1.8.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+734 unit tests through Phase 31 (`1.8.2`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -648,6 +648,7 @@ only, and `1.0.0` is the first release.
 | | | 28 pull-to-sync | `1.7.2` |
 | | | 29 time input default | `1.8.0` |
 | | | 30 haptics and due times | `1.8.1` |
+| | | 31 the About row after an update | `1.8.2` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -682,7 +683,7 @@ adds a gesture in front of the drain the app already runs and changes no stored 
 default on `1.8.0`**, a MINOR because the dialog's remembered mode is a stored display preference the app did not
 have, and it reverses Phase 21's "nothing is persisted" — **Phase 30 is the pull's buzz and the reminder's due
 time on `1.8.1`**, a PATCH because a fifth haptic verb and a second clause on a notification change no stored byte,
-no control and no schema — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
+no control and no schema — **Phase 31 is the About row after an update on `1.8.2`**, a PATCH because it is one defect the row could not see (a stored answer compared with nothing) and its fix is one comparison — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
 work starts; it stayed 25 when 26 landed ahead of it.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`

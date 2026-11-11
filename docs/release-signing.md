@@ -117,6 +117,7 @@ Recorded so a phone's copy can be checked against the page. Every file is signed
 | `v1.7.2` | `BabyLog-1.7.2.apk` | 14 781 151 | `d41b0c2d8936022904233803d68140b33c6460bdbd084c5cd0c0dc56db6cffda` |
 | `v1.8.0` | — never released; superseded the same day it was built | 14 781 151 | `7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0` |
 | `v1.8.1` | `BabyLog-1.8.1.apk` | 14 781 151 | `95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1` |
+| `v1.8.2` | `BabyLog-1.8.2.apk` | 14 781 151 | `1ddd5f09e62b7718d4431d15ff8135eb114593cc6e12113f29b59af0604572f4` |
 
 ### App Distribution is retired
 
