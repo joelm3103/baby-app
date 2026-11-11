@@ -30,6 +30,13 @@ interface ReminderNotifier {
         childName: String,
         config: ReminderConfig,
         anchorMs: Long?,
+        /**
+         * The moment the alarm was armed for, when this post came from one.
+         *
+         * Null when nothing known armed it. It is the time the parent was TOLD to expect, so lateness is measured
+         * from it rather than from a recomputation: the anchor moves as the log grows, the armed time does not.
+         */
+        armedAtMs: Long?,
         now: Long,
         zone: ZoneId,
         format: TimeFormat,

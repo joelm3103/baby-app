@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.8.0"
+val appVersionName = "1.8.1"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -139,7 +139,11 @@ android {
         // inputs to open on, and Settings → Units grows a `Time input` row that sets the same value. That
         // reverses Phase 21's "nothing is persisted" and is a capability the app did not have — a stored
         // display preference, not a fix — so a MINOR rung, and code 38 installs it in place over 1.7.2.
-        versionCode = 38
+        // 1.8.1 is Phase 30, the two remaining todo.txt items: a pull on Today answers with a buzz (`confirm`
+        // when the drain ran, the new `reject` verb for each refusal), and a reminder notification now says the
+        // time it was armed for and how overdue it is. Polish on both — no new stored byte, no new control, no
+        // schema change, so a PATCH rung, and code 39 installs it in place over 1.8.0.
+        versionCode = 39
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app

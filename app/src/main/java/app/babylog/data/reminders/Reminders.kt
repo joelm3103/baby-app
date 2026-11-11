@@ -94,7 +94,7 @@ class Reminders(
      * again for a parent who simply has not fed yet — the nagging the owner ruled out. `FIXED_TIMES` arms the
      * following time of day, because that reminder is about the clock rather than about the last log.
      */
-    suspend fun fire(type: EventType, childId: String, zone: ZoneId, now: Long) {
+    suspend fun fire(type: EventType, childId: String, zone: ZoneId, now: Long, armedAtMs: Long? = null) {
         val key = ReminderKey(type, childId)
         val config = deps.store.configs()[key] ?: ReminderConfig()
         if (!config.enabled) return
@@ -107,6 +107,7 @@ class Reminders(
             childName = childName,
             config = config,
             anchorMs = anchor,
+            armedAtMs = armedAtMs,
             now = now,
             zone = zone,
             format = timeFormat(),

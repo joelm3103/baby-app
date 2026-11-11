@@ -57,6 +57,7 @@ class ReminderNotifications(private val context: Context) : ReminderNotifier {
         childName: String,
         config: ReminderConfig,
         anchorMs: Long?,
+        armedAtMs: Long?,
         now: Long,
         zone: ZoneId,
         format: TimeFormat,
@@ -64,7 +65,7 @@ class ReminderNotifications(private val context: Context) : ReminderNotifier {
     ) {
         ensureChannel()
         val title = ReminderText.title(childName, type)
-        val text = ReminderText.text(config, type, anchorMs, now, zone, format)
+        val text = ReminderText.text(config, type, anchorMs, armedAtMs, now, zone, format)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(accent.toArgb())

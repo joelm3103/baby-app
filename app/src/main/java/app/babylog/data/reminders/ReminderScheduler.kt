@@ -57,24 +57,27 @@ class ReminderScheduler(
         // RTC_WAKEUP, not ELAPSED_REALTIME: the rule is expressed in local clock terms ("3h after the last
         // feed"), and an elapsed-time alarm would drift out of agreement with the log across a reboot.
         if (canBeExact()) {
-            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pendingIntent(key))
+            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pendingIntent(key, atMillis))
         } else {
-            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pendingIntent(key))
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pendingIntent(key, atMillis))
         }
     }
 
     fun cancel(key: ReminderKey) {
-        alarmManager?.cancel(pendingIntent(key)) ?: return
+        alarmManager?.cancel(pendingIntent(key, atMillis = 0L)) ?: return
     }
 
     /**
      * `FLAG_IMMUTABLE` because nothing outside this app may rewrite the intent; `FLAG_UPDATE_CURRENT` so a
      * re-arm replaces the previous target time instead of leaving two alarms for the same reminder.
+     *
+     * The armed time rides along as `EXTRA_AT` (Phase 30), so the notification can say when this reminder was
+     * due and how overdue it is. Cancelling passes 0, and the extra is then simply absent.
      */
-    private fun pendingIntent(key: ReminderKey): PendingIntent = PendingIntent.getBroadcast(
+    private fun pendingIntent(key: ReminderKey, atMillis: Long): PendingIntent = PendingIntent.getBroadcast(
         context,
         requestCode(key),
-        ReminderReceiver.intentFor(context, key.type, key.childId),
+        ReminderReceiver.intentFor(context, key.type, key.childId, atMillis.takeIf { it > 0 }),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 

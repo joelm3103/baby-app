@@ -25,9 +25,12 @@ class ReminderReceiver : BroadcastReceiver() {
             ?: return
         val childId = intent.getStringExtra(EXTRA_CHILD_ID) ?: return
         val app = context.applicationContext as? BabyLogApp ?: return
+        // Read defensively: an intent armed by a build before this extra existed carries none, and a 0 would
+        // claim the reminder was due in 1970. Absent means "unknown", which the text renders as it always did.
+        val armedAtMs = intent.getLongExtra(EXTRA_AT, 0L).takeIf { it > 0 }
 
         runBlocking {
-            app.container.reminders.fire(type, childId, ZoneId.systemDefault(), System.currentTimeMillis())
+            app.container.reminders.fire(type, childId, ZoneId.systemDefault(), System.currentTimeMillis(), armedAtMs)
         }
     }
 
@@ -40,12 +43,18 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_TYPE = "app.babylog.reminders.type"
         const val EXTRA_CHILD_ID = "app.babylog.reminders.childId"
 
+        /** The moment the alarm was armed for, so the notification can say how overdue it is. */
+        const val EXTRA_AT = "app.babylog.reminders.armedAt"
+
         /** The intent the scheduler arms and this receiver receives. */
-        fun intentFor(context: Context, type: EventType, childId: String): Intent =
+        fun intentFor(context: Context, type: EventType, childId: String, armedAtMs: Long? = null): Intent =
             Intent(context, ReminderReceiver::class.java).apply {
                 action = ACTION_FIRE
                 putExtra(EXTRA_TYPE, type.name)
                 putExtra(EXTRA_CHILD_ID, childId)
+                // FLAG_UPDATE_CURRENT in the scheduler means a re-arm replaces this value rather than stacking
+                // a second alarm with a stale time.
+                if (armedAtMs != null) putExtra(EXTRA_AT, armedAtMs)
             }
     }
 }
