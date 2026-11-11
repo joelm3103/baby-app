@@ -100,6 +100,7 @@ import app.babylog.ui.settings.SettingsSection
 import app.babylog.ui.settings.SettingsViewModel
 import app.babylog.BuildConfig
 import app.babylog.ui.common.rememberHaptics
+import app.babylog.ui.common.report
 import app.babylog.ui.theme.BabyLogTheme
 import app.babylog.ui.theme.Spacing
 import app.babylog.ui.theme.accentFor
@@ -256,6 +257,9 @@ fun AppScaffold(container: AppContainer) {
     val syncMessage by settingsVm.syncMessage.collectAsState()
     val pendingWrites by settingsVm.pendingWrites.collectAsState()
     val manualSyncInProgress by settingsVm.manualSyncInProgress.collectAsState()
+    // The pull's answer buzzes (Phase 30). Read once here, where the composition is, rather than inside the
+    // tap handler — `rememberHaptics` is a composable and the handler runs in a coroutine.
+    val haptics = rememberHaptics()
 
     // The bundled medicine names, read once from the asset. Small (~2 KB) and only needed by the health
     // sheet, but parsed up front so the first tap on Medication is not the moment a file read happens.
@@ -487,6 +491,8 @@ fun AppScaffold(container: AppContainer) {
                     onSyncNow = {
                         scope.launch {
                             val outcome = settingsVm.syncManually()
+                            // The answer, not the drag: `confirm` when the drain ran, `reject` for each refusal.
+                            haptics.report(outcome)
                             val result = when (outcome) {
                                 ManualSyncOutcome.SYNCED ->
                                     settingsVm.syncMessage.value ?: "Up to date."
