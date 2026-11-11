@@ -63,7 +63,8 @@ everything after it is additive.**
 | 27 — The note on the row | **RELEASED** (`v1.7.1`, 2026-11-05) — **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
 | 28 — Pull-to-sync | **DONE, device-verified** — `1.7.2` / versionCode 37; a pull on Today requests a drain through the existing `syncNow()` path, with a manual-only 30-second cooldown on a monotonic clock and overlapping pulls ignored; startup, sign-in, write-triggered sync, Settings → Sync now and the inbound listener are unchanged; **710 tests green** (3 new). No schema, Firestore-rule or listener change. The pass installed the release-signed APK in place, drove a pull, a repeat pull and system `BACK` out of the bottle sheet, and read zero `FATAL EXCEPTION`; the second phone was not attached, so cross-device arrival is still the standing gap |
 | 29 — Time input preference | **DONE, device-verified** — `1.8.0` / versionCode 38; `TimeOfDayDialog` opens on a stored `time.inputMode` (absent = `WHEEL`, so the scrollable wheels are the default and no phone needs a migration), the dialog's own switch writes that preference, and Settings → Units → `Time input` (`Clock` / `Wheels` / `Keypad`) shows and edits the same value through the one setter `AppRoot` provides; **714 tests green** (4 new: three in `SettingsRepositoryTest`, one on the chip labels). `TimeInputMode` moved from `ui/home` to `domain` because it is a stored value now. No schema change. This reverses Phase 21's "nothing is persisted". The pass installed the release-signed APK in place over `1.7.2`, watched the dialog open on the wheels, drove its switch to the keypad and saw Settings agree, set `Clock` from Settings and saw the dial come back, then left the phone on `Wheels`; zero `FATAL EXCEPTION` |
-| 30 — Haptics on the pull and the reminder's due time | **DONE, device-verified** — `1.8.1` / versionCode 39; the pull on Today answers with a buzz from `Haptics.report(outcome)` (`confirm` for `SYNCED`, the new `reject` verb — `HapticFeedbackType.Reject`, verified present in Compose UI 1.12.1 — for `COOLDOWN` / `ALREADY_RUNNING` / `NOT_SIGNED_IN`), and a reminder notification now leads with the time its alarm was ARMED for and how overdue it is (`Due 9:41 PM, 20m ago · 3h 5m since the last feed`), carried in the intent as `EXTRA_AT`; **729 tests green** (15 new: 8 dating in `ReminderTextTest`, 5 in the new `SyncHapticsTest`, 2 in `ReminderSchedulerTest`). No schema change. Settings' `Sync now` deliberately does not buzz. **The device pass did not run** — the phone was disconnected when the APK was ready — so nothing here is verified on hardware yet
+| 30 — Haptics on the pull and the reminder's due time | **DONE, device-verified** — `1.8.1` / versionCode 39; the pull on Today answers with a buzz from `Haptics.report(outcome)` (`confirm` for `SYNCED`, the new `reject` verb — `HapticFeedbackType.Reject`, verified present in Compose UI 1.12.1 — for `COOLDOWN` / `ALREADY_RUNNING` / `NOT_SIGNED_IN`), and a reminder notification now leads with the time its alarm was ARMED for and how overdue it is (`Due 9:41 PM, 20m ago · 3h 5m since the last feed`), carried in the intent as `EXTRA_AT`; **729 tests green** (15 new: 8 dating in `ReminderTextTest`, 5 in the new `SyncHapticsTest`, 2 in `ReminderSchedulerTest`). No schema change. Settings' `Sync now` deliberately does not buzz. The pass installed the release-signed APK in place over `1.8.0` (39 over 38, `firstInstallTime` unchanged), read the new line out of the shade (`Due 8:32 PM · 6h 23m since the last feed`) and out of a fired fixed-time rule (`Reminder for 8:30 PM`), and saw two different platform constants in `dumpsys vibrator_manager` for a refused pull (`constant=17`, 290 ms) and a synced one (`constant=16`, 123 ms); zero `FATAL EXCEPTION`. The late clause (`20m ago`) is unit-tested only — an alarm cannot be made late on a phone that is awake, exact and not rooted
+| 31 — The About row after an update | **BUILT, awaiting the device pass** — `1.8.2` / versionCode 40; the row compared nothing with the installed build, so a parent who updated FROM About was told for up to a day that the version they had just installed was available, and the button that would have asked again had become `Open the release`. `UpdateStatus.offersNewerThan(currentVersion)` now decides both the line and the button, and an `AVAILABLE` the installed build has caught up with reads as up to date with the check's age intact; **734 tests green** (5 new in `UpdateCopyTest`). No schema change, no new stored byte — a PATCH rung |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision: RESOLVED 2026-11-10 — the repository is PUBLIC**, so the unauthenticated update check can read a release (verified with an unauthenticated `curl`: `releases/latest` answers `200` / `v1.7.2`). The premise this row carried for weeks — "the repository is PRIVATE, so the unauthenticated update check can never see a release" — was out of date, and was corrected when `v1.8.1` was published. What is left of Ship is delivery to the second phone and a week of use |
 
 
@@ -3242,6 +3243,36 @@ sub-minute guard and the backwards-clock guard), not on a frame. The standing se
 **Phone state left behind.** The two bottle rules the owner had were never edited — the test rule went on Diaper
 precisely so it could not overwrite one — and it was deleted afterwards, so nothing this pass created is still
 armed.
+
+## Phase 31 — The About row after an update — BUILT, awaiting the device pass (`1.8.2` / versionCode 40)
+
+**As built — 2026-11-10.** Reported by the owner from the second phone, minutes after updating it from the About
+row: the row went on saying `BabyLog 1.8.1 is available` on a phone that was running 1.8.1, and the button beside
+it read `Open the release`, so there was no way to ask again.
+
+- **The bug was a stored answer outliving the build that computed it.** `UpdateChecker` writes one row — outcome,
+version, time — and `updateStatusLine` rendered `AVAILABLE` straight from it. Nothing compared the offered
+version with `BuildConfig.VERSION_NAME`, so the conclusion stayed true-looking after the app was installed over
+itself. The check would not run again for up to a day, and switching the row off and on does not ask either, so
+the only escapes were waiting or reinstalling.
+- **The fix is a predicate, not a special case.** `UpdateStatus.offersNewerThan(currentVersion)` — `outcome ==
+  AVAILABLE && isNewerRelease(currentVersion, version)` — decides both the line and the button. An `AVAILABLE`
+  the installed build has caught up with falls through to the up-to-date line, which keeps the age of the check
+  (`Up to date — checked 3h ago.`), so the row still admits how old its evidence is instead of claiming now.
+- **The button had to change with it.** It keyed off `status.outcome == AVAILABLE`, independently of the line, so
+  the same stale row had replaced the one control that could ask again with a page for a version already
+  installed. Both now read the one predicate; a genuine offer still shows `Open the release`.
+- **`currentVersion` is passed in rather than read inside the function**, which is what made the failing case
+  testable at all: `updateStatusLine(status, now, "1.8.1")` with a stored `v1.8.1` is the report, expressed.
+- **No re-check was added.** Refreshing the cache when the installed version changed would also have hidden this
+  class of bug — the row would be right because it asked, not because it compared — and it costs a request per
+  update. The comparison is the guarantee; the day's interval is unchanged.
+- Five cases in `UpdateCopyTest`: the version just installed is not offered, a build newer than the stored answer
+  is up to date, a genuinely newer release is still offered, the button and the line agree on the same answer,
+  and only an `AVAILABLE` outcome can offer anything.
+
+**Why a PATCH.** One defect, one fix: no new stored byte, no new control, no schema change, no new request.
+`versionCode` 40 installs in place over 1.8.1.
 
 ## Changing this app after v1 ships
 

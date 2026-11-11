@@ -28,6 +28,7 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 - `1.8.0` / versionCode 38 — Phase 29 time input preference; MINOR because a stored display preference is a capability the app did not have, and it reverses Phase 21's "nothing is persisted".
 - `1.8.1` / versionCode 39 — Phase 30, the pull's buzz and the reminder's due time; PATCH because a fifth haptic verb and a second clause on a notification change no stored byte, no control and no schema.
+- `1.8.2` / versionCode 40 — Phase 31, the About row after an update; PATCH because it is one defect and one comparison, with no new stored byte, control, request or schema.
 
 ### Added
 
@@ -77,6 +78,17 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **The late reminder line** (`Due 9:41 PM, 20m ago · …`) has no device evidence: an alarm only reads as late if it
   is delivered a minute or more after it was armed, and this phone is awake, plugged in and exact — `date -s` is
   `Operation not permitted` without root and the exact-alarm appop does not move. Seven unit tests cover it.
+
+### Fixed
+
+- **About no longer calls the version you just installed "available".** The update row rendered the stored answer
+  without comparing it with the running build, so a parent who updated *from* that row was told for the rest of the
+  day that the version they were running was available — and the button beside it had become `Open the release`,
+  taking away the only control that could ask again. `UpdateStatus.offersNewerThan(currentVersion)` decides both the
+  line and the button now; a caught-up `AVAILABLE` reads `Up to date — checked …` with the age of the check kept.
+- **Five tests**, 734/734 in 72 files: the version just installed is not offered, a build newer than the stored
+  answer is up to date, a genuinely newer release is still offered, the line and the button agree on one answer, and
+  only an `AVAILABLE` outcome can offer anything.
 
 ### Released
 

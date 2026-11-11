@@ -181,6 +181,13 @@ Rules learned the hard way:
     install stays a tap on the system installer, because sideloading cannot do better.
   - **A failed check is never alarming**: unreachable, no release published and "not checked yet" are three
     sentences, and none of them claims the log is at risk. An unreadable tag counts as up to date.
+  - **A stored answer is a conclusion drawn by the build that ran it, so it is re-read against the version
+    installed** (Phase 31, 2026-11-10). The app installs over itself, and the row outlives the version it was
+    about: a parent who updated FROM the About row was told, for up to a day, that the version they had just
+    installed was available, and the button that would have asked again had become `Open the release`. So
+    `UpdateStatus.offersNewerThan(currentVersion)` — not `outcome == AVAILABLE` — decides both the line and
+    the button, and an `AVAILABLE` that the installed build has caught up with reads as up to date with the
+    age of the check intact. Never render an `AVAILABLE` without comparing it to what is running.
   - **A Robolectric class in this repo must pin `@Config(sdk = [34])`.** Without it the sandbox dies in
     `ApplicationSharedMemory` with "Failed to interact with raw FileDescriptor internals" before a test body
     runs, on this machine's JDK.
