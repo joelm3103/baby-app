@@ -489,6 +489,16 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
   because its `anchorAt` never moves and `refresh()` reads it as overdue — recorded in `PLAN.md`, 2026-10-29, and
   closed by decision rather than by a fix. Do not schedule one without being asked: the failure is a reminder that
   repeats while the parent is already looking at the app, never a missed one.
+- **A reminder notification says the time it was ARMED for, and how overdue it is** (Phase 30). `Due 9:41 PM ·
+  3h 5m since the last feed` on time, `Due 9:41 PM, 20m ago · 3h 5m since the last feed` when late, and
+  `Reminder for 7:00 AM · 12m ago` for a fixed time. The due time travels in the alarm's own intent as
+  `EXTRA_AT` and is threaded `ReminderScheduler` → `ReminderReceiver` → `Reminders.fire` → `ReminderNotifier.post`
+  → `ReminderText.text`; it is NOT recomputed when it fires, because the anchor moves as the log grows and a
+  recomputation would disagree with what the phone was told. Three guards, each a way to print a lie: lateness
+  under a minute prints nothing (`elapsedCoarse` floors, so an on-time alarm would say `0m ago`), a negative
+  lateness prints nothing (a backwards clock change), and an ABSENT armed time degrades to the pre-Phase-30 text
+  exactly. The lateness is a tail for a fixed time and attaches to the due time for an interval, because
+  `Reminder for 7:00 AM` is already a sentence and `Due 9:41 PM` is a fragment that needs its comma.
 - **Anything that opens a reminder must carry the child it is about.** A chip and an Upcoming row both name a child;
   an action that carries only the activity falls back to the first child, which is a reminder edited for the wrong
   twin. Both had that bug before it was seen on the phone.
@@ -583,7 +593,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-714 unit tests through Phase 29 (`1.8.0`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+729 unit tests through Phase 30 (`1.8.1`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -630,6 +640,7 @@ only, and `1.0.0` is the first release.
 | | | 27 note on the row | `1.7.1` |
 | | | 28 pull-to-sync | `1.7.2` |
 | | | 29 time input default | `1.8.0` |
+| | | 30 haptics and due times | `1.8.1` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the
@@ -662,7 +673,9 @@ the note on the row on `1.7.1`**, a PATCH because a note the app had been storin
 nothing about what it stores or asks for changed — **Phase 28 is pull-to-sync on `1.7.2`**, a PATCH because it
 adds a gesture in front of the drain the app already runs and changes no stored byte — **Phase 29 is the time input
 default on `1.8.0`**, a MINOR because the dialog's remembered mode is a stored display preference the app did not
-have, and it reverses Phase 21's "nothing is persisted" — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
+have, and it reverses Phase 21's "nothing is persisted" — **Phase 30 is the pull's buzz and the reminder's due
+time on `1.8.1`**, a PATCH because a fifth haptic verb and a second clause on a notification change no stored byte,
+no control and no schema — and **Phase 25 is Ship**, which delivers whatever build is landed when it runs. Ship has no commits and moves freely until its
 work starts; it stayed 25 when 26 landed ahead of it.
 - **A version after `1.0.0` is newer than `1.0.0`, never a `0.x`.** The ladder reached its release on
   2026-10-29, so a new capability takes `1.MINOR` (`1.1.0` first) and a fix takes `1.0.PATCH`. A `0.20.0`

@@ -49,7 +49,7 @@ everything after it is additive.**
 | 13.4 — Activity reminders | **DONE, device-verified** — a reminder per child on the four activities that get forgotten (Bottle feed, Solids, Diaper, Health), set from a `⋮` on the card, one chip per child showing the time it will ring, an `Upcoming reminders` card, and an exact notification that names the child and opens that child's sheet; 515 tests green |
 | 13.5 — Growth dataset update channel | **DONE, device-verified** — manifest-gated fetch, SHA-256 verification, app-private cache, 90-day silent check, manual check rows on Growth and Settings; bundled dataset stays on every failure; `0.17.0`, and `0.17.1` for the defect the pass found; 538 tests green. **No prerequisite.** Keeps this number: three commits on `main` already say `phase13.5`, so renaming it would mean rewriting history — see *Renumbering* below. **Known gap: an accepted dataset cannot be withdrawn** — see the note under the phase |
 | 14 — Polish/Misc changes | **DONE, device-verified** — the eight findings the owner ruled on: the silent `Sync now` and the seed that waited for a drain (both fixed and tested), the `Both` wrap at 130 %, the solids food id, the Trends chip gap, two redrawn consistency silhouettes, the activity glyph on five surfaces, per-metric marks on Growth's chips, and `D · 1W · 2W` / `1W · 2W · 1M` on the two range rows, plus 14.10 — an amount-less bottle says `No amount recorded` instead of repeating its own title; `0.16.0`; **532 tests green**. A3 deferred, A2/A4/B7-clipping/C12 closed. **No prerequisite** |
-| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 714 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
+| 15 — Reset to defaults | **DONE, device-verified** — two buttons in Settings → Data: *Reset local data* (tombstones for every row, hard delete, preferences and reminder rules cleared, alarms cancelled) and *Delete all server data* (tombstones every id the server reports, then the same reset, offered only while signed in); `0.18.0` / versionCode 23, and `0.18.1` / versionCode 24 for the five defects its own two passes found; **549 tests green as it landed** (the suite is 729 today — see *Verified*). **No prerequisite.** Was 13.6. Its passes found the inbound-listener race (`withoutInboundApply`), the drain that stopped at the first slow write, the twins that came back from the server into an emptied phone, and the dead cards under the empty state |
 | 16 — Update delivery | **DONE, device-verified** — `1.0.0` / versionCode 26 is the first release: a release keystore the family owns (created by `scripts/create-release-keystore.ps1`, password typed at a prompt, kept outside the repo and outside Syncthing), a `release` signing config that only exists when `keystore.properties` does — so a clone without the key still tests and builds, and `assembleRelease` degrades to an *unsigned* APK that fails `apksigner verify` — a manual Firebase App Distribution upload, and the certificate's SHA-1 registered on the `app.babylog` Android app. The phone installed `versionCode 26` over the air from the App Distribution package installer, byte-identical to the built APK (SHA-256 `4dac7cfb…43bca`), signed `CN=BabyLog` / `07:66:EE:…:4F`, with all 219 live events restored on sign-in. First tag: `v1.0.0`. **565 tests green, unchanged — this phase shipped no new Kotlin.** Google Sign-In was confirmed on the release build by the owner at close-out, and the second phone's install stays the standing gap |
 | 17 — Five todo items | **DONE, device-verified** — a child selector and `1Y` (52 weeks) / `All` (months, from the first event) buckets on Trends, an About card reading `BuildConfig`, per-activity hiding whose reminder prompt cancels the rule only when accepted, and haptics from one helper; `1.1.0` / versionCode 27, installed in place over `1.0.0` with the log intact at 219 live events; **584 tests green**. Two pre-existing defects found and recorded: the reminder sheet opens with `Notify` off, and tapping the disabled `Set` closes it. **Was 18 in the planning of it** — see *Renumbering, 2026-10-29* |
 | 18 — Published food catalogue | **DONE, device-verified** — `1.2.0` / versionCode 28; published owner catalogue overrides the bundled list, pending additions sync through the outbox, local names/hidden state stay local, and schema v4 keeps those opinions through backup/reset; **611 tests green**. Single-phone UI verified; Firebase publication and second-phone sync remain unverified. Was 19 in the planning of it |
@@ -63,7 +63,8 @@ everything after it is additive.**
 | 27 — The note on the row | **RELEASED** (`v1.7.1`, 2026-11-05) — **DONE, device-verified** — `1.7.1` / versionCode 35→36; `RowText`/`rowText` split an entry row into its record and its note, and `EntryRow` draws them as one `AnnotatedString` (`6 oz · Spit up`) in two colours, one line, ellipsised from the note; cards, both-mode cards and the `See all` list all gain it through the one shared row; **707 tests green** (4 new). No schema change, no new control — a PATCH rung |
 | 28 — Pull-to-sync | **DONE, device-verified** — `1.7.2` / versionCode 37; a pull on Today requests a drain through the existing `syncNow()` path, with a manual-only 30-second cooldown on a monotonic clock and overlapping pulls ignored; startup, sign-in, write-triggered sync, Settings → Sync now and the inbound listener are unchanged; **710 tests green** (3 new). No schema, Firestore-rule or listener change. The pass installed the release-signed APK in place, drove a pull, a repeat pull and system `BACK` out of the bottle sheet, and read zero `FATAL EXCEPTION`; the second phone was not attached, so cross-device arrival is still the standing gap |
 | 29 — Time input preference | **DONE, device-verified** — `1.8.0` / versionCode 38; `TimeOfDayDialog` opens on a stored `time.inputMode` (absent = `WHEEL`, so the scrollable wheels are the default and no phone needs a migration), the dialog's own switch writes that preference, and Settings → Units → `Time input` (`Clock` / `Wheels` / `Keypad`) shows and edits the same value through the one setter `AppRoot` provides; **714 tests green** (4 new: three in `SettingsRepositoryTest`, one on the chip labels). `TimeInputMode` moved from `ui/home` to `domain` because it is a stored value now. No schema change. This reverses Phase 21's "nothing is persisted". The pass installed the release-signed APK in place over `1.7.2`, watched the dialog open on the wheels, drove its switch to the keypad and saw Settings agree, set `Clock` from Settings and saw the dial come back, then left the phone on `Wheels`; zero `FATAL EXCEPTION` |
-| 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision:** the repository is PRIVATE, so the unauthenticated update check can never see a release — publish the repo, publish the release elsewhere, or retire the check (ADR-0003) before this phase can promise an update |
+| 30 — Haptics on the pull and the reminder's due time | **DONE, device-verified** — `1.8.1` / versionCode 39; the pull on Today answers with a buzz from `Haptics.report(outcome)` (`confirm` for `SYNCED`, the new `reject` verb — `HapticFeedbackType.Reject`, verified present in Compose UI 1.12.1 — for `COOLDOWN` / `ALREADY_RUNNING` / `NOT_SIGNED_IN`), and a reminder notification now leads with the time its alarm was ARMED for and how overdue it is (`Due 9:41 PM, 20m ago · 3h 5m since the last feed`), carried in the intent as `EXTRA_AT`; **729 tests green** (15 new: 8 dating in `ReminderTextTest`, 5 in the new `SyncHapticsTest`, 2 in `ReminderSchedulerTest`). No schema change. Settings' `Sync now` deliberately does not buzz. **The device pass did not run** — the phone was disconnected when the APK was ready — so nothing here is verified on hardware yet
+| 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision: RESOLVED 2026-11-10 — the repository is PUBLIC**, so the unauthenticated update check can read a release (verified with an unauthenticated `curl`: `releases/latest` answers `200` / `v1.7.2`). The premise this row carried for weeks — "the repository is PRIVATE, so the unauthenticated update check can never see a release" — was out of date, and was corrected when `v1.8.1` was published. What is left of Ship is delivery to the second phone and a week of use |
 
 
 **Off the ladder:** the Huckleberry import of 2026-10-28 has its own dated section below and **no row here**,
@@ -177,15 +178,23 @@ was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-10): `:app:testDebugUnitTest :app:assembleRelease` succeeded on the Phase 29 tree.
+Verified (current state, 2026-11-10): `:app:testDebugUnitTest :app:assembleDebug :app:assembleRelease` succeeded on the
+Phase 30 tree.
 The suite is
-**714/714**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
-(71 files). Phase 29 added four: three in `SettingsRepositoryTest` — the stored default is `WHEEL`, a chosen mode
-round-trips, and `clearForReset()` puts it back to `WHEEL` — and one in `WheelTimePickerTest` pinning the three
-chip labels as distinct. The artifact is `BabyLog-1.8.0.apk`, release-signed `CN=BabyLog`, SHA-256
-`7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0`, installed on `<handset>`. `1.8.0` /
-versionCode 38 went in place over `1.7.2` / 37 — `firstInstallTime` still `2026-10-29 13:16:03`, and the log's
-bottle rows were on Today afterwards. The previous close-out, for the record:
+**729/729**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(72 files). Phase 30 added fifteen: eight in `ReminderTextTest` (the due time leading, a late interval, a late and
+an on-time fixed time, lateness under a minute, a clockwise jump, the never-logged line with a due time, and the
+24-hour form), five in the new `SyncHapticsTest` (one per `ManualSyncOutcome` plus the assertion that the refusal
+is a different buzz from the confirmation), and two in `ReminderSchedulerTest` (the armed alarm carries `EXTRA_AT`,
+and a cancel leaves nothing armed). The artifact is `BabyLog-1.8.1.apk`, SHA-256
+`95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1`, release-signed `CN=BabyLog`, installed on
+`<handset>`: `1.8.1` / 39 went in place over `1.8.0` / 38, `firstInstallTime` still `2026-10-29 13:16:03`, and the
+log's bottle rows were on Today afterwards.
+The previous close-out, for the record: `:app:testDebugUnitTest :app:assembleRelease` succeeded on the Phase 29 tree
+at 714/714 in 71 files, with the new `BabyLog-1.8.0.apk` (SHA-256
+`7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0`) installed on `<handset>`: `1.8.0` / 38 went in
+place over `1.7.2` / 37, `firstInstallTime` still `2026-10-29 13:16:03`, and the log's bottle rows were on Today.
+Before that, for the record:
 `:app:testDebugUnitTest` succeeded on the Phase 28 tree at 710/710 in 71 files, run with
 `--rerun-tasks --no-build-cache` so the count was a fresh execution; the last three were the manual cooldown
 blocking a pull while automatic sync still drains, the cooldown expiring at exactly 30 seconds, and overlapping
@@ -3174,6 +3183,65 @@ which is the standing gap Phases 25, 27 and 28 all carry.
 **Not done, deliberately:** nothing was written to `docs/DECISIONS.md`. The decision this reverses is recorded in
 `AGENTS.md`'s design contract rather than in an ADR, so it was amended there in place, naming the change and its
 date — the same rule, applied to the document that actually held it.
+
+## Phase 30 — Haptics on the pull and the reminder's due time — DONE, device-verified (`1.8.1` / versionCode 39)
+
+**As built — 2026-11-10.** The two items left in `todo.txt` were both about feedback that arrives without saying
+what it means: a pull that is refused looks like a pull that did nothing until a snackbar appears, and a 9:41
+reminder that shows up at 10:01 says how long it has been since the last feed but never when it was expected.
+
+- **A fifth haptic verb, not a second meaning for an old one.** `Haptics` says in its own class comment that a
+  shared buzz carries no information, so a refusal got `reject()` — `HapticFeedbackType.Reject`, confirmed with
+  `javap` against the resolved `androidx.compose.ui:ui-android:1.12.1` AAR rather than assumed. The mapping lives in
+  `ui/common/SyncHaptics.kt` as `Haptics.report(ManualSyncOutcome)`: `SYNCED` → `confirm()`, and the three refusals →
+  `reject()`. It is a tested value for the reason `SettingsNav.back()` and `sheetSaveConfig` are.
+- **It fires on the ANSWER, never on the drag.** `PullToRefreshBox` calls back at threshold, before anything has
+  happened; the buzz sits beside `snackbarHostState.showSnackbar(result)` in the same `scope.launch`, after
+  `syncManually()` returns. Settings → `Sync now` is deliberately untouched: the todo scoped the pull, and that
+  button already has the Sync card's own message line beside it.
+- **The due time travels in the alarm intent.** `EXTRA_AT` is added where the alarm is armed and threaded
+  `ReminderScheduler` → `ReminderReceiver` → `Reminders.fire` → `ReminderNotifier.post` → `ReminderText.text`.
+  Recomputing it at fire time was rejected: the anchor moves as the log grows, and a fixed-time rule would need a
+  guess about which occurrence had just passed. `FLAG_UPDATE_CURRENT` already meant a re-arm replaces the time
+  rather than stacking a second alarm.
+- **The line leads with when it was due.** `Due 9:41 PM · 3h 5m since the last feed` on time,
+  `Due 9:41 PM, 20m ago · 3h 5m since the last feed` when late, `Reminder for 7:00 AM · 12m ago` for a fixed time.
+  Lateness is a tail for a fixed time and an attachment to the due time for an interval, because `Reminder for
+  7:00 AM` is already a sentence while `Due 9:41 PM` is a fragment needing its comma.
+- **Three guards, each a way to print a lie.** `elapsedCoarse` floors to minutes, so lateness is emitted only at 60
+  seconds or more — otherwise an alarm that rang exactly on time would say `0m ago`. A negative lateness prints
+  nothing, the same rule the future-anchor branch already follows. And an intent with no `EXTRA_AT` — an alarm
+  armed by an older build — renders the pre-Phase-30 text exactly rather than a half-new line.
+- **Health is unaffected.** The due clause carries a clock, never a medicine, so `ReminderNotificationsTest`'s
+  check against the bundled catalogue still holds; it was not relaxed.
+- **Fifteen tests.** Eight in `ReminderTextTest` (including the two guards and the degraded path), five in the new
+  `SyncHapticsTest` driving a recording `HapticFeedback`, and two in `ReminderSchedulerTest` for `EXTRA_AT`.
+
+**Device pass — 2026-11-10 — `<handset>` (SM-S918U1), 1.8.1 / code 39.** The pass ran in two sittings, because
+the phone was unplugged when the APK was first built; the second began with `adb install -r` and read back
+`versionCode=39`, `versionName=1.8.1` against an unchanged `firstInstallTime` of `2026-10-29 13:16:03`.
+
+| Check | What the phone showed |
+|---|---|
+| Installs in place, log intact | `1.8.1` / 39 over `1.8.0` / 38; Today still held Kai `4 oz` at 2:09 PM, Levi `5 oz` at 2:07 PM and the morning rows |
+| Foreground asserted before input | `topResumedActivity=app.babylog/.MainActivity` at every step; every tap taken from a `uiautomator dump` bounds box |
+| An interval reminder names its armed time | The two bottle rules already armed for 8:16 PM re-posted at 8:20 and 8:32 as `Kai · Bottle feed` / `Due 8:32 PM · 6h 23m since the last feed`, read from `dumpsys notification --noredact` and from the shade itself |
+| A fixed-time reminder names its armed time | A `Remind at` rule set to 8:30 PM on the Diaper card posted `Kai · Diaper` / `Reminder for 8:30 PM`, with `dumpsys alarm` showing `origWhen=2026-11-10 20:30:00.000 window=0` before it fired |
+| A refusal buzzes differently from a success | `dumpsys vibrator_manager`, `usage: TOUCH \| app.babylog`: `20:32:17 performHapticFeedback(constant=17)` 290ms `mType 50029` (the cooldown pull, snackbar `Please wait before syncing again.`) against `20:32:44 performHapticFeedback(constant=16)` 123ms `mType 50025` (the next pull, snackbar `Up to date.`) |
+| The stale notification is cleared | Removing the test rule through the sheet's `Remove notification` took its 8:30 PM notification out of the shade |
+| No crash | `logcat -b crash -d` empty and no `FATAL EXCEPTION` in the main buffer |
+
+**Not verified on the phone: the late shape.** `Due 9:41 PM, 20m ago · …` needs an alarm delivered at least a
+minute after it was armed. This phone is plugged in, awake and exact (`exactAllowReason=policy_permission`), `date
+-s` answers `Operation not permitted` without root, and `cmd appops set app.babylog SCHEDULE_EXACT_ALARM ignore`
+left the op at `default` — so making an alarm late on purpose would have meant leaving the family phone's clock
+alone or wrong, and neither is worth an unused branch. The lateness clause therefore rests on the unit tests
+(`a late interval reminder says how overdue it is`, `a fixed-time reminder that rang late says how late`, the
+sub-minute guard and the backwards-clock guard), not on a frame. The standing second-phone gap is unchanged.
+
+**Phone state left behind.** The two bottle rules the owner had were never edited — the test rule went on Diaper
+precisely so it could not overwrite one — and it was deleted afterwards, so nothing this pass created is still
+armed.
 
 ## Changing this app after v1 ships
 

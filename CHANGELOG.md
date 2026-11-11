@@ -22,10 +22,12 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 **In short:**
 
 - **The time dialog opens on the wheels, and remembers whichever of its three inputs the parent last used.**
+- **A pull on Today now buzzes its answer, and a reminder says the time it was due and how late it is.**
 
 ### Versions
 
 - `1.8.0` / versionCode 38 — Phase 29 time input preference; MINOR because a stored display preference is a capability the app did not have, and it reverses Phase 21's "nothing is persisted".
+- `1.8.1` / versionCode 39 — Phase 30, the pull's buzz and the reminder's due time; PATCH because a fifth haptic verb and a second clause on a notification change no stored byte, no control and no schema.
 
 ### Added
 
@@ -47,6 +49,43 @@ per day the work landed, instead of everything accumulating in one unreleased bl
   `Time` opened on the wheels; the switch carried the dialog to the keypad and the reopened dialog stayed there; Settings
   → Units read `Keypad`; setting `Clock` there brought the dial back; the switch then put the phone back on `Wheels`.
   `logcat -b crash -d` was empty throughout.
+
+### Added (Phase 30)
+
+- **A fifth haptic verb, `reject()`, and the pull's answer mapped onto it.** `Haptics.report(ManualSyncOutcome)` gives
+  `confirm()` to `SYNCED` and `reject()` to `COOLDOWN`, `ALREADY_RUNNING` and `NOT_SIGNED_IN`; `reject()` is
+  `HapticFeedbackType.Reject`, which this build's Compose UI (1.12.1) really has. It fires on the answer, never on the
+  drag, and Settings → `Sync now` is untouched.
+- **A reminder notification leads with the time its alarm was armed for**, and says how overdue it is when it is late:
+  `Due 9:41 PM · 3h 5m since the last feed`, `Due 9:41 PM, 20m ago · 3h 5m since the last feed`,
+  `Reminder for 7:00 AM · 12m ago`. The armed time rides in the alarm intent as `EXTRA_AT`, so the figure is what the
+  phone was told rather than a recomputation that could disagree with it. Lateness under a minute prints nothing, a
+  backwards clock change prints nothing, and an alarm with no armed time keeps the old line exactly.
+- **Fifteen tests**, 729/729 in 72 files read from `app/build/test-results/testDebugUnitTest/*.xml`: eight in
+  `ReminderTextTest`, five in the new `SyncHapticsTest`, two in `ReminderSchedulerTest`.
+
+- **Device pass, 2026-11-10, second sitting.** The release-signed `BabyLog-1.8.1.apk` went in place over `1.8.0`:
+  `versionCode=39`, `versionName=1.8.1`, `firstInstallTime` still `2026-10-29 13:16:03`, log intact. The shade read
+  `Kai · Bottle feed` / `Due 8:32 PM · 6h 23m since the last feed`, and a `Remind at` rule set to 8:30 PM posted
+  `Reminder for 8:30 PM`. `dumpsys vibrator_manager` recorded `performHapticFeedback(constant=17)` 290ms after the
+  cooldown pull and `constant=16` 123ms after the one that synced — two different buzzes, in the system's own
+  words. The test rule was removed afterwards and its notification left the shade with it. `logcat -b crash -d`
+  was empty.
+
+### Not verified
+
+- **The late reminder line** (`Due 9:41 PM, 20m ago · …`) has no device evidence: an alarm only reads as late if it
+  is delivered a minute or more after it was armed, and this phone is awake, plugged in and exact — `date -s` is
+  `Operation not permitted` without root and the exact-alarm appop does not move. Seven unit tests cover it.
+
+### Released
+
+- **Published as GitHub release `v1.8.1`** with `BabyLog-1.8.1.apk` attached (14 781 151 bytes, sha256
+  `95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1`), the same file the phone installed. While
+  cutting it, `docs/release-signing.md` was brought up to date: it still described the App Distribution upload as
+  the delivery, which ADR-0001's 2026-11-04 amendment had already retired, and `PLAN.md` row 25's standing "the
+  repository is PRIVATE" premise was corrected — an unauthenticated `curl` against `releases/latest` answers `200`
+  for `v1.7.2`, so the update check can see a release.
 
 ### Changed
 

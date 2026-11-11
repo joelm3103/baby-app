@@ -77,51 +77,65 @@ password instead.
 
 ## Delivering a build
 
-Delivery is a **manual** upload to Firebase App Distribution — no Gradle plugin, no service-account key, no
-`firebase-tools`. The app ships once every few weeks, so a repeatable command was not worth a second
-long-lived secret to guard.
+**The GitHub release IS the delivery** (ADR-0001's 2026-11-04 amendment, which retired the Firebase App
+Distribution upload). A tag carrying the signed APK is what a phone installs from, so there is no console
+trip, no CLI plugin and no second long-lived secret to guard for a build that ships once every few weeks.
+Nothing here is a rebuild: the APK attached to the release is the file `apksigner` verified, byte for byte,
+because a second build signed by the same key is still a different file and its digest would not match the
+one recorded below.
 
-1. Build and verify as above.
-2. Firebase console → **App Distribution** → the `app.babylog` Android app → **Testers & Groups**: both
-   accounts are invited once and stay invited.
-3. **Distribute** → upload `app/build/outputs/apk/release/BabyLog-1.7.0.apk`, add release notes, distribute.
-4. Each phone opens the App Distribution email or notification and installs over the air. `dumpsys package
-   app.babylog` then names what landed.
+1. Build and verify as above (`:app:testDebugUnitTest :app:assembleRelease`, then `apksigner verify`).
+2. **Install it on the phone first** (`adb install -r`) and let the app report its version — a tag is cut on
+   a delivered build, never on a green compile.
+3. Cut the tag and create the release with the artifact attached:
 
-App Distribution is also what makes `versionCode` mean something beyond history: it compares the number to
-decide whether a build is newer, which is why it only ever rises.
+   ```bash
+   sha256sum app/build/outputs/apk/release/BabyLog-1.8.1.apk
+   git tag -a v1.8.1 -m "1.8.1 — <one line on what shipped>"
+   git push origin v1.8.1
+   gh release create v1.8.1 app/build/outputs/apk/release/BabyLog-1.8.1.apk \
+       --title 1.8.1 --notes-file /tmp/notes.md
+   ```
 
-### The release page carries a copy, and it is not a second process
+   The notes say what changed and **quote the digest**, so a phone's copy can be compared against the page
+   before installing:
 
-The GitHub release for a tag holds the same signed APK — for `v1.0.0` that is `baby-log-v1.0.0.apk`,
-14 675 571 bytes, `sha256:4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca`. It exists for the
-case the console cannot serve — a replacement phone, a tester never invited — and **not** as the way to ship
-the next build: version comparison, the tester list and "something newer exists" all live in App Distribution.
+   ```bash
+   gh release view v1.8.1 --json assets --jq '.assets[] | "\(.name) \(.size) \(.digest)"'
+   ```
+4. Each phone updates in place from the release page (`adb install -r`, or the download plus the system
+   installer). Uninstalling first is what discards the log — never do it to make a build fit.
 
-Because the same APK now sits in two places, the digest is what makes them comparable. Check it before
-installing from the release page:
+### Released artifacts
 
-```bash
-gh release view v1.0.0 --json assets --jq '.assets[] | "\(.name) \(.size) \(.digest)"'
-# baby-log-v1.0.0.apk 14675571 sha256:4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca
-```
+Recorded so a phone's copy can be checked against the page. Every file is signed by the certificate above.
 
-A rebuild from the same source would be signed by the same key but would **not** be byte-identical, so a
-matching digest is the only proof that the file is the one that was released. Record each future release's
-digest beside its asset.
+| Tag | Asset | Bytes | sha256 |
+|---|---|---|---|
+| `v1.0.0` | `baby-log-v1.0.0.apk` | 14 675 571 | `4dac7cfb823a1c61d532a21a9226783aa1c0941ac5576d319de26c4f23b43bca` |
+| `v1.7.1` | `BabyLog-1.7.1.apk` | 14 781 151 | `65fbd2f3257b036afe74bbfbca1450c98cc50f3aa5501f3bb3410c862f21db2a` |
+| `v1.7.2` | `BabyLog-1.7.2.apk` | 14 781 151 | `d41b0c2d8936022904233803d68140b33c6460bdbd084c5cd0c0dc56db6cffda` |
+| `v1.8.0` | — never released; superseded the same day it was built | 14 781 151 | `7dca5480bbab07bb3af4c9efbfa81f93279ef45276d6dbc7571335ecb0f72be0` |
+| `v1.8.1` | `BabyLog-1.8.1.apk` | 14 781 151 | `95496bbb98417bbe41fd2e8bdfae4712fd6c19eef4e6fe151a863ccae11004c1` |
 
-**Moving a phone onto the release key**, which happens exactly once per phone: drain the queue (`Sync now`
-until 0), **Export** a backup off the device, let the old build be uninstalled (the signature changed, so
-the installer refuses to update it in place), install from App Distribution, sign in, and let the log
-re-pull. Import the export only if the count comes back short.
+### App Distribution is retired
+
+Uploading to Firebase App Distribution is no longer the channel, so "a build that was not uploaded through
+the console has not been delivered" is retired with it: a release page with the artifact and its digest is
+the delivery. `versionCode` still only ever rises, and nothing automates the comparison any more — which is
+exactly why the number must not be handled loosely.
+
+The app's own update check (ADR-0003) reads the newest release from GitHub once a day and can offer its
+page; nothing is downloaded or installed by the app. The repository is **public**, verified 2026-11-10 by an
+unauthenticated `curl` (`releases/latest` answers `200` with `tag_name v1.7.2`), so the check can see a
+release — which is the premise ADR-0003 has always assumed and the one thing a release must not break by
+turning the repository private again.
 
 ## Cutting a tag
 
-`v1.0.0` is cut **on the delivered build**, after a phone reports `versionCode 26` — never before. Tags are
-for releases only; a phase ending is not a release, which is why every rung from `0.1.0` to `0.19.0` is
-untagged.
+A tag is cut **on a delivered build**, after a phone reports its version — never when a phase ends. That is
+why every rung from `0.1.0` to `1.7.0` is untagged while `v1.0.0`, `v1.7.1`, `v1.7.2` and `v1.8.1` exist:
+the difference is a release page holding a file a phone has run, not the size of the work. A build that was
+delivered but never tagged leaves a gap in the ladder above, and a build tagged before it reached a phone
+puts a version on the page that nobody has executed.
 
-```bash
-git tag -a v1.0.0 -m "1.0.0 — first release, delivered through App Distribution"
-git push origin v1.0.0      # with the merge, and only on approval
-```

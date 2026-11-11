@@ -718,6 +718,36 @@ check: the sheet closes, Today returns, and the log is byte-for-byte the same ni
 ![04-pull-in-progress.png](2026-11-07-phase28/04-pull-in-progress.png)
 ![06-cooldown.png](2026-11-07-phase28/06-cooldown.png)
 
+| 42 | The pull's answer and the reminder's due time (Phase 30) | `feat/phase30-haptics-and-due-times` | [01-today-after-install](2026-11-10-phase30/01-today-after-install.png) [02-reminder-sheet](2026-11-10-phase30/02-reminder-sheet.png) [03-diaper-rule-at-830](2026-11-10-phase30/03-diaper-rule-at-830.png) [04-pull-refused-cooldown](2026-11-10-phase30/04-pull-refused-cooldown.png) [05-pull-up-to-date](2026-11-10-phase30/05-pull-up-to-date.png) [06-shade-due-times](2026-11-10-phase30/06-shade-due-times.png) |
+
+### 42 - The pull's answer and the reminder's due time (Phase 30, `1.8.1` / code 39)
+
+**Changed:** A pull on Today now buzzes its answer — one buzz for a completed sync, a different one for a refusal
+— and a reminder notification leads with the time its alarm was armed for: `Due 8:32 PM · 6h 23m since the last
+feed` rather than a bare interval with the last log's clock.
+
+**Why:** A refusal and a success looked the same until the snackbar drew, and a reminder that arrived late never
+said so. The two shapes are in `04` and `05`: the same gesture, two sentences, and `dumpsys vibrator_manager`
+records `performHapticFeedback(constant=17)` at 20:32:17 (290ms, `mType 50029`) against
+`constant=16` at 20:32:44 (123ms, `mType 50025`) — the system's own account of two different buzzes, which is the
+one thing a screenshot cannot show. `06` is the shade with the real line.
+
+**What the pass did NOT reach:** the LATE shape (`Due 9:41 PM, 20m ago · …`). Producing it needs an alarm
+delivered at least a minute after it was armed, and this phone is plugged in, awake and exact; `date -s` answers
+`Operation not permitted` and `cmd appops set … SCHEDULE_EXACT_ALARM ignore` does not take, so there was no way to
+make the alarm late on purpose without leaving the family phone's clock alone. The lateness clause is covered by
+seven unit tests and by no frame here.
+
+**Housekeeping:** the fixed-time rule the pass created was REMOVED from the Diaper card afterwards through the
+sheet's own `Remove notification`, and the notification it had posted left the shade when the rule went — the
+Phase 20 clearing rule doing its job on the way out. The two bottle rules the owner already had were never
+touched: the test went on Diaper precisely so it could not overwrite one of them.
+
+![01-today-after-install.png](2026-11-10-phase30/01-today-after-install.png)
+![03-diaper-rule-at-830.png](2026-11-10-phase30/03-diaper-rule-at-830.png)
+![04-pull-refused-cooldown.png](2026-11-10-phase30/04-pull-refused-cooldown.png)
+![06-shade-due-times.png](2026-11-10-phase30/06-shade-due-times.png)
+
 ## Adding an entry
 
 1. Capture with `scripts/capture-timeline.ps1 -Label <stage-name>` - it installs the current APK,
