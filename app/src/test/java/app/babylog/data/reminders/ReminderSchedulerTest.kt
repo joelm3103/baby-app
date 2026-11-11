@@ -112,6 +112,34 @@ class ReminderSchedulerTest {
     }
 
     @Test
+    fun `the armed alarm carries the time it is due, so the notification can say how late it is`() =
+        kotlinx.coroutines.runBlocking {
+            // Phase 30: the due time travels in the intent rather than being recomputed when it fires, because
+            // the anchor moves as the log grows and a recomputation could disagree with what the phone was told.
+            val key = ReminderKey(EventType.BOTTLE, first.id)
+            engine(
+                configs = mapOf(key to ReminderConfig(enabled = true, intervalMinutes = 180)),
+                anchors = mapOf((EventType.BOTTLE to first.id) to anchor),
+            ).refresh()
+
+            val armed = shadowOf(alarmManager()).nextScheduledAlarm
+            assertNotNull("the alarm should be armed", armed)
+            val armedIntent = shadowOf(armed!!.operation).savedIntent
+            assertEquals(
+                at("2026-10-24", "12:00"),
+                armedIntent.getLongExtra(ReminderReceiver.EXTRA_AT, 0L),
+            )
+        }
+
+    @Test
+    fun `cancelling a reminder leaves no armed time behind`() = kotlinx.coroutines.runBlocking {
+        // The cancel path passes 0 through the same builder, and an extra of 0 must never reach a notification:
+        // the receiver reads it as "unknown" so the text degrades rather than claiming 1970.
+        ReminderScheduler(context).cancel(ReminderKey(EventType.BOTTLE, first.id))
+        assertEquals(0, scheduledCount())
+    }
+
+    @Test
     fun `each child gets its own alarm from its own anchor`() = kotlinx.coroutines.runBlocking {
         engine(
             configs = mapOf(

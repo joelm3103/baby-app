@@ -39,13 +39,79 @@ class ReminderTextTest {
 
     @Test
     fun `an interval reminder says how long and since when`() {
-        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, now, zone, TimeFormat.TWELVE_HOUR)
+        // Degraded on purpose: an alarm with NO armed time keeps exactly the line it had before Phase 30, where
+        // the clock was the last log's.
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, null, now, zone, TimeFormat.TWELVE_HOUR)
         assertEquals("3h 5m since the last feed \u00b7 9:00 AM", text)
+    }
+
+    // ---- Phase 30: the due time, and how overdue it is ---------------------
+
+    @Test
+    fun `an interval reminder leads with the time it was due`() {
+        val due = at("2026-10-24", "12:05")
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, due, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Due 12:05 PM \u00b7 3h 5m since the last feed", text)
+    }
+
+    @Test
+    fun `a late interval reminder says how overdue it is, after the due time`() {
+        val due = at("2026-10-24", "12:00")
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, due, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Due 12:00 PM, 5m ago \u00b7 3h 5m since the last feed", text)
+    }
+
+    @Test
+    fun `a fixed-time reminder that rang late says how late`() {
+        val due = at("2026-10-24", "12:00")
+        val text = ReminderText.text(fixed, EventType.DIAPER, anchor, due, now, zone, TimeFormat.TWELVE_HOUR)
+        // A tail rather than an attachment: `Reminder for 12:00 PM` is already a complete sentence.
+        assertEquals("Reminder for 12:00 PM \u00b7 5m ago", text)
+    }
+
+    @Test
+    fun `a fixed-time reminder that rang on time says nothing about lateness`() {
+        val text = ReminderText.text(fixed, EventType.DIAPER, anchor, now, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Reminder for 12:05 PM", text)
+    }
+
+    @Test
+    fun `lateness under a minute prints nothing rather than zero minutes`() {
+        // `elapsedCoarse` floors to whole minutes, so without the guard an alarm that rang on time reads
+        // `0m ago`, which is a bug the parent sees on the notification that arrived exactly as promised.
+        val justNow = now - 30_000L
+        val interval = ReminderText.text(afterLast, EventType.BOTTLE, anchor, justNow, now, zone, TimeFormat.TWELVE_HOUR)
+        val fixedTime = ReminderText.text(fixed, EventType.DIAPER, anchor, justNow, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Due 12:04 PM \u00b7 3h 5m since the last feed", interval)
+        assertEquals("Reminder for 12:04 PM", fixedTime)
+    }
+
+    @Test
+    fun `a clock change that puts the due time ahead claims no lateness`() {
+        // Same rule as the future-anchor branch: never claim an interval that has not elapsed.
+        val ahead = now + 60_000L
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, ahead, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Due 12:06 PM \u00b7 3h 5m since the last feed", text)
+    }
+
+    @Test
+    fun `an interval with no log still names when it was due`() {
+        // A due time is a second FACT, so it does not turn the honest line back into an instruction.
+        val due = at("2026-10-24", "12:00")
+        val text = ReminderText.text(afterLast, EventType.DIAPER, null, due, now, zone, TimeFormat.TWELVE_HOUR)
+        assertEquals("Due 12:00 PM, 5m ago \u00b7 No nappy logged yet", text)
+    }
+
+    @Test
+    fun `the due time is shown in the parent's clock format`() {
+        val due = at("2026-10-24", "12:00")
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, due, now, zone, TimeFormat.TWENTY_FOUR_HOUR)
+        assertEquals("Due 12:00, 5m ago \u00b7 3h 5m since the last feed", text)
     }
 
     @Test
     fun `the same text in 24-hour form`() {
-        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, now, zone, TimeFormat.TWENTY_FOUR_HOUR)
+        val text = ReminderText.text(afterLast, EventType.BOTTLE, anchor, null, now, zone, TimeFormat.TWENTY_FOUR_HOUR)
         assertEquals("3h 5m since the last feed \u00b7 09:00", text)
     }
 
@@ -63,7 +129,7 @@ class ReminderTextTest {
     fun `a fixed-time reminder says which time it is for`() {
         assertEquals(
             "Reminder for 12:05 PM",
-            ReminderText.text(fixed, EventType.DIAPER, anchor, now, zone, TimeFormat.TWELVE_HOUR),
+            ReminderText.text(fixed, EventType.DIAPER, anchor, null, now, zone, TimeFormat.TWELVE_HOUR),
         )
     }
 
@@ -72,7 +138,7 @@ class ReminderTextTest {
         // Phase 14 deferred this wording as A3 and kept it, because the old line was honest about there being no
         // interval. It was not honest about the word: `Time to log solid` / `Time to log diaper` came from
         // `displayName()` lowercased rather than from `noun()`, so it also called a nappy a diaper.
-        val text = ReminderText.text(afterLast, EventType.SOLIDS, anchorMs = null, now, zone, TimeFormat.TWELVE_HOUR)
+        val text = ReminderText.text(afterLast, EventType.SOLIDS, anchorMs = null, armedAtMs = null, now, zone, TimeFormat.TWELVE_HOUR)
         assertEquals("No solids logged yet", text)
     }
 
@@ -87,7 +153,7 @@ class ReminderTextTest {
             EventType.HEALTH to "No health entry logged yet",
         )
         expected.forEach { (type, line) ->
-            val text = ReminderText.text(afterLast, type, anchorMs = null, now, zone, TimeFormat.TWELVE_HOUR)
+            val text = ReminderText.text(afterLast, type, anchorMs = null, armedAtMs = null, now, zone, TimeFormat.TWELVE_HOUR)
             assertEquals(line, text)
             assertTrue("$type must not claim an interval it cannot measure: $text", !text.contains("since"))
             assertTrue("$type must not reuse the old instruction: $text", !text.startsWith("Time to log"))
@@ -98,7 +164,7 @@ class ReminderTextTest {
     fun `an anchor later than now claims no interval, because none has elapsed`() {
         // Only reachable through a clock change, and saying "No nappy logged yet" there would be false.
         val later = at("2026-10-24", "13:00")
-        val text = ReminderText.text(afterLast, EventType.DIAPER, later, now, zone, TimeFormat.TWELVE_HOUR)
+        val text = ReminderText.text(afterLast, EventType.DIAPER, later, null, now, zone, TimeFormat.TWELVE_HOUR)
         assertEquals("Logged for 1:00 PM", text)
     }
 
@@ -113,14 +179,17 @@ class ReminderTextTest {
     @Test
     fun `every activity and both modes produce a sentence, and health never mentions a medicine`() {
         EventType.entries.forEach { type ->
-            listOf(afterLast, fixed).forEach { config ->
-                val text = ReminderText.text(config, type, anchor, now, zone, TimeFormat.TWELVE_HOUR)
-                assertTrue("$type/$config produced an empty line", text.isNotBlank())
-                assertTrue("$type/$config should not be shouted", !text.contains("!"))
-                if (type == EventType.HEALTH) {
-                    // The activity, not a medicine: this is the rule AGENTS.md sets, restated at the text layer.
-                    assertTrue("a health reminder must not name a medicine: $text", !text.contains("Calpol"))
-                    assertTrue("a health reminder must not name a medicine: $text", !text.contains("ml"))
+            // Both shapes: an alarm with no armed time, and one that knows when it was due.
+            listOf(null, now).forEach { armedAt ->
+                listOf(afterLast, fixed).forEach { config ->
+                    val text = ReminderText.text(config, type, anchor, armedAt, now, zone, TimeFormat.TWELVE_HOUR)
+                    assertTrue("$type/$config produced an empty line", text.isNotBlank())
+                    assertTrue("$type/$config should not be shouted", !text.contains("!"))
+                    if (type == EventType.HEALTH) {
+                        // The activity, not a medicine: this is the rule AGENTS.md sets, restated at the text layer.
+                        assertTrue("a health reminder must not name a medicine: $text", !text.contains("Calpol"))
+                        assertTrue("a health reminder must not name a medicine: $text", !text.contains("ml"))
+                    }
                 }
             }
         }
