@@ -65,6 +65,7 @@ everything after it is additive.**
 | 29 — Time input preference | **DONE, device-verified** — `1.8.0` / versionCode 38; `TimeOfDayDialog` opens on a stored `time.inputMode` (absent = `WHEEL`, so the scrollable wheels are the default and no phone needs a migration), the dialog's own switch writes that preference, and Settings → Units → `Time input` (`Clock` / `Wheels` / `Keypad`) shows and edits the same value through the one setter `AppRoot` provides; **714 tests green** (4 new: three in `SettingsRepositoryTest`, one on the chip labels). `TimeInputMode` moved from `ui/home` to `domain` because it is a stored value now. No schema change. This reverses Phase 21's "nothing is persisted". The pass installed the release-signed APK in place over `1.7.2`, watched the dialog open on the wheels, drove its switch to the keypad and saw Settings agree, set `Clock` from Settings and saw the dial come back, then left the phone on `Wheels`; zero `FATAL EXCEPTION` |
 | 30 — Haptics on the pull and the reminder's due time | **DONE, device-verified** — `1.8.1` / versionCode 39; the pull on Today answers with a buzz from `Haptics.report(outcome)` (`confirm` for `SYNCED`, the new `reject` verb — `HapticFeedbackType.Reject`, verified present in Compose UI 1.12.1 — for `COOLDOWN` / `ALREADY_RUNNING` / `NOT_SIGNED_IN`), and a reminder notification now leads with the time its alarm was ARMED for and how overdue it is (`Due 9:41 PM, 20m ago · 3h 5m since the last feed`), carried in the intent as `EXTRA_AT`; **729 tests green** (15 new: 8 dating in `ReminderTextTest`, 5 in the new `SyncHapticsTest`, 2 in `ReminderSchedulerTest`). No schema change. Settings' `Sync now` deliberately does not buzz. The pass installed the release-signed APK in place over `1.8.0` (39 over 38, `firstInstallTime` unchanged), read the new line out of the shade (`Due 8:32 PM · 6h 23m since the last feed`) and out of a fired fixed-time rule (`Reminder for 8:30 PM`), and saw two different platform constants in `dumpsys vibrator_manager` for a refused pull (`constant=17`, 290 ms) and a synced one (`constant=16`, 123 ms); zero `FATAL EXCEPTION`. The late clause (`20m ago`) is unit-tested only — an alarm cannot be made late on a phone that is awake, exact and not rooted
 | 31 — The About row after an update | **DONE, device-verified** — `1.8.2` / versionCode 40; the row compared nothing with the installed build, so a parent who updated FROM About was told for up to a day that the version they had just installed was available, and the button that would have asked again had become `Open the release`. `UpdateStatus.offersNewerThan(currentVersion)` now decides both the line and the button, and an `AVAILABLE` the installed build has caught up with reads as up to date with the check's age intact; **734 tests green** (5 new in `UpdateCopyTest`). No schema change, no new stored byte — a PATCH rung. The pass went from `1.8.1` to `1.8.2` in place (40 over 39, `firstInstallTime` unchanged), and the A/B was made possible by publishing `v1.8.2` first: the OLD build stored `BabyLog 1.8.2 is available.` / `Open the release`, and the fixed build, reading that same stored answer with no new check (`checked 3m ago`, from before the install), read `Up to date` / `Check now` |
+| 32 — The reminder sound row | **CODE COMPLETE, DEVICE PASS PENDING** — `1.8.3` / versionCode 41; Settings grows a twelfth group, `Notifications`, whose one row names the `reminders` channel's sound and opens Android's own page for that channel. The app cannot offer a picker: a channel's sound is fixed when the channel is created, so a chosen sound means a new channel id, and a picked file URI is played by the system rather than by this app and falls back to silence when its grant lapses (ADR-0007). One channel, one unchanged notification, no stored byte, no schema — a PATCH rung. **739 tests green** (5 new in `NotificationSoundTest`, and `SettingsNavTest` now pins twelve groups). The row re-reads the state on `ON_RESUME`, because a stored answer outliving the thing it is about is exactly Phase 31's defect. No phone was attached on 2026-11-23, so the pass is outstanding |
 | 25 — Ship | not started — publish the Phase 18 Firestore rules/catalogue, deliver the landed release as a GitHub Release to both phones (done for `v1.7.1` on this phone only, 2026-11-05), verify the shared catalogue and the update row on both, then use it for a week before more code. Was 20, then 21, then 22, then 23, then 24. **Open decision: RESOLVED 2026-11-10 — the repository is PUBLIC**, so the unauthenticated update check can read a release (verified with an unauthenticated `curl`: `releases/latest` answers `200` / `v1.7.2`). The premise this row carried for weeks — "the repository is PRIVATE, so the unauthenticated update check can never see a release" — was out of date, and was corrected when `v1.8.1` was published. What is left of Ship is delivery to the second phone and a week of use |
 
 
@@ -179,9 +180,19 @@ was already v5, so it was cleared and its log restored from an export.
 Test counts in the table are the suite size **when that phase landed**, so they trail the live total
 below — Phase 11 landed at 308, for instance. They are evidence at the time, not a running count.
 
-Verified (current state, 2026-11-10): `:app:testDebugUnitTest :app:assembleDebug :app:assembleRelease` succeeded on the
-Phase 31 tree.
+Verified (current state, 2026-11-23): `:app:testDebugUnitTest :app:assembleRelease` succeeded on the Phase 32 tree.
 The suite is
+**739/739**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
+(73 files). Phase 32 added five, all in `NotificationSoundTest`: no channel reads as managed by Android, a channel
+with no sound is silent, the system sound is the default, any other sound is custom, and an unreadable default never
+turns a chosen sound into the default. `SettingsNavTest` was updated rather than extended — it pins the menu's twelve
+names in order, so a new group is a deliberate edit to the record and not a silent extra row. The artifact is
+`BabyLog-1.8.3.apk`. **Its device pass has not happened**: no phone was attached on 2026-11-23, so nothing below this
+line yet describes this build, and the row above says so.
+
+Phase 31's close-out, for the record: `:app:testDebugUnitTest :app:assembleDebug :app:assembleRelease` succeeded on the
+Phase 31 tree.
+The suite was
 **734/734**, 0 failures, 0 errors and 0 skipped, summed from `app/build/test-results/testDebugUnitTest/*.xml`
 (72 files). Phase 31 added five, all in `UpdateCopyTest`: the version just installed is not offered, a build newer
 than the stored answer is up to date, a genuinely newer release is still offered, the line and the button agree on
@@ -3294,6 +3305,53 @@ fixed build was installed over it.
 **Not verified on the phone:** the case where a genuinely newer release is offered *after* this fix (the offer path
 itself is unchanged code, and `1.8.2` was newest by then), and the second handset — it is the phone that reported the
 bug, so the fix's A/B was reproduced on the first one instead.
+
+---
+
+## Phase 32 — The reminder sound row — CODE COMPLETE, DEVICE PASS PENDING (`1.8.3` / versionCode 41)
+
+**As built — 2026-11-23.** The owner asked whether a notification could be "custom", then chose *let me pick the
+sound* delivered through **Android's own channel settings** rather than a picker inside the app.
+
+- **Why the app cannot pick a sound, and why that is not laziness.** A `NotificationChannel`'s sound is fixed when the
+  channel is created: `setSound` on an existing channel is ignored, and re-creating the same id cannot move it. So an
+  in-app picker means either N channels (one per offered sound, chosen up front, never renamable, four or six extra
+  entries in the system's list for a two-parent app) or a persisted `content://` URI, which the **system** plays in
+  another process — the day that grant lapses, reminders go silent with no error anywhere. Both are worse than one row
+  that opens the page the parent was going to be sent to anyway, and that page offers every sound on the phone rather
+  than the three a bundle could hold. ADR-0007 is the record.
+- **`SettingsSection.NOTIFICATIONS`, the twelfth group**, placed after `Activities` and before `Data`. A group rather
+  than a row inside Activities because the two questions are different kinds: a rule is per child and set from that
+  child's card, while the sound belongs to the one channel both children post on. Putting the sound under Activities
+  would invite it to be read as a per-activity setting.
+- **The row is a READ, and the read is the feature.** `domain/NotificationSound.kt` is a pure mapping —
+  `notificationSoundState(channelExists, soundUri, defaultUri)` — into four states: `Silent` (the channel's sound is
+  null), `Android's default` (it equals `Settings.System.DEFAULT_NOTIFICATION_URI`), `Custom` (anything else) and
+  `Managed by Android` (no channel below API 26, or a read that failed). Strings rather than `Uri`, so it is
+  JVM-testable with no device; the `NotificationManager` half lives in `ReminderNotifications.notificationSound()`,
+  behind the existing `ReminderNotifier` interface, with a pass-through on `Reminders` beside `ensureChannel()`.
+- **The chain, because a dead row is worse than no row.** `ACTION_CHANNEL_NOTIFICATION_SETTINGS` with
+  `EXTRA_APP_PACKAGE` + `EXTRA_CHANNEL_ID` is the page that lands on the right toggle, but some OEM builds do not
+  publish an activity for it, so `ACTION_APP_NOTIFICATION_SETTINGS` is tried next and `ACTION_APPLICATION_DETAILS_SETTINGS`
+  last — each only when `packageManager.resolveActivity` finds nothing, all inside `runCatching`, all with
+  `FLAG_ACTIVITY_NEW_TASK`, the same shape as the existing permission fallback in `onRequestNotifications`.
+- **The state is re-read on `ON_RESUME`, and that is Phase 31's lesson applied in advance.** The sound is the one value
+  on the Settings screen the app cannot set, so it is the one value that can change while the screen is open. A row
+  that kept saying `Android's default` after the parent had picked a tone would be the About row's defect again: a
+  conclusion drawn at launch, outliving the thing it described. It is also read once at startup, so a menu summary is
+  never drawn on the placeholder.
+- **What did not change:** `CHANNEL_ID` is still `"reminders"`, created once with `IMPORTANCE_DEFAULT`; what is posted,
+  when, its text, its bell icon, its accent, its ids; the four reminder-capable activities; rules still set from a
+  card's `⋮` per child; reminders still per-device and unsynced; `POST_NOTIFICATIONS` handling untouched. No schema, no
+  stored preference, no export change.
+- **Accepted limitation, from the platform and not from this app:** the choice is per device, and a reinstall — or
+  Android disregarding a channel's stored sound — can return it to the system default. The app will then say
+  `Android's default` rather than pretend otherwise, which is the same rule Trends follows for a day with no records.
+
+**Device pass outstanding.** No phone was attached when this landed, so the row, the deep link, the three-step
+fallback and the `ON_RESUME` re-read are unconfirmed on hardware. What the pass must show is in the changelog entry for
+2026-11-23: the channel page opened directly (not the app info page), the row naming the new sound after BACK, and zero
+`FATAL EXCEPTION`.
 
 ## Changing this app after v1 ships
 

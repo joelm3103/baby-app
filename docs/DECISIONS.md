@@ -336,3 +336,50 @@ accumulate silently rather than to a string somebody typed.
 - **Any other clone must be re-cloned, not pulled.** There is no collaborator clone today.
 - **The uids are read from the password manager and a local, gitignored `firebase/firestore.rules`**, never from
   the repository. `firebase/firestore.rules.example` is the template and the only copy that is published.
+
+## ADR-0007 — The reminder sound belongs to Android, and the app keeps one channel
+
+**Decision.** BabyLog does not implement a notification-sound picker. The `reminders` notification channel keeps
+its single id, created once with `IMPORTANCE_DEFAULT`, and the app never writes its sound again. Settings →
+Notifications carries one read-only row that names the channel's current state — `Silent`, `Android's default`,
+`Custom` or `Managed by Android` — and opens Android's own page for that channel
+(`ACTION_CHANNEL_NOTIFICATION_SETTINGS` with `EXTRA_CHANNEL_ID`), falling back to the app's notification page and
+then to the app's info page when an OEM build publishes no activity for the first.
+
+**Why.** The obvious alternative — bundle three or five tones and let the parent pick one in the app — cannot be
+built honestly on API 26+, and the two reasons are measured rather than aesthetic.
+
+- **A channel's settings are immutable after creation.** `NotificationChannel.setSound` on an existing channel is
+  ignored, and re-creating the channel under the same id cannot move its sound either. An in-app list therefore has
+  to be *N channels*, one per offered tone, whose ids are chosen the first time the app runs and can never be
+  renamed or reordered. That puts three to five permanent entries in the system's notification list for a
+  two-parent app whose only real choice is "should a nappy reminder make a noise at 3 a.m.".
+- **A picked file's URI is played by the system, not by the app.** A `content://` sound chosen through the document
+  picker is stored on the channel and played by the notification process, so this app is not the reader of the file
+  it points at. Persistable grants survive reboots but not the provider revoking them, a file that moves, or a
+  reinstall — and when the grant is gone the reminder goes **silent with no error anywhere**: the parent loses the
+  sound they chose and nothing in the app can tell them why.
+
+What Android's own page offers instead is every sound on the phone, a vibration toggle, an importance level and a
+per-channel kill switch, maintained by the platform rather than re-implemented here.
+
+**What this gives up, knowingly.**
+
+- **The choice is not in the app.** A parent who never opens Settings → Notifications will not discover it, and the
+  sound is per device — each phone is set separately, exactly as reminder rules already are.
+- **One sound for everything.** Per-activity tones would need a channel per activity, which the one-channel decision
+  (see `ReminderNotifications`' header) rejects: what a parent actually wants to silence is one activity, and that is
+  the in-app rule. A per-child sound is not possible at all, because the channel is app-wide and rules are per child.
+- **The app cannot name the tone.** It compares the channel's URI with `Settings.System.DEFAULT_NOTIFICATION_URI`,
+  so a chosen tone reads `Custom` rather than its name.
+- **A reinstall, or Android disregarding a stored channel sound, can return the sound to the system default.** The row
+  then says `Android's default`, which is the truth rather than a remembered preference.
+
+**Consequences.**
+
+- `domain/NotificationSound.kt` is the whole of the app's knowledge here: a pure mapping from three inputs, testable
+  with no device because the `NotificationManager` half lives behind `ReminderNotifier.notificationSound`.
+- The Settings row reads on `ON_RESUME`, so a sound changed on Android's page is re-described on return. A stored
+  answer outliving the thing it describes is Phase 31's defect; this is that lesson applied before it recurs.
+- The rejected shapes are named in `AGENTS.md` under the reminder rules and in the code comment, so the next change
+  that reaches for a picker meets the reason it was not built.

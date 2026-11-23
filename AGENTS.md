@@ -482,6 +482,16 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **A reminder is set from its activity's card, per child — never from Settings, never for "Both".** The `⋮` menu
   exists only on the four reminder-capable cards. A shared rule hid which twin was overdue, and a Settings section put
   the setting a screen away from the thing it is about.
+- **The reminder SOUND is Android's, and the app has exactly ONE channel** (Phase 32, ADR-0007). A
+  `NotificationChannel`'s sound, importance and vibration are fixed when the channel is created: `setSound` on an
+  existing channel is ignored and re-creating the same id cannot move it. So Settings → `Notifications` has one row,
+  `Reminder sound`, which names the channel's current state (`Silent` / `Android's default` / `Custom` /
+  `Managed by Android` via `domain/NotificationSound.kt`) and opens `ACTION_CHANNEL_NOTIFICATION_SETTINGS` for
+  `EXTRA_CHANNEL_ID = "reminders"` — with the app-page and app-info fallbacks, because a dead row is worse than no row.
+  Do not "helpfully" grow this into an in-app picker, a channel per sound, a channel per activity or a per-child sound:
+  each needs an id chosen up front and never renamable, and a picked `content://` sound is played by the system rather
+  than by this app, so it falls back to silence when its grant lapses. The row is a READ and re-reads on `ON_RESUME`,
+  because a sound the parent just changed must not be described by an answer from launch.
 - **A reminder chip shows the TIME it will ring** (`Every 3h (4:45 PM)`), and with both children on screen there is
   ONE CHIP PER CHILD, each carrying that child's badge — a single sentence naming two times made the parent work out
   which twin was which. Tapping a chip edits THAT CHILD's rule — the action carries the chip's child id, because a
@@ -600,7 +610,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-734 unit tests through Phase 31 (`1.8.2`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+739 unit tests through Phase 32 (`1.8.3`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /
@@ -649,6 +659,7 @@ only, and `1.0.0` is the first release.
 | | | 29 time input default | `1.8.0` |
 | | | 30 haptics and due times | `1.8.1` |
 | | | 31 the About row after an update | `1.8.2` |
+| | | 32 the reminder sound row | `1.8.3` |
 
 - **`0.19.0` / versionCode 25 is not a phase and takes a rung anyway.** Work that ships application code takes
   a number even when it closes defects rather than opening a phase (2026-10-29: dataset withdrawal, the

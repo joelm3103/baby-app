@@ -17,6 +17,68 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 > version headers. Until `1.0.0`, a `0.MINOR` bump is a new capability and a `0.PATCH` bump is fixes and
 > polish only, with `versionCode` sequential per rung. Nothing is tagged: tags are kept for releases.
 
+## [2026-11-23]
+
+**In short:**
+
+- **Settings has a `Notifications` group, and its one row says what the reminder sound is set to and opens Android's
+  own page to change it.** The app cannot offer a picker: a channel's sound is fixed when the channel is created.
+
+### Versions
+
+- `1.8.3` / versionCode 41 — Phase 32, the reminder sound row; PATCH because it puts a row in front of an OS page the
+  app never mentioned and changes no stored byte, no schema and no notification. The app still posts on the same single
+  `reminders` channel, and code 41 installs in place over `1.8.2`.
+
+### Added
+
+- **`SettingsSection.NOTIFICATIONS`**, the twelfth group, after `Activities` and before `Data`, with a one-line summary
+  of the sound's current state on the menu row itself.
+- **`domain/NotificationSound.kt`** — `NotificationSoundState` (`Silent`, `Android's default`, `Custom`,
+  `Managed by Android`) and one pure `notificationSoundState(channelExists, soundUri, defaultUri)`. Strings, not
+  `Uri`, so the mapping is JVM-tested without a device.
+- **`ReminderNotifier.notificationSound(defaultUri)`**, implemented in `ReminderNotifications` behind the API 26 guard
+  and `runCatching`, with a pass-through on `Reminders` beside `ensureChannel()` / `notificationsEnabled()`. It reads
+  the channel and never writes it.
+- **A `Reminder sound` row** in the new group, under one sentence saying who owns the setting, which opens
+  `ACTION_CHANNEL_NOTIFICATION_SETTINGS` for `EXTRA_CHANNEL_ID = "reminders"` — falling back to
+  `ACTION_APP_NOTIFICATION_SETTINGS` and then to the app's info page when an OEM build publishes no activity for the
+  first, each step resolved with `resolveActivity`, the whole chain in `runCatching`, every intent with
+  `FLAG_ACTIVITY_NEW_TASK`.
+- **`lifecycle-runtime-compose` is now a named dependency** (`androidx-lifecycle-runtime-compose`, at the lifecycle
+  version already in the catalogue) rather than borrowed transitively, because the row re-reads the state on
+  `ON_RESUME` — the moment a parent can come back from Android's page with a new sound.
+
+### Changed
+
+- **`SettingsNavTest.everySettingGroupHasItsOwnMenuEntry`** pins twelve names instead of eleven, and its comment says
+  twelve. The test is the menu's record; a group that lost its row would otherwise be invisible rather than failing.
+
+### Fixed
+
+- **Nothing in this release is a fix.** The row is new surface, and the only defect it avoids is one it was designed
+  against: a stored answer outliving the thing it describes — the sound is re-read on resume rather than remembered
+  from launch, which is Phase 31's bug class, applied before it could happen again.
+
+### Docs
+
+- **`docs/DECISIONS.md` gains ADR-0007** — the reminder sound is Android's, and the app has one channel. It records the
+  rejected alternative (a bundled picker over N channels) and the two measured reasons: a channel's settings are
+  immutable after creation, so a chosen sound means a new channel id chosen up front and never renamable; and a picked
+  file's `content://` URI is played by the system, not by this app, so it falls back to silence when its grant lapses.
+- **`AGENTS.md`** states the same rule under the reminder rules, so a future change does not "helpfully" grow a second
+  channel or a per-activity sound. `PLAN.md` carries Phase 32, its row and the current `Verified` line.
+
+### Not verified, and stated as such
+
+- **The device pass has not happened.** No phone was attached on 2026-11-23. What it must show: `Settings` listing
+  `Notifications` twelfth, the group's row reading the channel's real state, the tap landing on the `Activity reminders`
+  channel page rather than the app's info page, the row naming a newly picked sound after system BACK (the
+  `ON_RESUME` re-read), a channel set to Silent still delivering a reminder, and zero `FATAL EXCEPTION`. `PLAN.md`
+  row 32 says `CODE COMPLETE, DEVICE PASS PENDING` for that reason.
+- **The OEM fallback is unit-untestable here.** Which of the three intents resolves is the system's answer on the real
+  handset; no JVM test can prove a Samsung build publishes the channel activity.
+
 ## [2026-11-10]
 
 **In short:**
