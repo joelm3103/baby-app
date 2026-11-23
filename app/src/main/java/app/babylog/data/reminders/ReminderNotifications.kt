@@ -77,6 +77,9 @@ class ReminderNotifications(private val context: Context) : ReminderNotifier {
         }.getOrNull()
         return notificationSoundState(
             channelExists = channel != null,
+            // Read as well as the sound: choosing `Silent` on Android's page leaves the sound pointing at a tone and
+            // drops the importance instead, so a mapping that looked only at the URI called a silent channel "Custom".
+            importance = channel?.importance ?: 0,
             soundUri = channel?.sound?.toString(),
             defaultUri = defaultUri,
         )
