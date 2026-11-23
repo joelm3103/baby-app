@@ -53,6 +53,7 @@ Device: Samsung Galaxy S23 Ultra, Android 16, dark mode. Screenshots include the
 | 41 | The time dialog remembers its input (Phase 29) | `feat/phase29-time-input-preference` | [01-dialog-default](2026-11-10-phase29/01-dialog-default.png) [02-switched-to-keypad](2026-11-10-phase29/02-switched-to-keypad.png) [03-reopened-on-keypad](2026-11-10-phase29/03-reopened-on-keypad.png) [04-settings-units-keypad](2026-11-10-phase29/04-settings-units-keypad.png) [05-settings-units-clock](2026-11-10-phase29/05-settings-units-clock.png) [06-dialog-dial-from-settings](2026-11-10-phase29/06-dialog-dial-from-settings.png) [07-switched-back-to-wheels](2026-11-10-phase29/07-switched-back-to-wheels.png) [08-settings-units-wheels](2026-11-10-phase29/08-settings-units-wheels.png) |
 
 | 43 | The About row after an update (Phase 31) | `fix/about-row-after-update` | [01-old-build-says-available](2026-11-10-phase31/01-old-build-says-available.png) [02-fixed-build-up-to-date](2026-11-10-phase31/02-fixed-build-up-to-date.png) [03-check-now-still-works](2026-11-10-phase31/03-check-now-still-works.png) |
+| 44 | The reminder sound row (Phase 32) | `feat/phase32-reminder-sound` | [01-home](2026-11-23-phase32-reminder-sound/01-home.png) [02-settings-menu](2026-11-23-phase32-reminder-sound/02-settings-menu.png) [03-notifications-group](2026-11-23-phase32-reminder-sound/03-notifications-group.png) [04-android-channel-page](2026-11-23-phase32-reminder-sound/04-android-channel-page.png) [05-sound-picker](2026-11-23-phase32-reminder-sound/05-sound-picker.png) [06-sound-pick-state](2026-11-23-phase32-reminder-sound/06-sound-pick-state.png) [07-heavy-bell-selected](2026-11-23-phase32-reminder-sound/07-heavy-bell-selected.png) [08-back-in-app](2026-11-23-phase32-reminder-sound/08-back-in-app.png) [09-menu-summary-custom](2026-11-23-phase32-reminder-sound/09-menu-summary-custom.png) [10-channel-heavy-bell](2026-11-23-phase32-reminder-sound/10-channel-heavy-bell.png) [11-channel-silent](2026-11-23-phase32-reminder-sound/11-channel-silent.png) [12-row-silent](2026-11-23-phase32-reminder-sound/12-row-silent.png) [13-sheet-fixed-time](2026-11-23-phase32-reminder-sound/13-sheet-fixed-time.png) [14-shade-silent-reminders](2026-11-23-phase32-reminder-sound/14-shade-silent-reminders.png) [15-row-default-restored](2026-11-23-phase32-reminder-sound/15-row-default-restored.png) [16-fix-row-silent](2026-11-23-phase32-reminder-sound/16-fix-row-silent.png) [17-fix-row-default](2026-11-23-phase32-reminder-sound/17-fix-row-default.png) [18-fix-menu-summary](2026-11-23-phase32-reminder-sound/18-fix-menu-summary.png) |
 Stage 40 was added the day its pass ran, 2026-11-07, on the branch that built `1.7.2`.
 
 Stages 18-39 were added on 2026-11-06 by one migration: the screenshots existed, in six folders outside this
@@ -776,6 +777,32 @@ reproduced on the first one instead.
 ![02-fixed-build-up-to-date.png](2026-11-10-phase31/02-fixed-build-up-to-date.png)
 ![03-check-now-still-works.png](2026-11-10-phase31/03-check-now-still-works.png)
 
+### 44 - The reminder sound row (Phase 32, `1.8.3` / code 41)
+
+**Changed:** Settings gains a twelfth group, `Notifications`, whose one row names the state of the `reminders`
+notification channel and opens Android's own page for that channel. The app cannot offer a picker — a channel's
+sound is fixed when the channel is created — so the row is a read, and the screen is the one place the app tells a
+parent where a setting it does not own actually lives.
+
+**Why the frames are in this order:** `01`-`03` are the install and the group, `Notifications` sitting twelfth
+between `Activities` and `Data` with the summary already correct. `04` is the real finding: the tap opened
+`Activity reminders` on Android's own page, not the app's info page, which is the thing a fallback chain cannot
+promise in advance. `05`-`08` are the sound being changed and the row following it to `Custom` — and `05` is worth
+keeping for its own reason: Android's picker lists eleven tones on this phone, which is the argument ADR-0007 makes
+in prose. `09` shows the menu summary following too. `10`-`12` are the defect: the channel set to `Silent`, and the
+row still reading `Custom`, because Android keeps the tone in the channel's sound field and lowers its importance
+instead. `13`-`14` are a reminder delivered while the channel was silent. `15` is the channel restored to the
+system default with the row back to `Android's default`, which is the last frame of the first build. `16`-`18` are
+after the fix: the row reading `Silent` instead of `Custom`, back to `Android's default`, and the menu summary
+agreeing.
+
+**What this pass could not do from a build:** nothing in it is visible to a JVM test. The importance case came out
+of `dumpsys notification`, which is where `mImportance=2` could be read beside a `Heavy Bell` URI — the pair that
+turned a plausible mapping into a wrong one.
+
+**Not reached:** the second handset; and an OEM whose settings app publishes no channel activity, since the first
+step of the fallback resolved here.
+
 ## Adding an entry
 
 1. Capture with `scripts/capture-timeline.ps1 -Label <stage-name>` - it installs the current APK,
@@ -797,3 +824,9 @@ dialog opening on the wheels, the switch carrying it to the keypad, the reopened
 Settings row reading `Keypad`, the row set to `Clock` and the dialog opening on the dial, then the switch returning
 the phone to `Wheels` with the Settings row following it. Nothing was captured for a rejected option this time —
 the design asked for was built and kept.
+
+Stage 44 was added the day its pass ran, 2026-11-23, on the branch that built `1.8.3`: the group and its row, the
+channel page it opens, a picked tone read back as `Custom`, the `Silent` that exposed the defect, a reminder
+delivered while silent, and then the same three states after the fix. The frames of the wrong build are kept
+deliberately — `12-row-silent` is the defect, and a record that dropped it would make the fix look like a polish
+change rather than a correction.
