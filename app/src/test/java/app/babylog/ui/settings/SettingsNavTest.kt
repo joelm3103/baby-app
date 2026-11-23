@@ -40,7 +40,7 @@ class SettingsNavTest {
 
     @Test
     fun everySettingGroupHasItsOwnMenuEntry() {
-        // Eleven groups is the whole of Settings, in the order the menu lists them. A group that lost its
+        // Twelve groups is the whole of Settings, in the order the menu lists them. A group that lost its
         // entry would be unreachable — it would not appear in a build failure, only as a missing row.
         assertEquals(
             listOf(
@@ -51,6 +51,7 @@ class SettingsNavTest {
                 "Medication presets",
                 "Children",
                 "Activities",
+                "Notifications",
                 "Data",
                 "Sync",
                 "Growth reference",
