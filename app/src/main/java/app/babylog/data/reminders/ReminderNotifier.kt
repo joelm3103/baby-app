@@ -1,6 +1,7 @@
 package app.babylog.data.reminders
 
 import app.babylog.domain.EventType
+import app.babylog.domain.NotificationSoundState
 import app.babylog.domain.ReminderConfig
 import app.babylog.domain.TimeFormat
 import androidx.compose.ui.graphics.Color
@@ -54,4 +55,16 @@ interface ReminderNotifier {
      * actually on screen.
      */
     fun postedAt(type: EventType, childId: String): Long?
+
+    /**
+     * What the `reminders` channel's sound is set to, in Settings' words.
+     *
+     * The app does not own this answer and never writes it: a channel's sound is fixed when the channel is
+     * created and after that only the parent can change it, on Android's own channel page. So this is a READ,
+     * and its only job is to let the Settings row say which of the four states a parent is in.
+     *
+     * [defaultUri] is passed in rather than looked up here because `Settings.System` is a `Context` API and this
+     * interface exists so the engine can be tested without one.
+     */
+    fun notificationSound(defaultUri: String): NotificationSoundState
 }

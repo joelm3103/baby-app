@@ -27,6 +27,15 @@ class Reminders(
     fun notificationsEnabled(): Boolean = notifications.enabled()
 
     /**
+     * The `reminders` channel's sound, in Settings' words.
+     *
+     * Read-only and app-wide: one channel means one sound for all four activities, and the choice is made on
+     * Android's page rather than here. A per-child sound is not possible without a channel per child, which the
+     * one-channel decision rules out; ADR-0007 records the whole choice.
+     */
+    fun notificationSound(defaultUri: String) = notifications.notificationSound(defaultUri)
+
+    /**
      * Recompute every reminder and re-arm the alarms.
      *
      * The single entry point on purpose: called on app start, after every event write, after every reminder

@@ -75,6 +75,8 @@ import app.babylog.ui.reminders.ReminderSheet
 import app.babylog.domain.displayName
 import app.babylog.domain.BabyEvent
 import app.babylog.domain.EventType
+import app.babylog.domain.NotificationSoundState
+import app.babylog.data.reminders.ReminderNotifications
 import app.babylog.domain.badgesFor
 import app.babylog.ui.common.rememberNow
 import app.babylog.ui.growth.GrowthViewModel
@@ -112,7 +114,9 @@ import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
@@ -318,6 +322,22 @@ fun AppScaffold(container: AppContainer) {
         }
         home.refreshNotificationState()
     }
+    // The reminder sound. Android owns it and this app can only read it — a channel's sound is fixed when the
+    // channel is created, so an in-app picker would write to a value the platform ignores (ADR-0007). What the app
+    // can do is say which of the four states the channel is in and take the parent to the one page that changes it.
+    //
+    // The read needs a Context, hence a lambda here rather than a ViewModel call — the same shape as
+    // `checkNotificationsEnabled` below, for the same reason. It is read at startup as well as by Settings, so a menu
+    // summary is never drawn on the UNKNOWN placeholder, and re-read on ON_RESUME so coming back from Android's page
+    // shows what the parent chose rather than what the sound was at launch.
+    var notificationSound by remember { mutableStateOf(NotificationSoundState.UNKNOWN) }
+    val refreshNotificationSound: () -> Unit = {
+        notificationSound = container.reminders.notificationSound(
+            Settings.System.DEFAULT_NOTIFICATION_URI.toString(),
+        )
+    }
+    val onOpenNotificationSettings: () -> Unit = { openReminderChannelSettings(context) }
+
     LaunchedEffect(Unit) {
         home.checkNotificationsEnabled = {
             NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -326,6 +346,7 @@ fun AppScaffold(container: AppContainer) {
         // touches it rather than a Context.
         home.onRemindersChanged = { container.refreshReminders() }
         home.refreshNotificationState()
+        refreshNotificationSound()
     }
 
     // Google Sign-In, as the SECOND route into the same two accounts. It needs an OAuth web client id
@@ -579,6 +600,9 @@ fun AppScaffold(container: AppContainer) {
                     section = settingsSection,
                     onOpenSection = { entry -> settingsSection = settingsNav.open(entry).section },
                     onBackToMenu = { settingsSection = null },
+                    notificationSound = notificationSound,
+                    onRefreshNotificationSound = refreshNotificationSound,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
                     children = settingsChildren,
                     units = settingsUnits,
                     nightWindow = settingsNight,
@@ -968,3 +992,38 @@ private fun RowScope.NavItem(
 
 /** A reminder sheet request: which activity, and which child's rule to open. */
 private data class ReminderTarget(val type: EventType, val childId: String?)
+
+/**
+ * Open Android's own page for the app's `reminders` channel.
+ *
+ * **This exists because the app cannot choose a sound.** A `NotificationChannel`'s sound, importance and vibration
+ * are fixed when the channel is created; re-creating it under the same id does not move them, and `setSound` on an
+ * existing channel is ignored. So the only honest in-app control is a route to the one screen the platform does let
+ * the parent change it, which is also the screen that offers every sound on the phone rather than the three a bundle
+ * could hold. ADR-0007 records the alternative that was rejected.
+ *
+ * **The chain, and why each step is here.** `ACTION_CHANNEL_NOTIFICATION_SETTINGS` is the channel page and the only
+ * one that lands on the right toggle. Some OEM builds do not publish an activity for it, and a `startActivity` that
+ * throws `ActivityNotFoundException` is a dead row, so the app page is tried next and the app's info page last —
+ * every one of them a page where a sound can still be reached, and none of them a crash. The whole chain is inside
+ * `runCatching` for the same reason the reminder sheet's permission fallback is: a row that cannot open a system
+ * screen must never take Settings down with it.
+ *
+ * `FLAG_ACTIVITY_NEW_TASK` because the caller's Context need not be an Activity — the same flag the existing
+ * `ACTION_APP_NOTIFICATION_SETTINGS` fallback uses.
+ */
+private fun openReminderChannelSettings(context: Context) {
+    runCatching {
+        val intents = listOf(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, ReminderNotifications.CHANNEL_ID),
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.parse("package:${context.packageName}")),
+        ).map { it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        intents.firstOrNull { context.packageManager.resolveActivity(it, 0) != null }
+            ?.let(context::startActivity)
+    }
+}

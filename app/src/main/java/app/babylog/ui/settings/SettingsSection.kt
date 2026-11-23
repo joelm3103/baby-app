@@ -19,6 +19,14 @@ enum class SettingsSection(val title: String) {
     MEDICATION_PRESETS("Medication presets"),
     CHILDREN("Children"),
     ACTIVITIES("Activities"),
+    /**
+     * The app's notifications, such as they are: one channel, one sound, and no rules.
+     *
+     * A group rather than a row inside Activities, because reminders and notifications are different questions:
+     * a rule is per child and set from that child's card, while the sound belongs to the one channel both
+     * children post on. Putting the sound under Activities would invite it to be read as a per-activity setting.
+     */
+    NOTIFICATIONS("Notifications"),
     DATA("Data"),
     SYNC("Sync"),
     GROWTH_REFERENCE("Growth reference"),

@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.babylog.data.sync.SyncState
 import app.babylog.BuildConfig
 import app.babylog.domain.ABOUT_CREDITS
@@ -55,6 +59,7 @@ import app.babylog.domain.aboutVersionLine
 import app.babylog.domain.LengthUnit
 import app.babylog.domain.EVENT_DISPLAY_ORDER
 import app.babylog.domain.EventType
+import app.babylog.domain.NotificationSoundState
 import app.babylog.domain.REMINDER_TYPES
 import app.babylog.domain.displayName
 import app.babylog.domain.NightWindow
@@ -141,6 +146,18 @@ fun SettingsScreen(
     /** Activities with at least one enabled reminder, so hiding one can warn before it cancels. */
     activitiesWithReminders: Set<EventType> = emptySet(),
     onSetActivityHidden: (EventType, Boolean) -> Unit = { _, _ -> },
+    /**
+     * What the `reminders` channel's sound is set to, and the two ways to keep that answer honest.
+     *
+     * The value is READ, never written: Android owns a channel's sound, so [onOpenNotificationSettings] opens the
+     * system page where the parent can change it, and [onRefreshNotificationSound] re-reads it when they come back
+     * — which is the difference between a row that says what the sound IS and a row that says what it was when
+     * the app launched. Both live outside this composable because reading the notification manager needs a
+     * `Context`, and because starting an activity is the shell's job.
+     */
+    notificationSound: NotificationSoundState = NotificationSoundState.UNKNOWN,
+    onRefreshNotificationSound: () -> Unit = {},
+    onOpenNotificationSettings: () -> Unit = {},
     onTheme: (ThemeMode) -> Unit,
     onUnitSystem: (UnitSystem) -> Unit,
     onLengthUnit: (LengthUnit) -> Unit,
@@ -227,6 +244,24 @@ fun SettingsScreen(
     // Smart-cast once, so the `when` below is over a non-null section.
     val open = section
 
+    // The notification sound is the one value on this screen the app cannot set, so it is the one value that can
+    // change while Settings is open: the parent taps the row, changes it on Android's page, and comes back. Without
+    // this the row would keep saying what the sound was when the app launched — the same class of defect Phase 31
+    // fixed on About, where a stored answer outlived the thing it was about.
+    //
+    // The first read is in the effect body rather than a separate LaunchedEffect so the row is never drawn on an
+    // UNKNOWN guess, and ON_RESUME is the whole signal: Android's channel page is another activity, so resuming this
+    // one is exactly the moment the answer may have moved.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        onRefreshNotificationSound()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) onRefreshNotificationSound()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(bottom = bottomInset),
@@ -262,6 +297,7 @@ fun SettingsScreen(
                                     syncState = syncState,
                                     pendingWrites = pendingWrites,
                                     growthReference = growthReference,
+                                    notificationSound = notificationSound,
                                 ),
                             )
                         }
@@ -496,6 +532,22 @@ fun SettingsScreen(
                             }
                         }
 
+                        SettingsSection.NOTIFICATIONS -> {
+                            // One sentence, because the row looks like something the app should be able to change
+                            // and is not. It names who owns the setting before the parent taps and wonders why the
+                            // choice is not in here.
+                            Text(
+                                text = "Android owns the sound a reminder makes. There is one channel for every " +
+                                    "reminder — both children, all four activities — so this choice applies to all of " +
+                                    "them and is changed on Android's own page.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                            )
+                            InputRow(label = "Reminder sound", onClick = onOpenNotificationSettings) {
+                                InputValue(notificationSound.label)
+                            }
+                        }
+
                         SettingsSection.DATA -> {
                             InputRow(label = "Export backup", onClick = onExport) { InputValue("JSON") }
                             InputRow(label = "Import backup", onClick = { confirmImport = true }) { InputValue("Replaces everything") }
@@ -724,6 +776,7 @@ private fun sectionSummary(
     syncState: SyncState,
     pendingWrites: Int,
     growthReference: String?,
+    notificationSound: NotificationSoundState,
 ): String = when (section) {
     SettingsSection.APPEARANCE -> themeLabel(theme)
     SettingsSection.UNITS -> units.system.name.lowercase().replaceFirstChar { it.uppercase() }
@@ -733,6 +786,9 @@ private fun sectionSummary(
     SettingsSection.CHILDREN -> counted(childCount, singular = "child", plural = "children")
     SettingsSection.ACTIVITIES ->
         if (hiddenActivityCount == 0) "All shown" else "$hiddenActivityCount hidden"
+    // The sound's own words, not a tally: this group's value is a fact the app cannot set, and naming it is the
+    // answer to "what do my reminders sound like" without opening the group.
+    SettingsSection.NOTIFICATIONS -> notificationSound.label
     SettingsSection.DATA -> "Backup & reset"
     SettingsSection.SYNC -> when (syncState) {
         SyncState.NotConfigured -> "Not set up"

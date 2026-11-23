@@ -25,7 +25,7 @@ plugins {
  * screen. The owner asked for `%appname%-%appversion%` on 2026-11-05, so the artifact and the build agree by
  * construction rather than by care.
  */
-val appVersionName = "1.8.2"
+val appVersionName = "1.8.3"
 
 val firebaseProperties = Properties().apply {
     val file = rootProject.file("firebase.properties")
@@ -147,7 +147,11 @@ android {
         // up to a day, that the version they had just installed was available — the stored answer is a
         // conclusion drawn by an older build and nothing compared it with the running one. A defect with one
         // fix and no new capability or stored byte, so PATCH; code 40 installs in place over 1.8.1.
-        versionCode = 40
+        // 1.8.3 is Phase 32, the reminder sound row: Settings grows a twelfth group whose one row opens
+        // Android's own page for the `reminders` channel, because a channel's sound is immutable once
+        // created and the app therefore cannot pick one. Another entry point to something that already
+        // exists — one channel, one unchanged notification — so PATCH; code 41 installs in place over 1.8.2.
+        versionCode = 41
         versionName = appVersionName
 
         // Empty strings when no local firebase.properties is present, which is exactly how the app
@@ -239,6 +243,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

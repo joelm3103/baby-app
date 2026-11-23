@@ -11,7 +11,9 @@ import androidx.core.app.NotificationManagerCompat
 import app.babylog.MainActivity
 import app.babylog.R
 import app.babylog.domain.EventType
+import app.babylog.domain.NotificationSoundState
 import app.babylog.domain.ReminderConfig
+import app.babylog.domain.notificationSoundState
 import app.babylog.domain.TimeFormat
 import app.babylog.domain.displayName
 import androidx.compose.ui.graphics.Color
@@ -33,6 +35,11 @@ import java.time.ZoneId
  * **The small icon is a bell, not the activity's glyph.** The glyphs are 1.7dp stroke line-art, which is a
  * faint smudge in a 24dp status bar; the activity is carried by the notification's colour (`accentFor`) and by
  * the title instead.
+ *
+ * **The sound is Android's, not this app's.** The channel is created once with `IMPORTANCE_DEFAULT` and the app
+ * never touches its sound again, because it cannot: a channel's settings are immutable after creation. Settings →
+ * Notifications therefore shows the current sound and opens the system's page for this one channel, rather than
+ * offering a picker the platform would ignore. ADR-0007 records what the alternative cost.
  */
 class ReminderNotifications(private val context: Context) : ReminderNotifier {
 
@@ -50,6 +57,30 @@ class ReminderNotifications(private val context: Context) : ReminderNotifier {
 
     /** True when the parent has allowed notifications; false is a state Settings explains rather than hides. */
     override fun enabled(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    /**
+     * Read the channel's sound, so the Settings row can name it.
+     *
+     * **A read, never a write.** A channel's sound is fixed at creation: `setSound` on an existing channel is
+     * silently ignored on API 26+, and re-creating a channel under the same id cannot move it either. That is
+     * why the app has no sound picker of its own and Settings → Notifications opens Android's page instead — see
+     * ADR-0007. Nothing here may ever try to set it.
+     *
+     * `runCatching` for the same reason [cancel] has it: a revoked permission makes the manager throw, and a row
+     * that cannot read a sound must not take the Settings screen down with it. Below API 26 there is no channel
+     * at all, so the answer is [NotificationSoundState.UNKNOWN] — which reads `Managed by Android`.
+     */
+    override fun notificationSound(defaultUri: String): NotificationSoundState {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return NotificationSoundState.UNKNOWN
+        val channel = runCatching {
+            context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(CHANNEL_ID)
+        }.getOrNull()
+        return notificationSoundState(
+            channelExists = channel != null,
+            soundUri = channel?.sound?.toString(),
+            defaultUri = defaultUri,
+        )
+    }
 
     override fun post(
         type: EventType,
