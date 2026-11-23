@@ -23,6 +23,9 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 - **Settings has a `Notifications` group, and its one row says what the reminder sound is set to and opens Android's
   own page to change it.** The app cannot offer a picker: a channel's sound is fixed when the channel is created.
+- **The phone found the row lying.** Choosing Android's `Silent` leaves the channel's sound pointing at the picked tone
+  and drops its importance instead, so the row read `Custom` for a channel that makes no sound. It now reads the
+  importance too, and `Blocked` is its own state rather than a tone nobody will hear.
 
 ### Versions
 
@@ -34,9 +37,11 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 - **`SettingsSection.NOTIFICATIONS`**, the twelfth group, after `Activities` and before `Data`, with a one-line summary
   of the sound's current state on the menu row itself.
-- **`domain/NotificationSound.kt`** — `NotificationSoundState` (`Silent`, `Android's default`, `Custom`,
-  `Managed by Android`) and one pure `notificationSoundState(channelExists, soundUri, defaultUri)`. Strings, not
-  `Uri`, so the mapping is JVM-tested without a device.
+- **`domain/NotificationSound.kt`** — `NotificationSoundState` (`Silent`, `Android's default`, `Custom`, `Blocked`,
+  `Managed by Android`) and one pure `notificationSoundState(channelExists, importance, soundUri, defaultUri)`.
+  Strings and an int, not `Uri` and a channel, so the mapping is JVM-tested without a device.
+- **`Blocked`**, added after the device pass: notifications off for the channel means no reminder arrives at all, and
+  calling that `Silent` would promise a quiet arrival that never happens.
 - **`ReminderNotifier.notificationSound(defaultUri)`**, implemented in `ReminderNotifications` behind the API 26 guard
   and `runCatching`, with a pass-through on `Reminders` beside `ensureChannel()` / `notificationsEnabled()`. It reads
   the channel and never writes it.
@@ -56,9 +61,14 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 
 ### Fixed
 
-- **Nothing in this release is a fix.** The row is new surface, and the only defect it avoids is one it was designed
-  against: a stored answer outliving the thing it describes — the sound is re-read on resume rather than remembered
-  from launch, which is Phase 31's bug class, applied before it could happen again.
+- **The row called a silent channel `Custom`.** Found on the phone, not in a build: Android's `Silent` for a channel
+  keeps the tone in `NotificationChannel.sound` and lowers `importance` instead, so a mapping that read only the URI
+  described a channel that makes no sound as one with a chosen tone. `notificationSoundState` now takes the importance
+  and applies Android's own precedence — `IMPORTANCE_NONE` is `Blocked`, at or below `IMPORTANCE_LOW` is `Silent`
+  whatever the sound field says, and only then is the URI compared. `dumpsys notification` recorded both halves
+  (`mImportance=2` beside the `Heavy Bell` URI) before the fix, and `Silent` on the row after it.
+- **Also closed before it could bite:** the state is read once at startup as well as on resume, so the menu summary is
+  never drawn on the placeholder — the same defect class as Phase 31's stored answer, caught in design this time.
 
 ### Docs
 
@@ -69,15 +79,31 @@ per day the work landed, instead of everything accumulating in one unreleased bl
 - **`AGENTS.md`** states the same rule under the reminder rules, so a future change does not "helpfully" grow a second
   channel or a per-activity sound. `PLAN.md` carries Phase 32, its row and the current `Verified` line.
 
+### Verified on the phone, 2026-11-23
+
+Installed in place over `1.8.2` / code 40 on the S23 (`versionCode=41`, `firstInstallTime` unchanged), then driven
+twice — once on the first build and once after the fix above.
+
+- `Settings` listed `Notifications` twelfth, between `Activities` and `Data`, its summary correct on the first draw.
+- The group's row read the channel's real state, and tapping it opened **`Activity reminders`** on Android's own page —
+  `Sound`, `Vibrate`, `Alert`/`Silent` — not the app's info page.
+- Picking `Heavy Bell` and pressing system BACK left the row and the menu summary reading `Custom`.
+- Choosing Android's `Silent` exposed the defect: the row still said `Custom`. After the fix, `Silent`. With the
+  channel's notifications switched off, `Blocked` — and the row still opened the channel page from that state.
+- Two real alarms fired while the channel was silent and the shade showed `Kai · Bottle feed — Due 12:41 PM · 9h 17m
+  since the last feed`: delivery does not depend on the sound.
+- `logcat -b crash -d` was empty on both builds. The channel was then restored to `Alert` + the system default sound,
+  and the temporary fixed-time bottle rule put back to `Remind in 3h`, so the pass left no family data touched.
+
 ### Not verified, and stated as such
 
-- **The device pass has not happened.** No phone was attached on 2026-11-23. What it must show: `Settings` listing
-  `Notifications` twelfth, the group's row reading the channel's real state, the tap landing on the `Activity reminders`
-  channel page rather than the app's info page, the row naming a newly picked sound after system BACK (the
-  `ON_RESUME` re-read), a channel set to Silent still delivering a reminder, and zero `FATAL EXCEPTION`. `PLAN.md`
-  row 32 says `CODE COMPLETE, DEVICE PASS PENDING` for that reason.
-- **The OEM fallback is unit-untestable here.** Which of the three intents resolves is the system's answer on the real
-  handset; no JVM test can prove a Samsung build publishes the channel activity.
+- **A tone from a provider whose permission is later revoked.** The app reports what the URI now is, not why it
+  stopped working — and a settled silence only shows as `Silent` if Android nulls the field, which this pass showed it
+  does not always do.
+- **The second handset.** The row is per-device by construction, and the pass ran on one phone.
+- **An OEM whose settings app publishes no channel activity.** The three-step fallback exists for that case; here the
+  first step resolved, so its later steps remain untested on hardware.
+
 
 ## [2026-11-10]
 

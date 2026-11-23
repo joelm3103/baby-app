@@ -485,13 +485,18 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 - **The reminder SOUND is Android's, and the app has exactly ONE channel** (Phase 32, ADR-0007). A
   `NotificationChannel`'s sound, importance and vibration are fixed when the channel is created: `setSound` on an
   existing channel is ignored and re-creating the same id cannot move it. So Settings → `Notifications` has one row,
-  `Reminder sound`, which names the channel's current state (`Silent` / `Android's default` / `Custom` /
+  `Reminder sound`, which names the channel's current state (`Silent` / `Android's default` / `Custom` / `Blocked` /
   `Managed by Android` via `domain/NotificationSound.kt`) and opens `ACTION_CHANNEL_NOTIFICATION_SETTINGS` for
   `EXTRA_CHANNEL_ID = "reminders"` — with the app-page and app-info fallbacks, because a dead row is worse than no row.
-  Do not "helpfully" grow this into an in-app picker, a channel per sound, a channel per activity or a per-child sound:
-  each needs an id chosen up front and never renamable, and a picked `content://` sound is played by the system rather
-  than by this app, so it falls back to silence when its grant lapses. The row is a READ and re-reads on `ON_RESUME`,
-  because a sound the parent just changed must not be described by an answer from launch.
+  **Read the channel's IMPORTANCE, not just its sound** (found on the phone in that phase's pass): choosing `Silent`
+  leaves `sound` pointing at the picked tone and lowers `importance` instead, so a URI-only read called a channel that
+  makes no sound `Custom`. The precedence in `notificationSoundState` is Android's own — `IMPORTANCE_NONE` → `Blocked`,
+  at or below `IMPORTANCE_LOW` → `Silent` whatever the sound says — and no build can check it, because the platform's
+  fields are only ever right on a device. Do not "helpfully" grow this into an in-app picker, a channel per sound, a
+  channel per activity or a per-child sound: each needs an id chosen up front and never renamable, and a picked
+  `content://` sound is played by the system rather than by this app, so it falls back to silence when its grant
+  lapses. The row is a READ, read once at startup and re-read on `ON_RESUME`, because a sound the parent just changed
+  must not be described by an answer from launch.
 - **A reminder chip shows the TIME it will ring** (`Every 3h (4:45 PM)`), and with both children on screen there is
   ONE CHIP PER CHILD, each carrying that child's badge — a single sentence naming two times made the parent work out
   which twin was which. Tapping a chip edits THAT CHILD's rule — the action carries the chip's child id, because a
@@ -610,7 +615,7 @@ are recorded in the comments there and in `PLAN.md`. Key decisions:
 
 ## Tests
 
-739 unit tests through Phase 32 (`1.8.3`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
+742 unit tests through Phase 32 (`1.8.3`), all on the JVM (Robolectric for Room/Android). Run them with the build command above.
 
 **Firestore cannot be unit-tested here** (no emulator, and Robolectric cannot reach it), so sync logic is
 written against `data/sync/SyncGateway` and `AccountAuthenticator` and driven by `FakeSyncGateway` /

@@ -342,7 +342,7 @@ accumulate silently rather than to a string somebody typed.
 **Decision.** BabyLog does not implement a notification-sound picker. The `reminders` notification channel keeps
 its single id, created once with `IMPORTANCE_DEFAULT`, and the app never writes its sound again. Settings →
 Notifications carries one read-only row that names the channel's current state — `Silent`, `Android's default`,
-`Custom` or `Managed by Android` — and opens Android's own page for that channel
+`Custom`, `Blocked` or `Managed by Android` — and opens Android's own page for that channel
 (`ACTION_CHANNEL_NOTIFICATION_SETTINGS` with `EXTRA_CHANNEL_ID`), falling back to the app's notification page and
 then to the app's info page when an OEM build publishes no activity for the first.
 
@@ -372,13 +372,21 @@ per-channel kill switch, maintained by the platform rather than re-implemented h
   the in-app rule. A per-child sound is not possible at all, because the channel is app-wide and rules are per child.
 - **The app cannot name the tone.** It compares the channel's URI with `Settings.System.DEFAULT_NOTIFICATION_URI`,
   so a chosen tone reads `Custom` rather than its name.
+- **Which state the channel is in has to be inferred from fields the platform reuses.** Phase 32's device pass found
+  that choosing `Silent` on a Samsung phone leaves `sound` pointing at the picked tone and drops `importance` to `LOW`,
+  so a read of the sound alone reported a chosen tone for a channel that plays nothing. The row therefore reads the
+  importance too and applies Android's precedence (`NONE` → `Blocked`, at or below `LOW` → `Silent`). This is a
+  consequence of delegating the choice, not a defect that delegation could have avoided: the app is reporting on a
+  setting it does not own, and the platform's representation of it is the only evidence available.
 - **A reinstall, or Android disregarding a stored channel sound, can return the sound to the system default.** The row
   then says `Android's default`, which is the truth rather than a remembered preference.
 
 **Consequences.**
 
-- `domain/NotificationSound.kt` is the whole of the app's knowledge here: a pure mapping from three inputs, testable
-  with no device because the `NotificationManager` half lives behind `ReminderNotifier.notificationSound`.
+- `domain/NotificationSound.kt` is the whole of the app's knowledge here: a pure mapping from four inputs
+  (channel exists, importance, sound URI, default URI), testable with no device because the `NotificationManager` half
+  lives behind `ReminderNotifier.notificationSound` — and tested on the device, because the pass is what caught the
+  importance case a JVM test could not invent.
 - The Settings row reads on `ON_RESUME`, so a sound changed on Android's page is re-described on return. A stored
   answer outliving the thing it describes is Phase 31's defect; this is that lesson applied before it recurs.
 - The rejected shapes are named in `AGENTS.md` under the reminder rules and in the code comment, so the next change
